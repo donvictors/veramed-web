@@ -1,17 +1,17 @@
 const trustCards = [
   {
     title: "Órdenes validadas por médicos registrados en SIS",
-    body: "La revisión clínica es un paso obligatorio antes de la emisión final de la orden para laboratorio.",
+    body: "Todas las órdenes son validadas previo a su emisión por médicos registrados en la Superintendencia de Salud. Verifícalos aquí.",
     tone: "emerald",
   },
   {
-    title: "Basado en guías clínicas nacionales e internacionales",
-    body: "El contenido se presenta con foco preventivo y se adapta a criterios clínicos ampliamente aceptados.",
+    title: "Exámenes basados en la última evidencia y experiencia.",
+    body: "Los exámenes solicitados están basados en las últimas guías internacionales de medicina preventiva, adaptadas a Chile por la experiencia de nuestro equipo médico de excelencia.",
     tone: "slate",
   },
   {
-    title: "Privacidad y trazabilidad",
-    body: "Cada solicitud mantiene contexto, estado y fecha de referencia para facilitar seguimiento y auditoría básica.",
+    title: "Privacidad",
+    body: "Cada solicitud mantiene tus datos seguros y anónimos. Tu información de salud no es almacenada en nuestros servidores posterior a la emisión de la orden.",
     tone: "slate",
   },
   {
@@ -54,7 +54,23 @@ export default function Trust() {
                 <TrustIcon tone={card.tone} />
               </div>
               <p className="mt-4 text-sm font-semibold text-slate-950">{card.title}</p>
-              <p className="mt-3 text-sm leading-6 text-slate-600">{card.body}</p>
+              {card.title === "Órdenes validadas por médicos registrados en SIS" ? (
+                <p className="mt-3 text-sm leading-6 text-slate-600">
+                  Todas las órdenes son validadas previo a su emisión por médicos registrados en la
+                  Superintendencia de Salud. Verifícalos{" "}
+                  <a
+                    href="https://rnpi.superdesalud.gob.cl/#"
+                    className="font-semibold text-slate-950 underline"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    aquí
+                  </a>
+                  .
+                </p>
+              ) : (
+                <p className="mt-3 text-sm leading-6 text-slate-600">{card.body}</p>
+              )}
             </article>
           ))}
         </div>
