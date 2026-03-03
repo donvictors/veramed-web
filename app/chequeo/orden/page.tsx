@@ -11,17 +11,20 @@ import {
   inferOrderDetails,
   type StoredCheckup,
   type StoredCheckupStatus,
+  type StoredPayment,
 } from "@/lib/checkup";
 
 export default function OrderPage() {
   const [data, setData] = useState<StoredCheckup | null>(null);
   const [approved, setApproved] = useState(false);
+  const [paid, setPaid] = useState(false);
   const [orderId, setOrderId] = useState("");
   const [issuedAt, setIssuedAt] = useState("");
 
   useEffect(() => {
     const raw = localStorage.getItem("veramed_checkup");
     const st = localStorage.getItem("veramed_checkup_status");
+    const paymentRaw = localStorage.getItem("veramed_payment");
     const formattedDate = new Intl.DateTimeFormat("es-CL", {
       dateStyle: "medium",
       timeStyle: "short",
@@ -35,6 +38,7 @@ export default function OrderPage() {
     if (st) {
       const storedStatus = JSON.parse(st) as StoredCheckupStatus;
       const nextApproved = storedStatus.status === "approved";
+      const payment = paymentRaw ? (JSON.parse(paymentRaw) as StoredPayment) : null;
       let nextOrderId = storedStatus.orderId;
 
       if (!nextOrderId) {
@@ -47,14 +51,17 @@ export default function OrderPage() {
         setData(nextData);
         setIssuedAt(formattedDate);
         setApproved(nextApproved);
+        setPaid(Boolean(payment?.paid));
         setOrderId(nextOrderId);
       });
       return;
     }
 
+    const payment = paymentRaw ? (JSON.parse(paymentRaw) as StoredPayment) : null;
     startTransition(() => {
       setData(nextData);
       setIssuedAt(formattedDate);
+      setPaid(Boolean(payment?.paid));
       setOrderId(createOrderId());
     });
   }, []);
@@ -74,6 +81,40 @@ export default function OrderPage() {
   }
 
   const orderDetails = inferOrderDetails(data.rec.tests);
+
+  if (!paid) {
+    return (
+      <main className="min-h-screen bg-slate-50 text-slate-900">
+        <div className="mx-auto max-w-3xl px-6 py-12">
+          <div className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-[0_22px_70px_-48px_rgba(15,23,42,0.45)]">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Acceso restringido
+            </p>
+            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
+              Debes completar el pago antes de descargar la orden.
+            </h1>
+            <p className="mt-3 text-sm leading-7 text-slate-600">
+              La emisión clínica de la orden se habilita una vez confirmado el pago del servicio.
+            </p>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <Link
+                href="/chequeo/pago"
+                className="rounded-2xl bg-slate-950 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-slate-800"
+              >
+                Ir a pagar
+              </Link>
+              <Link
+                href="/chequeo/resumen"
+                className="rounded-2xl border border-slate-300 bg-white px-5 py-3 text-center text-sm font-semibold text-slate-900 transition hover:border-slate-400 hover:bg-slate-50"
+              >
+                Volver al resumen
+              </Link>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900 print:bg-white">
@@ -109,7 +150,7 @@ export default function OrderPage() {
           <div className="mb-6 rounded-3xl border border-amber-200 bg-amber-50 p-4 print:hidden">
             <p className="text-sm font-semibold text-amber-900">Orden pendiente de aprobación</p>
             <p className="mt-1 text-sm text-amber-800">
-              En el MVP este estado sigue siendo simulado. Puedes revisar el avance en{" "}
+              La orden se encuentra en revisión clínica. Puedes revisar el avance en{" "}
               <Link className="font-semibold underline" href="/chequeo/estado">
                 estado
               </Link>
@@ -236,19 +277,18 @@ export default function OrderPage() {
           <div className="mt-8 grid gap-6 border-t border-slate-200 pt-6 md:grid-cols-2">
             <div className="rounded-3xl bg-slate-50 p-5">
               <p className="text-sm font-semibold text-slate-900">Médico validador</p>
-              <p className="mt-2 text-sm font-medium text-slate-700">Pendiente (MVP)</p>
+              <p className="mt-2 text-sm font-medium text-slate-700">Pendiente de asignación</p>
               <p className="mt-2 text-xs leading-5 text-slate-500">
-                En producción este bloque debe incluir nombre, RUT o identificador profesional,
-                registro aplicable y firma electrónica.
+                Este bloque identifica al profesional responsable, su registro aplicable y la firma
+                utilizada para validar la orden.
               </p>
             </div>
 
             <div className="rounded-3xl bg-slate-950 p-5 text-white">
               <p className="text-sm font-semibold">Advertencia de uso</p>
               <p className="mt-2 text-sm leading-6 text-slate-200">
-                Este documento forma parte de un MVP y representa una orden en preparación. Debe
-                ser interpretado dentro del contexto clínico del paciente y no sirve para resolver
-                cuadros agudos ni emergencias.
+                Esta orden debe interpretarse dentro del contexto clínico del paciente y no sirve
+                para resolver cuadros agudos ni emergencias.
               </p>
             </div>
           </div>

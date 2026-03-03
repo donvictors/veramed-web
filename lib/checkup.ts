@@ -38,6 +38,18 @@ export type StoredCheckupStatus = {
   orderId?: string;
 };
 
+export type StoredPayment = {
+  paid: boolean;
+  amount: number;
+  currency: "CLP";
+  paidAt: number;
+  paymentId: string;
+  cardLast4: string;
+  cardholder: string;
+};
+
+export const CHECKUP_PRICE_CLP = 1990;
+
 export function recommend(input: CheckupInput): CheckupRecommendation {
   if (input.sex === "F" && input.pregnancy === "yes") {
     return {
@@ -117,6 +129,12 @@ export function createOrderId(timestamp = Date.now()) {
   const dateCode = new Date(timestamp).toISOString().slice(2, 10).replaceAll("-", "");
   const suffix = String(timestamp).slice(-4);
   return `VM-${dateCode}-${suffix}`;
+}
+
+export function createPaymentId(timestamp = Date.now()) {
+  const dateCode = new Date(timestamp).toISOString().slice(0, 10).replaceAll("-", "");
+  const suffix = String(timestamp).slice(-5);
+  return `PAY-${dateCode}-${suffix}`;
 }
 
 export function inferOrderDetails(tests: TestItem[]) {

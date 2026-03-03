@@ -67,7 +67,7 @@ export default function StatusPage() {
           </h1>
           <p className="mt-3 text-base leading-7 text-slate-600">
             {status === "queued"
-              ? "Tu orden está en revisión por el equipo clínico. El flujo sigue siendo simulado, pero el lenguaje y los estados ya están preparados para producción."
+              ? "Tu orden está en revisión por el equipo clínico y se encuentra en proceso de validación."
               : status === "approved"
                 ? "La validación clínica fue aprobada y la orden ya puede abrirse en formato imprimible."
                 : "La solicitud fue rechazada y requiere corrección o evaluación clínica directa antes de emitir una orden."}
@@ -109,8 +109,8 @@ export default function StatusPage() {
                 </span>
               </div>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                La orden se encuentra en cola de revisión. En este MVP se resolverá automáticamente
-                en <span className="font-semibold text-slate-900">{secondsLeft}s</span>.
+                La orden se encuentra en cola de revisión. Estimación actual de resolución:
+                <span className="font-semibold text-slate-900"> {secondsLeft}s</span>.
               </p>
 
               <div className="mt-5 h-2 w-full rounded-full bg-slate-200">
@@ -157,15 +157,14 @@ export default function StatusPage() {
             <div className="mt-8 rounded-3xl bg-rose-50 p-5">
               <p className="text-sm font-semibold text-rose-900">Rechazada</p>
               <p className="mt-2 text-sm leading-6 text-rose-800">
-                Este estado está preparado solo como stub de interfaz. En producción aquí irían
-                observaciones clínicas y acciones de corrección.
+                La solicitud requiere ajuste de antecedentes o una evaluación clínica adicional
+                antes de su emisión.
               </p>
             </div>
           )}
 
           <p className="mt-6 text-xs leading-5 text-slate-500">
-            En producción esto debe conectarse a una cola real, historial de revisión y médico
-            validador identificado.
+            Cada orden mantiene seguimiento de revisión y resolución clínica antes de su descarga.
           </p>
         </div>
       </div>

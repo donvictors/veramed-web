@@ -28,7 +28,7 @@ export default function HowItWorks() {
             Cómo funciona
           </p>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-            Un flujo tipo checklist, pensado para claridad clínica.
+            Tú entregas la información, nosotros te entregamos los pasos para cuidar tu salud.
           </h2>
         </div>
 

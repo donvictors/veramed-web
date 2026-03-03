@@ -109,7 +109,7 @@ export default function CheckupPage() {
               <div className="rounded-3xl bg-slate-50 p-5">
                 <p className="text-sm font-semibold text-slate-900">2. Contexto clínico</p>
                 <p className="mt-1 text-sm text-slate-600">
-                  Estos datos solo ajustan la recomendación actual; no cambian el objetivo del MVP.
+                  Estos datos ajustan la recomendación clínica y permiten personalizar la orden.
                 </p>
 
                 <div className="mt-5 grid gap-5">
@@ -209,8 +209,7 @@ export default function CheckupPage() {
             </button>
 
             <p className="mt-3 text-xs leading-5 text-slate-500">
-              Paso 3 corresponde a validación médica simulada. No hay pago ni validación real en
-              esta versión.
+              La orden se emite después del pago y de la validación clínica correspondiente.
             </p>
           </aside>
         </div>

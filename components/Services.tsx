@@ -9,7 +9,7 @@ export default function Services() {
             Servicios
           </p>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-            Un punto de entrada simple para laboratorio ambulatorio.
+            Un punto de entrada simple para los exámenes que necesitas.
           </h2>
           <p className="mt-3 text-sm leading-7 text-slate-600">
             Diseñado para personas que necesitan ordenar un chequeo preventivo de forma clara y
@@ -38,7 +38,7 @@ export default function Services() {
             <div className="mt-6 grid gap-3 text-sm text-slate-700">
               <ServicePoint text="Resumen clínico del panel sugerido." />
               <ServicePoint text="Ficha de orden con exámenes, muestra y preparación." />
-              <ServicePoint text="Flujo de validación médica simulado para MVP." />
+              <ServicePoint text="Validación clínica antes de la emisión de la orden." />
             </div>
 
             <Link
@@ -53,34 +53,32 @@ export default function Services() {
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  Próximamente
+                  Próximamente...
                 </p>
                 <h3 className="mt-2 text-2xl font-semibold text-slate-950">
                   Evaluación por síntomas
                 </h3>
                 <p className="mt-3 text-sm leading-7 text-slate-600">
-                  Flujo conversacional para orientar preguntas, detectar red flags y preparar una
-                  orden inicial de estudio cuando corresponda.
+                  Si el paciente presenta síntomas, podrá escribirlos libremente. Una IA los
+                  transformará en síntomas estructurados, hará preguntas de seguimiento basadas en
+                  algoritmos internacionales y, según esas respuestas, recomendará un set de
+                  exámenes que luego será validado por un médico en un plazo máximo de 12 horas.
                 </p>
               </div>
               <span className="rounded-full border border-slate-300 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
-                En preparación
+                Hasta 12h
               </span>
             </div>
 
             <div className="mt-6 grid gap-3 text-sm text-slate-700">
-              <ServicePoint text="Interacción conversacional inspirada en Ada." />
-              <ServicePoint text="Checklist de síntomas de alarma y derivación." />
-              <ServicePoint text="Validación humana antes de emisión formal." />
+              <ServicePoint text="Ingreso libre de síntomas por parte del paciente." />
+              <ServicePoint text="Estructuración clínica con IA y preguntas de seguimiento." />
+              <ServicePoint text="Recomendación de exámenes y validación médica dentro de 12 horas." />
             </div>
 
-            <button
-              type="button"
-              disabled
-              className="mt-8 inline-flex cursor-not-allowed rounded-2xl border border-slate-300 bg-slate-50 px-5 py-3 text-sm font-semibold text-slate-500"
-            >
-              Próximamente
-            </button>
+            <span className="mt-8 inline-flex rounded-2xl border border-slate-300 bg-slate-50 px-5 py-3 text-sm font-semibold text-slate-600">
+              Disponible pronto
+            </span>
           </article>
         </div>
       </div>

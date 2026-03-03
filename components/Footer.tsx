@@ -9,9 +9,7 @@ export default function Footer() {
             Veramed | Órdenes médicas basadas en evidencia
           </p>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            © {new Date().getFullYear()} Veramed, Vitaremu SpA. Servicio informativo para
-            orientación de exámenes ambulatorios. No reemplaza consulta médica ni evaluación de
-            urgencia.
+            © {new Date().getFullYear()} Veramed, Vitaremu SpA.
           </p>
         </div>
 

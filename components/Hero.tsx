@@ -14,17 +14,16 @@ export default function Hero() {
         <div>
           <p className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-800">
             <span className="inline-block h-2 w-2 rounded-full bg-emerald-600" />
-            Clinical-grade, simple y serio
+            Los exámenes que necesitas a sólo un clic
           </p>
 
           <h1 className="mt-6 max-w-3xl text-4xl font-semibold tracking-tight text-slate-950 md:text-6xl">
-            Órdenes médicas basadas en evidencia, con lenguaje claro y soporte clínico inicial.
+            Órdenes médicas basadas en evidencia.
           </h1>
 
           <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
-            Completa un chequeo breve y recibe una recomendación estructurada para solicitar
-            exámenes preventivos, con criterios alineados a guías clínicas nacionales e
-            internacionales.
+            Completa un par de datos y recibe una recomendación estructurada de exámenes
+            preventivos, basada en la última evidencia nacional e internacional.
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -56,9 +55,10 @@ export default function Hero() {
           <div className="mt-8 max-w-2xl rounded-3xl border border-rose-200 bg-rose-50 p-5">
             <p className="text-sm font-semibold text-rose-900">No usar en urgencias</p>
             <p className="mt-2 text-sm leading-6 text-rose-800">
-              Si presentas dolor de pecho, falta de aire, compromiso de conciencia, sangrado
-              activo, déficit neurológico, fiebre alta persistente o cualquier síntoma de alarma,
-              debes consultar de inmediato en un servicio de urgencia.
+              Si presentas síntomas de alarma como dolor de pecho, falta de aire, compromiso de
+              conciencia, sangrado activo, déficit neurológico, fiebre alta persistente o cualquier
+              otro que consideres de gravedad, debes consultar de inmediato en un servicio de
+              urgencia y no retrasar la evaluación por un profesional.
             </p>
           </div>
         </div>
@@ -69,7 +69,7 @@ export default function Hero() {
               Evaluación inicial
             </p>
             <h2 className="mt-3 text-2xl font-semibold text-slate-950">
-              Tu ficha se prepara en tres etapas.
+              Tu orden se prepara en tres etapas.
             </h2>
             <div className="mt-5 space-y-4">
               <ClinicalPoint
@@ -88,7 +88,7 @@ export default function Hero() {
           </div>
 
           <div className="mt-5 rounded-3xl border border-slate-200 p-5">
-            <p className="text-sm font-semibold text-slate-900">Microcopy legal visible</p>
+            <p className="text-sm font-semibold text-slate-900">Importante</p>
             <p className="mt-2 text-sm leading-6 text-slate-600">
               Veramed entrega orientación para órdenes de laboratorio. No diagnostica, no reemplaza
               una consulta médica y no debe usarse como única base para decidir conductas ante

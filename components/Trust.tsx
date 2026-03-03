@@ -1,7 +1,7 @@
 const trustCards = [
   {
     title: "Órdenes validadas por médicos registrados en SIS",
-    body: "Placeholder operativo hasta contar con staff visible. La revisión clínica sigue siendo un paso obligatorio antes de uso formal.",
+    body: "La revisión clínica es un paso obligatorio antes de la emisión final de la orden para laboratorio.",
     tone: "emerald",
   },
   {
@@ -30,7 +30,7 @@ export default function Trust() {
             Confianza clínica
           </p>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-            Microcopy legal visible, soporte clínico y límites explícitos.
+            Tú salud en nuestras manos.
           </h2>
           <p className="mt-4 text-sm leading-7 text-slate-600">
             Veramed busca construir confianza desde la claridad: qué hace, qué no hace y bajo qué

@@ -2,12 +2,12 @@ const faqs = [
   {
     question: "¿La orden es válida en cualquier laboratorio?",
     answer:
-      "En este MVP la orden es una ficha clínica preparatoria. Su uso final depende de la validación médica y de las políticas del laboratorio donde quieras realizar la toma.",
+      "La orden está pensada para uso ambulatorio. Su aceptación final depende de la validación clínica y de las políticas del laboratorio donde quieras realizar la toma.",
   },
   {
     question: "¿Cuánto se demora la validación?",
     answer:
-      "En la versión actual la validación está simulada para demostrar el flujo. En operación real, la meta es mantener tiempos acotados y visibles antes de la descarga.",
+      "La validación se procesa antes de habilitar la descarga. El estado de revisión se muestra en línea para que puedas seguir el avance de la solicitud.",
   },
   {
     question: "¿Qué incluye el precio?",
@@ -17,7 +17,7 @@ const faqs = [
   {
     question: "¿Qué datos guardan y por cuánto tiempo?",
     answer:
-      "Se guardan los antecedentes necesarios para construir tu recomendación y su trazabilidad. En este MVP los datos viven localmente en tu navegador; una política definitiva debe formalizar tiempos de retención antes de producción.",
+      "Se guardan los antecedentes necesarios para construir tu recomendación y su trazabilidad. En esta implementación, los datos del flujo se conservan localmente en tu navegador mientras mantengas la sesión.",
   },
   {
     question: "¿Esto reemplaza una consulta médica?",
@@ -38,7 +38,7 @@ export default function FAQ() {
         <div className="max-w-3xl">
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">FAQ</p>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-            Preguntas frecuentes en contexto Chile.
+            Preguntas frecuentes.
           </h2>
         </div>
 

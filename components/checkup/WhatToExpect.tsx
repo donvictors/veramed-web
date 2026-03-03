@@ -12,8 +12,8 @@ const items = [
     body: "La aceptación final depende del laboratorio y del contexto clínico vigente.",
   },
   {
-    title: "(Futuro) Interpretación de resultados",
-    body: "Más adelante se podrá sumar una lectura guiada del resultado recibido.",
+    title: "Resultados y seguimiento",
+    body: "Una vez emitida la orden, el siguiente paso es realizar la toma y revisar tus resultados con criterio clínico.",
   },
 ];
 

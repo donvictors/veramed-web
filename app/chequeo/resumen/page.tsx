@@ -6,10 +6,8 @@ import { useRouter } from "next/navigation";
 import Stepper from "@/components/checkup/Stepper";
 import WhatToExpect from "@/components/checkup/WhatToExpect";
 import {
-  createOrderId,
   inferOrderDetails,
   type StoredCheckup,
-  type StoredCheckupStatus,
 } from "@/lib/checkup";
 
 export default function SummaryPage() {
@@ -28,19 +26,6 @@ export default function SummaryPage() {
       setData(parsed);
     });
   }, [router]);
-
-  function queueValidation() {
-    const statusPayload: StoredCheckupStatus = {
-      status: "queued",
-      queuedAt: Date.now(),
-      orderId: createOrderId(),
-    };
-    localStorage.setItem(
-      "veramed_checkup_status",
-      JSON.stringify(statusPayload)
-    );
-    router.push("/chequeo/estado");
-  }
 
   if (!data) return null;
 
@@ -148,22 +133,22 @@ export default function SummaryPage() {
                 Siguiente paso
               </p>
               <h2 className="mt-2 text-xl font-semibold text-slate-950">
-                Envía esta ficha a validación médica.
+                Continúa al pago para emitir la orden.
               </h2>
               <p className="mt-3 text-sm leading-7 text-slate-600">
-                La validación sigue siendo simulada en este MVP, pero ya muestra el flujo que
-                terminará en una orden descargable.
+                El pago habilita la validación clínica y la posterior descarga de tu orden médica.
               </p>
 
-              <button
-                onClick={queueValidation}
-                className="mt-6 w-full rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+              <Link
+                href="/chequeo/pago"
+                className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
               >
-                Enviar a validación médica
-              </button>
+                Ir a pagar
+              </Link>
 
               <p className="mt-3 text-xs leading-5 text-slate-500">
-                Luego conectamos pago, cola real y emisión formal del PDF.
+                Una vez confirmado el pago, la solicitud pasa a revisión y queda disponible para
+                descarga.
               </p>
             </section>
           </div>
