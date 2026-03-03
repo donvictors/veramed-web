@@ -1,46 +1,62 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 import Link from "next/link";
-
-type TestItem = { name: string; why: string };
-
-type Stored = {
-  input: {
-    age: number;
-    sex: "M" | "F";
-    weightKg: number;
-    heightCm: number;
-    smoking: "never" | "former" | "current";
-    sexualActivity: "yes" | "no";
-    pregnancy: "yes" | "no" | "unknown";
-  };
-  rec: {
-    summary: string;
-    tests: TestItem[];
-    notes: string[];
-  };
-};
+import BrandLogo from "@/components/BrandLogo";
+import {
+  createOrderId,
+  formatSex,
+  formatSexualActivity,
+  formatSmoking,
+  inferOrderDetails,
+  type StoredCheckup,
+  type StoredCheckupStatus,
+} from "@/lib/checkup";
 
 export default function OrderPage() {
-  const [data, setData] = useState<Stored | null>(null);
+  const [data, setData] = useState<StoredCheckup | null>(null);
   const [approved, setApproved] = useState(false);
+  const [orderId, setOrderId] = useState("");
+  const [issuedAt, setIssuedAt] = useState("");
 
   useEffect(() => {
     const raw = localStorage.getItem("veramed_checkup");
     const st = localStorage.getItem("veramed_checkup_status");
+    const formattedDate = new Intl.DateTimeFormat("es-CL", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(new Date());
 
-    if (raw) setData(JSON.parse(raw));
-    if (st) {
-      const s = JSON.parse(st) as { status: "queued" | "approved" };
-      setApproved(s.status === "approved");
+    let nextData: StoredCheckup | null = null;
+    if (raw) {
+      nextData = JSON.parse(raw) as StoredCheckup;
     }
-  }, []);
 
-  const orderId = useMemo(() => {
-    // ID simple (MVP). Después será UUID en backend.
-    const base = Date.now().toString().slice(-8);
-    return `VM-${base}`;
+    if (st) {
+      const storedStatus = JSON.parse(st) as StoredCheckupStatus;
+      const nextApproved = storedStatus.status === "approved";
+      let nextOrderId = storedStatus.orderId;
+
+      if (!nextOrderId) {
+        nextOrderId = createOrderId();
+        const nextStatus: StoredCheckupStatus = { ...storedStatus, orderId: nextOrderId };
+        localStorage.setItem("veramed_checkup_status", JSON.stringify(nextStatus));
+      }
+
+      startTransition(() => {
+        setData(nextData);
+        setIssuedAt(formattedDate);
+        setApproved(nextApproved);
+        setOrderId(nextOrderId);
+      });
+      return;
+    }
+
+    startTransition(() => {
+      setData(nextData);
+      setIssuedAt(formattedDate);
+      setOrderId(createOrderId());
+    });
   }, []);
 
   if (!data) {
@@ -57,13 +73,20 @@ export default function OrderPage() {
     );
   }
 
+  const orderDetails = inferOrderDetails(data.rec.tests);
+
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
-      <div className="mx-auto max-w-3xl px-6 py-10">
+    <main className="min-h-screen bg-slate-50 text-slate-900 print:bg-white">
+      <div className="mx-auto max-w-5xl px-6 py-10 print:max-w-none print:px-0 print:py-0">
         <div className="mb-6 flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Orden de exámenes</h1>
-            <p className="text-sm text-slate-600">ID: {orderId}</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Orden clínica imprimible
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
+              Orden de exámenes
+            </h1>
+            <p className="mt-1 text-sm text-slate-600">ID de referencia: {orderId}</p>
           </div>
 
           <div className="flex gap-2 print:hidden">
@@ -83,80 +106,149 @@ export default function OrderPage() {
         </div>
 
         {!approved && (
-          <div className="mb-6 rounded-2xl border bg-amber-50 p-4 print:hidden">
-            <p className="text-sm font-semibold">Aún no aparece como aprobada</p>
-            <p className="mt-1 text-sm text-slate-700">
-              En el MVP esto depende del estado simulado. Vuelve a <Link className="underline" href="/chequeo/estado">estado</Link>.
+          <div className="mb-6 rounded-3xl border border-amber-200 bg-amber-50 p-4 print:hidden">
+            <p className="text-sm font-semibold text-amber-900">Orden pendiente de aprobación</p>
+            <p className="mt-1 text-sm text-amber-800">
+              En el MVP este estado sigue siendo simulado. Puedes revisar el avance en{" "}
+              <Link className="font-semibold underline" href="/chequeo/estado">
+                estado
+              </Link>
+              .
             </p>
           </div>
         )}
 
-        {/* DOCUMENTO IMPRIMIBLE */}
-        <section className="rounded-2xl border bg-white p-8 shadow-sm print:shadow-none">
-          <div className="flex items-start justify-between">
+        <section className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-[0_22px_70px_-48px_rgba(15,23,42,0.45)] print:rounded-none print:border-none print:p-8 print:shadow-none">
+          <div className="flex flex-wrap items-start justify-between gap-6 border-b border-slate-200 pb-6">
             <div>
-              <p className="text-xs text-slate-500">VERAMED</p>
-              <h2 className="text-xl font-semibold">Orden médica de exámenes</h2>
-              <p className="mt-1 text-sm text-slate-600">
-                Chequeo preventivo (MVP)
+              <BrandLogo className="h-14 w-auto" />
+              <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Orden médica de laboratorio
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold text-slate-950">
+                Solicitud de exámenes ambulatorios
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+                Documento generado desde el flujo de chequeo preventivo de Veramed. Uso sujeto a
+                validación clínica y criterios del laboratorio ejecutante.
               </p>
             </div>
-            <div className="text-right">
-              <p className="text-sm font-medium">{new Date().toLocaleString()}</p>
-              <p className="text-xs text-slate-500">Santiago, Chile</p>
+
+            <div className="grid gap-3 text-sm sm:min-w-72">
+              <MetaRow label="ID" value={orderId} />
+              <MetaRow label="Fecha y hora" value={issuedAt} />
+              <MetaRow label="Estado" value={approved ? "Aprobada" : "Pendiente de validación"} />
+              <MetaRow label="Ciudad de referencia" value="Santiago, Chile" />
             </div>
           </div>
 
-          <hr className="my-6" />
-
-          <div className="grid gap-3 text-sm md:grid-cols-2">
+          <div className="mt-6 grid gap-3 text-sm md:grid-cols-2">
             <Info label="Edad" value={`${data.input.age}`} />
-            <Info label="Sexo" value={data.input.sex === "M" ? "Masculino" : "Femenino"} />
+            <Info label="Sexo" value={formatSex(data.input.sex)} />
             <Info label="Peso" value={`${data.input.weightKg} kg`} />
             <Info label="Talla" value={`${data.input.heightCm} cm`} />
             <Info label="Tabaco" value={formatSmoking(data.input.smoking)} />
-            <Info label="Actividad sexual" value={data.input.sexualActivity === "yes" ? "Sí" : "No"} />
+            <Info label="Actividad sexual" value={formatSexualActivity(data.input.sexualActivity)} />
           </div>
 
-          <div className="mt-6">
-            <p className="text-sm font-semibold">Indicación</p>
-            <p className="mt-1 text-sm text-slate-700">{data.rec.summary}</p>
+          <div className="mt-8 rounded-3xl bg-slate-50 p-5">
+            <div className="grid gap-4 md:grid-cols-4">
+              <SummaryCell label="Exámenes" value={`${orderDetails.includedCount}`} />
+              <SummaryCell
+                label="Ayuno"
+                value={orderDetails.needsFasting ? "Sí" : "No"}
+              />
+              <SummaryCell label="Muestra" value={orderDetails.sampleTypeLabel} />
+              <SummaryCell label="Vigencia sugerida" value="60 días" />
+            </div>
           </div>
 
-          <div className="mt-6">
-            <p className="text-sm font-semibold">Exámenes solicitados</p>
-            <ul className="mt-2 list-disc pl-5 text-sm text-slate-800">
-              {data.rec.tests.map((t) => (
-                <li key={t.name}>{t.name}</li>
-              ))}
-            </ul>
+          <div className="mt-8">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Indicación clínica
+            </p>
+            <p className="mt-2 text-sm leading-7 text-slate-700">{data.rec.summary}</p>
+          </div>
+
+          <div className="mt-8">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Tabla de exámenes
+            </p>
+            <div className="mt-4 overflow-hidden rounded-3xl border border-slate-200">
+              <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold text-slate-700">Examen</th>
+                    <th className="px-4 py-3 font-semibold text-slate-700">Justificación clínica</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 bg-white">
+                  {data.rec.tests.map((test) => (
+                    <tr key={test.name}>
+                      <td className="px-4 py-4 align-top font-semibold text-slate-900">
+                        {test.name}
+                      </td>
+                      <td className="px-4 py-4 align-top text-slate-600">{test.why}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="mt-8 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+            <div className="rounded-3xl border border-slate-200 p-5">
+              <p className="text-sm font-semibold text-slate-900">Preparación</p>
+              <ul className="mt-3 grid gap-2 text-sm text-slate-700">
+                {orderDetails.preparation.map((item) => (
+                  <li key={item} className="flex gap-2">
+                    <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 p-5">
+              <p className="text-sm font-semibold text-slate-900">Disclaimers clínicos</p>
+              <ul className="mt-3 grid gap-2 text-sm leading-6 text-slate-700">
+                <li>Uso ambulatorio y preventivo. No corresponde para urgencias.</li>
+                <li>La aceptación final depende del laboratorio y del contexto clínico real.</li>
+                <li>No reemplaza consulta médica, diagnóstico ni indicación terapéutica.</li>
+              </ul>
+            </div>
           </div>
 
           {data.rec.notes.length > 0 && (
-            <div className="mt-6">
-              <p className="text-sm font-semibold">Notas</p>
-              <ul className="mt-2 list-disc pl-5 text-sm text-slate-700">
-                {data.rec.notes.map((n, idx) => (
-                  <li key={idx}>{n}</li>
+            <div className="mt-8 rounded-3xl bg-slate-50 p-5">
+              <p className="text-sm font-semibold text-slate-900">Observaciones adicionales</p>
+              <ul className="mt-3 grid gap-2 text-sm text-slate-700">
+                {data.rec.notes.map((note, idx) => (
+                  <li key={idx} className="flex gap-2">
+                    <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" />
+                    <span>{note}</span>
+                  </li>
                 ))}
               </ul>
             </div>
           )}
 
-          <hr className="my-6" />
-
-          <div className="grid gap-3 text-sm md:grid-cols-2">
-            <div>
-              <p className="font-semibold">Médico validador</p>
-              <p className="text-slate-700">Pendiente (MVP)</p>
-              <p className="text-xs text-slate-500">
-                En producción: nombre + RUT + firma electrónica
+          <div className="mt-8 grid gap-6 border-t border-slate-200 pt-6 md:grid-cols-2">
+            <div className="rounded-3xl bg-slate-50 p-5">
+              <p className="text-sm font-semibold text-slate-900">Médico validador</p>
+              <p className="mt-2 text-sm font-medium text-slate-700">Pendiente (MVP)</p>
+              <p className="mt-2 text-xs leading-5 text-slate-500">
+                En producción este bloque debe incluir nombre, RUT o identificador profesional,
+                registro aplicable y firma electrónica.
               </p>
             </div>
-            <div className="text-slate-600 md:text-right">
-              <p className="font-semibold text-slate-800">Advertencia</p>
-              <p className="text-xs">
-                Este documento es parte de un MVP. No reemplaza evaluación clínica. No usar en urgencias.
+
+            <div className="rounded-3xl bg-slate-950 p-5 text-white">
+              <p className="text-sm font-semibold">Advertencia de uso</p>
+              <p className="mt-2 text-sm leading-6 text-slate-200">
+                Este documento forma parte de un MVP y representa una orden en preparación. Debe
+                ser interpretado dentro del contexto clínico del paciente y no sirve para resolver
+                cuadros agudos ni emergencias.
               </p>
             </div>
           </div>
@@ -172,15 +264,27 @@ export default function OrderPage() {
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border bg-slate-50 p-3">
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
       <p className="text-xs text-slate-500">{label}</p>
       <p className="text-sm font-medium">{value}</p>
     </div>
   );
 }
 
-function formatSmoking(s: "never" | "former" | "current") {
-  if (s === "never") return "Nunca";
-  if (s === "former") return "Ex fumador";
-  return "Fumador actual";
+function MetaRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-slate-50 px-4 py-3">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-slate-900">{value}</p>
+    </div>
+  );
+}
+
+function SummaryCell({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
+      <p className="mt-2 text-sm font-semibold text-slate-900">{value}</p>
+    </div>
+  );
 }
