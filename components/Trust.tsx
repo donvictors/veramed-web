@@ -30,7 +30,7 @@ export default function Trust() {
             Confianza clínica
           </p>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-            Tú salud en nuestras manos.
+            Tú salud en nuestras manos. 🙌
           </h2>
           <p className="mt-4 text-sm leading-7 text-slate-600">
             Veramed busca construir confianza desde la claridad: qué hace, qué no hace y bajo qué

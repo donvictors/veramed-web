@@ -253,6 +253,20 @@ export default function CheckupPage() {
     });
   }
 
+  function normalizeBirthDateInput(nextValue: string) {
+    const parts = nextValue.split("-");
+    if (parts.length !== 3) {
+      return nextValue;
+    }
+
+    const [year, month, day] = parts;
+    if (year.length <= 4) {
+      return nextValue;
+    }
+
+    return `${year.slice(-4)}-${month}-${day}`;
+  }
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
       <div className="mx-auto max-w-6xl px-6 py-10 md:py-12">
@@ -279,7 +293,7 @@ export default function CheckupPage() {
               <div className="rounded-3xl bg-slate-50 p-5">
                 <p className="text-sm font-semibold text-slate-900">1. Datos del paciente</p>
                 <p className="mt-1 text-sm text-slate-600">
-                  Estos datos se usarán para completar la orden médica.
+                  Estos datos se usarán para completar tu orden médica.
                 </p>
 
                 <div className="mt-5 grid gap-5">
@@ -342,7 +356,7 @@ export default function CheckupPage() {
                         className={inputCls}
                         type="date"
                         value={birthDate}
-                        onChange={(e) => setBirthDate(e.target.value)}
+                        onChange={(e) => setBirthDate(normalizeBirthDateInput(e.target.value))}
                       />
                     </Field>
                   </div>

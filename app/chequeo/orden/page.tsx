@@ -196,8 +196,8 @@ export default function OrderPage() {
                 {categoryMeta.screenTitle}
               </h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                Documento generado desde el flujo de chequeo preventivo de Veramed. Uso sujeto a
-                validación clínica y criterios del laboratorio ejecutante.
+                Documento generado mediante tecnología de flujo de chequeo preventivo de Veramed ©
+                y validación técnica por médico firmante.
               </p>
             </div>
 
@@ -278,7 +278,7 @@ export default function OrderPage() {
             </div>
           </div>
 
-          <div className="mt-8 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+          <div className="mt-8">
             <div className="rounded-3xl border border-slate-200 p-5">
               <p className="text-sm font-semibold text-slate-900">Preparación</p>
               <ul className="mt-3 grid gap-2 text-sm text-slate-700">
@@ -294,15 +294,6 @@ export default function OrderPage() {
                     <span>{item}</span>
                   </li>
                 ))}
-              </ul>
-            </div>
-
-            <div className="rounded-3xl border border-slate-200 p-5">
-              <p className="text-sm font-semibold text-slate-900">Disclaimers clínicos</p>
-              <ul className="mt-3 grid gap-2 text-sm leading-6 text-slate-700">
-                <li>Uso ambulatorio y preventivo. No corresponde para urgencias.</li>
-                <li>La aceptación final depende del laboratorio y del contexto clínico real.</li>
-                <li>No reemplaza consulta médica, diagnóstico ni indicación terapéutica.</li>
               </ul>
             </div>
           </div>
@@ -324,18 +315,20 @@ export default function OrderPage() {
           <div className="mt-8 grid gap-6 border-t border-slate-200 pt-6 md:grid-cols-2">
             <div className="rounded-3xl bg-slate-50 p-5">
               <p className="text-sm font-semibold text-slate-900">Médico validador</p>
-              <p className="mt-2 text-sm font-medium text-slate-700">Pendiente de asignación</p>
+              <p className="mt-2 text-sm font-medium text-slate-700">Dr. Víctor Rebolledo M.</p>
               <p className="mt-2 text-xs leading-5 text-slate-500">
-                Este bloque identifica al profesional responsable, su registro aplicable y la firma
-                utilizada para validar la orden.
+                RUT 18.856.820-3 / RCM 46129-6 / SIS N°611341
+                <br />
+                Médico staff de Veramed.
               </p>
             </div>
 
             <div className="rounded-3xl bg-slate-950 p-5 text-white">
               <p className="text-sm font-semibold">Advertencia de uso</p>
               <p className="mt-2 text-sm leading-6 text-slate-200">
-                Esta orden debe interpretarse dentro del contexto clínico del paciente y no sirve
-                para resolver cuadros agudos ni emergencias.
+                Los resultados de estos exámenes deben interpretarse dentro del contexto clínico
+                del paciente y no está pensado para ser usado para resolver cuadros agudos o lidiar
+                con emergencias médicas.
               </p>
             </div>
           </div>

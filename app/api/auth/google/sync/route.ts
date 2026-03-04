@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { getServerSession } from "next-auth";
 import { AUTH_SESSION_COOKIE } from "@/lib/auth";
-import { auth } from "@/lib/next-auth";
+import { authOptions } from "@/lib/next-auth";
 import { getSessionTtlMs, loginOrRegisterOAuthUser } from "@/lib/server/auth-store";
 
 export async function POST() {
-  const providerSession = await auth();
+  const providerSession = await getServerSession(authOptions);
   const email = providerSession?.user?.email?.trim().toLowerCase() ?? "";
 
   if (!email) {
