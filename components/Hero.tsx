@@ -37,7 +37,7 @@ export default function Hero() {
               href="#como-funciona"
               className="rounded-2xl border border-slate-300 bg-white px-6 py-3 text-center text-sm font-semibold text-slate-900 transition hover:border-slate-400 hover:bg-slate-50"
             >
-              Ver proceso clínico
+              Ver proceso clínico 🔎
             </Link>
           </div>
 
