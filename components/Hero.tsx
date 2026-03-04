@@ -22,8 +22,8 @@ export default function Hero() {
           </h1>
 
           <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
-            Completa un par de datos y recibe una recomendación estructurada de exámenes
-            preventivos, basada en la última evidencia nacional e internacional.
+            Completa tus datos y recibe una recomendación estructurada de exámenes preventivos,
+            basada en la última evidencia nacional e internacional. 🧪
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -31,7 +31,7 @@ export default function Hero() {
               href="#servicios"
               className="rounded-2xl bg-slate-950 px-6 py-3 text-center text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              Solicitar orden
+              Solicitar orden 📄
             </Link>
             <Link
               href="#como-funciona"
@@ -53,12 +53,13 @@ export default function Hero() {
           </div>
 
           <div className="mt-8 max-w-2xl rounded-3xl border border-rose-200 bg-rose-50 p-5">
-            <p className="text-sm font-semibold text-rose-900">No usar en urgencias</p>
+            <p className="text-sm font-semibold text-rose-900">No usar en caso de urgencia</p>
             <p className="mt-2 text-sm leading-6 text-rose-800">
-              Si presentas síntomas de alarma como dolor de pecho, falta de aire, compromiso de
-              conciencia, sangrado activo, déficit neurológico, fiebre alta persistente o cualquier
-              otro que consideres de gravedad, debes consultar de inmediato en un servicio de
-              urgencia y no retrasar la evaluación por un profesional.
+              Si presentas{" "}
+              <Link href="#faq-sintomas-alarma" className="font-semibold underline">
+                síntomas de alarma
+              </Link>{" "}
+              debes consultar de inmediato con un profesional de salud.
             </p>
           </div>
         </div>

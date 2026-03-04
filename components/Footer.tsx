@@ -9,7 +9,7 @@ export default function Footer() {
             Veramed | Órdenes médicas basadas en evidencia
           </p>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            © {new Date().getFullYear()} Veramed, Vitaremu SpA.
+            © {new Date().getFullYear()} Veramed, Vitaremu SpA. 🌱
           </p>
         </div>
 

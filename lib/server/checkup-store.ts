@@ -497,6 +497,10 @@ export async function updateCheckupScreeningPreferences(
         "Perfil bioquímico",
         "Examen complementario para revisar parámetros metabólicos generales cuando deseas añadirlo de forma voluntaria.",
       ],
+      [
+        "Niveles de vitamina D",
+        "Examen complementario opcional. En Chile el déficit de vitamina D es frecuente y este estudio permite pesquisarlo.",
+      ],
     ]);
     const why = optionalTests.get(normalizedName);
 

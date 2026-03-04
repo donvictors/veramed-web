@@ -74,17 +74,6 @@ export default function Trust() {
             </article>
           ))}
         </div>
-
-        <div className="mt-8 rounded-[2rem] border border-slate-200 bg-slate-950 p-6 text-white">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-300">
-            Declaración clínica visible
-          </p>
-          <p className="mt-3 text-sm leading-7 text-slate-200">
-            Este servicio entrega orientación para órdenes de exámenes ambulatorios. La validez
-            final depende de la revisión médica, del laboratorio que ejecuta la toma y del contexto
-            clínico real del paciente. No reemplaza consulta, diagnóstico ni manejo de urgencias.
-          </p>
-        </div>
       </div>
     </section>
   );

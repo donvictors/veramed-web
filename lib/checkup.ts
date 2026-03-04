@@ -166,6 +166,57 @@ export function calculatePackYearIndex(cigarettesPerDay: number, smokingYears: n
   return Math.round(packIndex * 10) / 10;
 }
 
+export function normalizeRut(raw: string) {
+  const cleaned = raw.toUpperCase().replace(/[^0-9K]/g, "");
+  if (!cleaned) return "";
+
+  if (cleaned.length === 1) {
+    return cleaned;
+  }
+
+  const body = cleaned.slice(0, -1).replace(/K/g, "");
+  const dv = cleaned.slice(-1);
+  return `${body}${dv}`;
+}
+
+export function formatRut(rawOrNormalized: string) {
+  const normalized = normalizeRut(rawOrNormalized);
+  if (!normalized) return "";
+
+  if (normalized.length === 1) {
+    return normalized;
+  }
+
+  const body = normalized.slice(0, -1);
+  const dv = normalized.slice(-1);
+  const withThousands = body.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `${withThousands}-${dv}`;
+}
+
+export function isValidRut(rawOrNormalized: string) {
+  const normalized = normalizeRut(rawOrNormalized);
+  if (normalized.length < 8 || normalized.length > 9) {
+    return false;
+  }
+
+  const body = normalized.slice(0, -1);
+  const dv = normalized.slice(-1);
+  if (!/^\d{7,8}$/.test(body) || !/^[0-9K]$/.test(dv)) {
+    return false;
+  }
+
+  let multiplier = 2;
+  let sum = 0;
+  for (let i = body.length - 1; i >= 0; i -= 1) {
+    sum += Number(body[i]) * multiplier;
+    multiplier = multiplier === 7 ? 2 : multiplier + 1;
+  }
+
+  const remainder = 11 - (sum % 11);
+  const expectedDv = remainder === 11 ? "0" : remainder === 10 ? "K" : String(remainder);
+  return dv === expectedDv;
+}
+
 export function recommend(input: CheckupInput): CheckupRecommendation {
   const testMap = new Map<string, TestItem>();
 
@@ -200,10 +251,6 @@ export function recommend(input: CheckupInput): CheckupRecommendation {
     "Perfil lipídico",
     "Lo pedimos como examen de tamizaje basal para todas las personas.",
   );
-  addTest(
-    "Perfil hepático",
-    "Lo pedimos como evaluación basal de función hepática.",
-  );
 
   if (input.age >= 15 && input.age <= 65) {
     addTest(
@@ -234,7 +281,7 @@ export function recommend(input: CheckupInput): CheckupRecommendation {
   if (input.age > 18) {
     addTest(
       "Holter de presión arterial (MAPA)",
-      "El tamizaje de hipertensión arterial lo recomendamos de forma preventiva en todas las personas mayores de 18 años. En la siguiente página puedes ver métodos de tamizaje distintos al Holter de presión.",
+      "El tamizaje de hipertensión arterial lo recomendamos de forma preventiva en todas las personas mayores de 18 años. En la siguiente página puedes ver métodos de tamizaje distintos al Holter de presión (¡no es el único!).",
     );
   }
 

@@ -232,6 +232,11 @@ export default function SummaryPage() {
       description:
         "Es un panel general que revisa parámetros metabólicos y orgánicos básicos, útil como complemento amplio del chequeo.",
     },
+    {
+      name: "Niveles de vitamina D",
+      description:
+        "En Chile el déficit de vitamina D es frecuente en la población. Este examen permite detectarlo de forma temprana.",
+    },
   ] as const;
   const selectedOptionalAdditionalTests = optionalAdditionalTests.filter((test) =>
     data.rec.tests.some((item) => item.name === test.name),
@@ -767,7 +772,7 @@ export default function SummaryPage() {
                 Resumen final de tu solicitud
               </p>
               <h2 className="mt-2 text-xl font-semibold text-slate-950">
-                Conteo por tipo de examen.
+                Los exámenes que te llevas ⬇️
               </h2>
               <div className="mt-6 grid gap-4">
                 <span className="inline-flex w-fit rounded-full border border-slate-300 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">

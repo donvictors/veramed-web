@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { startTransition, useEffect, useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import Stepper from "@/components/checkup/Stepper";
 import { fetchCurrentUser } from "@/lib/auth-api";
 import { createCheckupRequest } from "@/lib/checkup-api";
@@ -9,6 +9,9 @@ import {
   calculateAgeFromBirthDate,
   calculateBodyMassIndex,
   calculatePackYearIndex,
+  formatRut,
+  isValidRut,
+  normalizeRut,
   type CheckupInput,
   joinPatientFullName,
   type PatientDetails,
@@ -28,6 +31,8 @@ export default function CheckupPage() {
     maternalSurname: "",
   });
   const [rut, setRut] = useState("");
+  const [rutNormalized, setRutNormalized] = useState("");
+  const [rutTouched, setRutTouched] = useState(false);
   const [birthDate, setBirthDate] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -44,6 +49,7 @@ export default function CheckupPage() {
   const [gestationWeeks, setGestationWeeks] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const rutInputRef = useRef<HTMLInputElement>(null);
 
   const age = useMemo(() => calculateAgeFromBirthDate(birthDate), [birthDate]);
   const bodyMassIndex = useMemo(
@@ -101,6 +107,9 @@ export default function CheckupPage() {
   );
 
   const rec = useMemo(() => recommend(input), [input]);
+  const hasEnoughRutInput = rutNormalized.length >= 8;
+  const rutIsValid = rutNormalized ? isValidRut(rutNormalized) : false;
+  const showRutInvalid = Boolean(rutNormalized) && (rutTouched || hasEnoughRutInput) && !rutIsValid;
   const missingRequiredFields = useMemo(() => {
     const missing: string[] = [];
 
@@ -164,7 +173,10 @@ export default function CheckupPage() {
             paternalSurname: current.paternalSurname || parsedName.paternalSurname,
             maternalSurname: current.maternalSurname || parsedName.maternalSurname,
           }));
-          setRut((current) => current || response.user?.profile.rut || "");
+          const profileRut = response.user?.profile.rut || "";
+          const normalizedProfileRut = normalizeRut(profileRut);
+          setRut((current) => current || formatRut(profileRut));
+          setRutNormalized((current) => current || normalizedProfileRut);
           setBirthDate((current) => current || response.user?.profile.birthDate || "");
           setEmail((current) => current || response.user?.profile.email || response.user?.email || "");
           setPhone((current) => current || response.user?.profile.phone || "");
@@ -179,6 +191,12 @@ export default function CheckupPage() {
       setSubmitError(
         `Completa los campos obligatorios antes de continuar: ${missingRequiredFields.join(", ")}.`,
       );
+      return;
+    }
+
+    if (!rutIsValid) {
+      setRutTouched(true);
+      setSubmitError("Ingresa un RUT válido para continuar.");
       return;
     }
 
@@ -199,6 +217,41 @@ export default function CheckupPage() {
   const showsPregnancyWeeks = pregnancy === "yes";
   const gestationWarning = gestationWeeks >= 42;
   const underageWarning = Boolean(birthDate) && age < 15;
+
+  function calculateCaretPosition(formattedValue: string, normalizedLengthBeforeCaret: number) {
+    if (normalizedLengthBeforeCaret <= 0) return 0;
+
+    let seen = 0;
+    for (let i = 0; i < formattedValue.length; i += 1) {
+      if (/[\dK]/.test(formattedValue[i])) {
+        seen += 1;
+      }
+      if (seen >= normalizedLengthBeforeCaret) {
+        return i + 1;
+      }
+    }
+
+    return formattedValue.length;
+  }
+
+  function handleRutChange(nextRawValue: string, caretPos: number | null) {
+    const normalized = normalizeRut(nextRawValue);
+    const formatted = formatRut(normalized);
+
+    let nextCaretPosition = formatted.length;
+    if (caretPos !== null) {
+      const normalizedBeforeCaret = normalizeRut(nextRawValue.slice(0, caretPos));
+      nextCaretPosition = calculateCaretPosition(formatted, normalizedBeforeCaret.length);
+    }
+
+    setRut(formatted);
+    setRutNormalized(normalized);
+
+    window.requestAnimationFrame(() => {
+      if (!rutInputRef.current) return;
+      rutInputRef.current.setSelectionRange(nextCaretPosition, nextCaretPosition);
+    });
+  }
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
@@ -270,7 +323,19 @@ export default function CheckupPage() {
 
                   <div className="grid gap-4 md:grid-cols-2">
                     <Field label="RUT *">
-                      <input className={inputCls} value={rut} onChange={(e) => setRut(e.target.value)} />
+                      <input
+                        ref={rutInputRef}
+                        className={showRutInvalid ? errorInputCls : inputCls}
+                        value={rut}
+                        onChange={(e) => handleRutChange(e.target.value, e.target.selectionStart)}
+                        onBlur={() => setRutTouched(true)}
+                        inputMode="text"
+                        autoComplete="off"
+                        placeholder="12.345.678-5"
+                      />
+                      {showRutInvalid && (
+                        <p className="text-xs text-rose-600">RUT inválido.</p>
+                      )}
                     </Field>
                     <Field label="Fecha de nacimiento *">
                       <input
@@ -600,5 +665,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 const inputCls =
   "w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200";
+const errorInputCls =
+  "w-full rounded-xl border border-rose-400 bg-white px-3 py-2 text-sm outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-200";
 const readonlyCls =
   "w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-600 outline-none";

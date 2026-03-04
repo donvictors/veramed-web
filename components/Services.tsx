@@ -30,8 +30,9 @@ export default function Services() {
                   orden imprimible y preparación sugerida.
                 </p>
               </div>
-              <span className="mt-6 inline-flex w-fit rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white">
-                $1.990
+              <span className="mt-6 inline-flex w-fit items-center gap-2 rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white">
+                <span className="text-white/60 line-through">$2.990</span>
+                <span>$1.990</span>
               </span>
             </div>
 
@@ -105,7 +106,7 @@ export default function Services() {
                 </p>
               </div>
               <span className="mt-6 inline-flex w-fit rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white">
-                $4.990
+                $5.990
               </span>
             </div>
 
@@ -117,7 +118,7 @@ export default function Services() {
 
             <div className="mt-8">
               <span className="mt-4 inline-flex rounded-2xl border border-slate-300 bg-slate-50 px-5 py-3 text-sm font-semibold text-slate-600">
-                Disponible pronto
+                Disponible pronto...
               </span>
             </div>
           </article>
