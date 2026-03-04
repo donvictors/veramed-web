@@ -3,8 +3,8 @@ import Link from "next/link";
 const trustChips = [
   "Guías clínicas vigentes",
   "Validación médica",
-  "Ficha imprimible",
-  "Trazabilidad básica",
+  "Orden imprimible",
+  "Trazabilidad",
 ];
 
 export default function Hero() {
@@ -28,10 +28,10 @@ export default function Hero() {
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link
-              href="/chequeo"
+              href="#servicios"
               className="rounded-2xl bg-slate-950 px-6 py-3 text-center text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              Solicitar recomendación
+              Solicitar orden
             </Link>
             <Link
               href="#como-funciona"

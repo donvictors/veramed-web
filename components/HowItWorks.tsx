@@ -1,21 +1,36 @@
 const steps = [
   {
     number: "01",
-    title: "Completa el checklist clínico",
+    title: "Completa tus datos",
     description:
       "Ingresas antecedentes básicos en un flujo corto, estructurado y fácil de revisar.",
+    bullets: [
+      "Te toma menos de 5 minutos",
+      "Preguntas claras y precisas",
+      "Tu info queda ordenada para análisis",
+    ],
   },
   {
     number: "02",
-    title: "Recibes una recomendación trazable",
+    title: "Recibes una recomendación de exámenes",
     description:
       "Se presenta el set sugerido con fundamento clínico, preparación y condiciones de uso.",
+    bullets: [
+      "Un set hecho a tu medida",
+      "El “por qué” de cada examen",
+      "Indicaciones de preparación y cuándo hacerlos",
+    ],
   },
   {
     number: "03",
-    title: "Solicitas validación y descargas",
+    title: "Validación por médico acreditado y emisión",
     description:
       "La orden queda lista para revisión médica y luego puede usarse en un laboratorio.",
+    bullets: [
+      "Validación médica antes de emitir",
+      "Orden lista para usar en laboratorio",
+      "Respaldo clínico de los exámenes",
+    ],
   },
 ];
 
@@ -44,9 +59,9 @@ export default function HowItWorks() {
               <h3 className="mt-5 text-xl font-semibold text-slate-950">{step.title}</h3>
               <p className="mt-3 text-sm leading-7 text-slate-600">{step.description}</p>
               <div className="mt-6 space-y-2 text-sm text-slate-700">
-                <ChecklistLine text="Lenguaje simple" />
-                <ChecklistLine text="Trazabilidad visible" />
-                <ChecklistLine text="Sin pasos innecesarios" />
+                {step.bullets.map((bullet) => (
+                  <ChecklistLine key={bullet} text={bullet} />
+                ))}
               </div>
             </article>
           ))}
