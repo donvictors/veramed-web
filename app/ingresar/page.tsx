@@ -69,6 +69,18 @@ export default function LoginPage() {
             {error && <p className="text-sm text-rose-600">{error}</p>}
           </form>
 
+          <div className="mt-5">
+            <Link
+              href="/api/auth/signin/google?callbackUrl=%2Fauth%2Fgoogle%2Fcomplete"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:border-slate-400 hover:bg-slate-50"
+            >
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-300 text-xs font-semibold">
+                G
+              </span>
+              Continuar con Google
+            </Link>
+          </div>
+
           <p className="mt-6 text-sm text-slate-600">
             ¿Todavía no tienes cuenta?{" "}
             <Link href="/crear-cuenta" className="font-semibold text-slate-900 underline">

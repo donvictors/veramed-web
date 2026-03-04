@@ -11,15 +11,21 @@ export default function AboutPage() {
 
         <div className="mt-6 rounded-[2rem] border border-slate-200 bg-white p-6 text-sm leading-7 text-slate-700">
           <p>
-            Veramed es una plataforma de orientación clínica para órdenes de exámenes ambulatorios,
-            diseñada para entregar recomendaciones claras, estructuradas y basadas en evidencia.
+            Veramed es una plataforma digital de orientación clínica para órdenes de exámenes
+            ambulatorios.
           </p>
           <p className="mt-4">
-            Nuestro objetivo es facilitar el acceso a procesos preventivos y de control, con
-            información simple de entender y validación médica antes de la emisión de cada orden.
+            Nuestro objetivo es ayudar a las personas a acceder de forma más simple a procesos de
+            prevención y control, entregando recomendaciones claras, estructuradas y basadas en
+            evidencia médica.
           </p>
           <p className="mt-4">
-            Este servicio no reemplaza una consulta médica ni corresponde a manejo de urgencias.
+            Antes de emitir una orden, cada solicitud pasa por un proceso de validación médica y se
+            presenta en un formato fácil de entender para el usuario.
+          </p>
+          <p className="mt-4">
+            Veramed no reemplaza una consulta médica o el proceso diagnóstico y no está diseñado
+            para el manejo de urgencias.
           </p>
         </div>
       </div>

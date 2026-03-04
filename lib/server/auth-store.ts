@@ -227,6 +227,48 @@ export async function loginUser(payload: { email: string; password: string }) {
   };
 }
 
+export async function loginOrRegisterOAuthUser(payload: { email: string; name: string }) {
+  await ensureSeededTestUser();
+  await purgeExpiredSessions();
+
+  const email = normalizeEmail(payload.email);
+  const name = payload.name.trim() || "Usuario Veramed";
+  let user = await prisma.user.findUnique({
+    where: { email },
+  });
+
+  if (!user) {
+    const temporaryPassword = randomBytes(24).toString("hex");
+    const { hash, salt } = hashPassword(temporaryPassword);
+    const profile = createDefaultProfile(name, email);
+    const nameFields = splitPatientFullName(profile.fullName);
+
+    user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        passwordHash: hash,
+        passwordSalt: salt,
+        profileFirstName: nameFields.firstName,
+        profilePaternalSurname: nameFields.paternalSurname,
+        profileMaternalSurname: nameFields.maternalSurname,
+        profileRut: profile.rut,
+        profileBirthDate: profile.birthDate,
+        profileEmail: profile.email,
+        profilePhone: profile.phone,
+        profileAddress: profile.address,
+      },
+    });
+  }
+
+  const session = await createSession(user.id);
+
+  return {
+    user: serializeUser(user),
+    session,
+  };
+}
+
 export async function getUserFromSession(token: string | undefined) {
   if (!token) {
     return null;
