@@ -1,0 +1,179 @@
+{
+  "source": {
+    "name": "USPSTF A & B Recommendations (filtered: exams only, adolescents/adults, no children)",
+    "captured_at": "2026-03-04"
+  },
+  "items": [
+    {
+      "id": "uspstf_exam_aaa_2019_12",
+      "topic": "Abdominal Aortic Aneurysm",
+      "type": "Screening",
+      "population": "men aged 65 to 75 years who have ever smoked",
+      "grade": "B",
+      "release_date": "2019-12",
+      "suggested_test_family": "Ultrasound"
+    },
+    {
+      "id": "uspstf_exam_asb_preg_2019_09",
+      "topic": "Asymptomatic Bacteriuria in Adults",
+      "type": "Screening",
+      "population": "pregnant persons",
+      "grade": "B",
+      "release_date": "2019-09",
+      "suggested_test_family": "Urine culture"
+    },
+    {
+      "id": "uspstf_exam_cervical_2018_08",
+      "topic": "Cervical Cancer",
+      "type": "Screening",
+      "population": "women aged 21 to 65 years",
+      "grade": "A",
+      "release_date": "2018-08",
+      "suggested_test_family": "Cytology/HPV"
+    },
+    {
+      "id": "uspstf_exam_ct_gc_2021_09",
+      "topic": "Chlamydia and Gonorrhea",
+      "type": "Screening",
+      "population": "sexually active women, including pregnant persons",
+      "grade": "B",
+      "release_date": "2021-09",
+      "suggested_test_family": "NAAT"
+    },
+    {
+      "id": "uspstf_exam_crc_45_49_2021_05",
+      "topic": "Colorectal Cancer",
+      "type": "Screening",
+      "population": "adults aged 45 to 49 years",
+      "grade": "B",
+      "release_date": "2021-05",
+      "suggested_test_family": "Stool test / Colonoscopy"
+    },
+    {
+      "id": "uspstf_exam_crc_50_75_2021_05",
+      "topic": "Colorectal Cancer",
+      "type": "Screening",
+      "population": "adults aged 50 to 75 years",
+      "grade": "A",
+      "release_date": "2021-05",
+      "suggested_test_family": "Stool test / Colonoscopy"
+    },
+    {
+      "id": "uspstf_exam_gdm_2021_08",
+      "topic": "Gestational Diabetes",
+      "type": "Screening",
+      "population": "asymptomatic pregnant persons at 24 weeks of gestation or after",
+      "grade": "B",
+      "release_date": "2021-08",
+      "suggested_test_family": "OGTT"
+    },
+    {
+      "id": "uspstf_exam_hbv_risk_2020_12",
+      "topic": "Hepatitis B Virus Infection in Adolescents and Adults",
+      "type": "Screening",
+      "population": "adolescents and adults at increased risk for infection",
+      "grade": "B",
+      "release_date": "2020-12",
+      "suggested_test_family": "HBV serology"
+    },
+    {
+      "id": "uspstf_exam_hbv_preg_2019_07",
+      "topic": "Hepatitis B Virus Infection in Pregnant Women",
+      "type": "Screening",
+      "population": "pregnant women",
+      "grade": "A",
+      "release_date": "2019-07",
+      "suggested_test_family": "HBV serology"
+    },
+    {
+      "id": "uspstf_exam_hcv_2020_03",
+      "topic": "Hepatitis C Virus Infection in Adolescents and Adults",
+      "type": "Screening",
+      "population": "adults aged 18 to 79 years",
+      "grade": "B",
+      "release_date": "2020-03",
+      "suggested_test_family": "HCV serology"
+    },
+    {
+      "id": "uspstf_exam_hiv_15_65_2019_06",
+      "topic": "Human Immunodeficiency Virus (HIV) Infection",
+      "type": "Screening",
+      "population": "adolescents and adults aged 15 to 65 years",
+      "grade": "A",
+      "release_date": "2019-06",
+      "suggested_test_family": "HIV test"
+    },
+    {
+      "id": "uspstf_exam_hiv_preg_2019_06",
+      "topic": "Human Immunodeficiency Virus (HIV) Infection",
+      "type": "Screening",
+      "population": "pregnant persons",
+      "grade": "A",
+      "release_date": "2019-06",
+      "suggested_test_family": "HIV test"
+    },
+    {
+      "id": "uspstf_exam_ltbi_2023_05",
+      "topic": "Latent Tuberculosis Infection in Adults",
+      "type": "Screening",
+      "population": "asymptomatic adults at increased risk of latent tuberculosis infection (LTBI)",
+      "grade": "B",
+      "release_date": "2023-05",
+      "suggested_test_family": "IGRA/TST"
+    },
+    {
+      "id": "uspstf_exam_lung_ca_2021_03",
+      "topic": "Lung Cancer",
+      "type": "Screening",
+      "population": "adults aged 50 to 80 years who have a 20 pack-year smoking history and currently smoke or have quit within the past 15 years",
+      "grade": "B",
+      "release_date": "2021-03",
+      "suggested_test_family": "Low-dose CT"
+    },
+    {
+      "id": "uspstf_exam_osteoporosis_65plus_2025_01",
+      "topic": "Osteoporosis to Prevent Fractures",
+      "type": "Screening",
+      "population": "women 65 years or older",
+      "grade": "B",
+      "release_date": "2025-01",
+      "suggested_test_family": "DXA"
+    },
+    {
+      "id": "uspstf_exam_osteoporosis_postmeno_risk_2025_01",
+      "topic": "Osteoporosis to Prevent Fractures",
+      "type": "Screening",
+      "population": "postmenopausal women younger than 65 years with 1 or more risk factors for osteoporosis",
+      "grade": "B",
+      "release_date": "2025-01",
+      "suggested_test_family": "DXA"
+    },
+    {
+      "id": "uspstf_exam_prediabetes_dm2_2021_08",
+      "topic": "Prediabetes and Type 2 Diabetes",
+      "type": "Screening",
+      "population": "asymptomatic adults aged 35 to 70 years who have overweight or obesity",
+      "grade": "B",
+      "release_date": "2021-08",
+      "suggested_test_family": "Glucose/HbA1c"
+    },
+    {
+      "id": "uspstf_exam_syph_preg_2025_05",
+      "topic": "Syphilis Infection During Pregnancy",
+      "type": "Screening",
+      "population": "asymptomatic pregnant women",
+      "grade": "A",
+      "release_date": "2025-05",
+      "suggested_test_family": "Syphilis serology"
+    },
+    {
+      "id": "uspstf_exam_syph_risk_2022_09",
+      "topic": "Syphilis Infection in Nonpregnant Adolescents and Adults",
+      "type": "Screening",
+      "population": "asymptomatic, nonpregnant adolescents and adults who are at increased risk for syphilis infection",
+      "grade": "A",
+      "release_date": "2022-09",
+      "suggested_test_family": "Syphilis serology"
+    }
+  ]
+}

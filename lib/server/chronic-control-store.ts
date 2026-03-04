@@ -10,6 +10,7 @@ import {
 
 type ChronicControlRecord = {
   id: string;
+  userId?: string;
   createdAt: number;
   updatedAt: number;
   conditions: ChronicCondition[];
@@ -93,6 +94,7 @@ async function withStore<T>(updater: (store: ChronicControlStore) => T | Promise
 }
 
 export async function createChronicControlRecord(payload: {
+  userId?: string;
   conditions: ChronicCondition[];
   patient: PatientDetails;
   yearsSinceDiagnosis: number;
@@ -112,6 +114,7 @@ export async function createChronicControlRecord(payload: {
 
     const record: ChronicControlRecord = {
       id,
+      userId: payload.userId,
       createdAt: now,
       updatedAt: now,
       conditions: payload.conditions.length > 0 ? payload.conditions : ["hypertension"],
@@ -212,6 +215,7 @@ export function serializeChronicControlRecord(record: ChronicControlRecord) {
   const resolved = resolveStatus(record);
   return {
     id: resolved.id,
+    userId: resolved.userId,
     createdAt: resolved.createdAt,
     updatedAt: resolved.updatedAt,
     conditions: resolved.conditions,
@@ -224,4 +228,25 @@ export function serializeChronicControlRecord(record: ChronicControlRecord) {
     payment: resolved.payment,
     status: resolved.status,
   };
+}
+
+export async function listChronicControlsByUser(userId: string) {
+  return withStore((store) =>
+    Object.values(store.requests)
+      .map((record) => resolveStatus(record))
+      .filter((record) => record.userId === userId)
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .map((record) => ({
+        id: record.id,
+        kind: "control_cronico" as const,
+        title: "Control crónico",
+        patientName: record.patient.fullName || "Paciente",
+        createdAt: record.createdAt,
+        updatedAt: record.updatedAt,
+        status: record.status.status,
+        paid: Boolean(record.payment.confirmed?.paid),
+        href: `/control-cronico/orden?id=${record.id}`,
+        reviewHref: `/control-cronico/estado?id=${record.id}`,
+      })),
+  );
 }

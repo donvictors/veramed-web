@@ -48,7 +48,7 @@ export default function OrderPage() {
         });
       })
       .catch(() => {
-        router.replace("/chequeo");
+        router.replace("/mi-cuenta");
       });
   }, [requestId, router]);
 

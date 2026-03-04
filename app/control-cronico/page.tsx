@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useState } from "react";
 import Stepper from "@/components/checkup/Stepper";
+import { fetchCurrentUser } from "@/lib/auth-api";
 import { createChronicControlRequest } from "@/lib/chronic-control-api";
 import { type PatientDetails } from "@/lib/checkup";
 import {
@@ -41,6 +42,27 @@ export default function ChronicControlPage() {
       ),
     [conditions, hasRecentChanges, selectedMedications, usesMedication],
   );
+
+  useEffect(() => {
+    void fetchCurrentUser()
+      .then((response) => {
+        if (!response.user) {
+          return;
+        }
+
+        startTransition(() => {
+          setPatient((current) => ({
+            fullName: current.fullName || response.user?.profile.fullName || response.user?.name || "",
+            rut: current.rut || response.user?.profile.rut || "",
+            birthDate: current.birthDate || response.user?.profile.birthDate || "",
+            email: current.email || response.user?.profile.email || response.user?.email || "",
+            phone: current.phone || response.user?.profile.phone || "",
+            address: current.address || response.user?.profile.address || "",
+          }));
+        });
+      })
+      .catch(() => undefined);
+  }, []);
 
   function toggleCondition(condition: ChronicCondition) {
     setConditions((current) => {

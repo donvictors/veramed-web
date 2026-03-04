@@ -1,0 +1,296 @@
+{
+  "cases": [
+    {
+      "name": "mujer_adulta_sexualmente_activa",
+      "input": {
+        "age": 30,
+        "sex": "Female",
+        "pregnant": false,
+        "sexuallyActive": true
+      },
+      "expected": {
+        "exams": [
+          {
+            "code": "PROC-PAP",
+            "name": "Papanicolau",
+            "prep": "Evitar relaciones sexuales, óvulos vaginales y duchas vaginales durante 48 horas previas.",
+            "reason": "Tamizaje cervical indicado entre 30 y 65 años; se puede incluir citología como parte del esquema.",
+            "uspstf_sources": [
+              {
+                "topic": "Cervical Cancer",
+                "grade": "A",
+                "release_date": "2018-08"
+              }
+            ]
+          },
+          {
+            "code": "LAB-HPV",
+            "name": "HPV",
+            "prep": "Evitar relaciones sexuales, óvulos vaginales y duchas vaginales durante 48 horas previas.",
+            "reason": "Tamizaje cervical entre 30 y 65 años: puede incluir prueba de HPV.",
+            "uspstf_sources": [
+              {
+                "topic": "Cervical Cancer",
+                "grade": "A",
+                "release_date": "2018-08"
+              }
+            ]
+          },
+          {
+            "code": "LAB-NAAT-CTNG",
+            "name": "NAAT CT/NG",
+            "prep": "Seguir indicaciones según tipo de muestra; idealmente no orinar 1 hora antes si es muestra urinaria.",
+            "reason": "Actividad sexual declarada en mujer: corresponde tamizaje de clamidia/gonorrea según USPSTF.",
+            "uspstf_sources": [
+              {
+                "topic": "Chlamydia and Gonorrhea",
+                "grade": "B",
+                "release_date": "2021-09"
+              }
+            ]
+          },
+          {
+            "code": "LAB-ANTI-HCV",
+            "name": "Anti-HCV",
+            "prep": "No requiere ayuno.",
+            "reason": "Tamizaje de hepatitis C indicado entre 18 y 79 años.",
+            "uspstf_sources": [
+              {
+                "topic": "Hepatitis C Virus Infection in Adolescents and Adults",
+                "grade": "B",
+                "release_date": "2020-03"
+              }
+            ]
+          },
+          {
+            "code": "LAB-VIH",
+            "name": "VIH",
+            "prep": "No requiere ayuno.",
+            "reason": "Tamizaje de VIH indicado entre 15 y 65 años.",
+            "uspstf_sources": [
+              {
+                "topic": "Human Immunodeficiency Virus (HIV) Infection",
+                "grade": "A",
+                "release_date": "2019-06"
+              }
+            ]
+          }
+        ],
+        "engine_version": "uspstf-ab-exams-cl-2026-03-04-v1"
+      }
+    },
+    {
+      "name": "hombre_67_fumador_con_sobrepeso",
+      "input": {
+        "age": 67,
+        "sex": "Male",
+        "everSmoked": true,
+        "currentSmoker": true,
+        "smokingPackYears": 30,
+        "bmi": 29.5
+      },
+      "expected": {
+        "exams": [
+          {
+            "code": "IMG-AAA-US",
+            "name": "Ecografía aorta abdominal",
+            "prep": "No requiere preparación especial.",
+            "reason": "Cumple criterio USPSTF para tamizaje único de aneurisma de aorta abdominal por antecedente de tabaquismo.",
+            "uspstf_sources": [
+              {
+                "topic": "Abdominal Aortic Aneurysm",
+                "grade": "B",
+                "release_date": "2019-12"
+              }
+            ]
+          },
+          {
+            "code": "LAB-FIT",
+            "name": "FIT",
+            "prep": "Seguir instrucciones de toma de muestra de deposición entregadas por el laboratorio.",
+            "reason": "Tamizaje colorrectal indicado entre 50 y 75 años; FIT es una alternativa inicial válida.",
+            "uspstf_sources": [
+              {
+                "topic": "Colorectal Cancer",
+                "grade": "A",
+                "release_date": "2021-05"
+              }
+            ]
+          },
+          {
+            "code": "LAB-ANTI-HCV",
+            "name": "Anti-HCV",
+            "prep": "No requiere ayuno.",
+            "reason": "Tamizaje de hepatitis C indicado entre 18 y 79 años.",
+            "uspstf_sources": [
+              {
+                "topic": "Hepatitis C Virus Infection in Adolescents and Adults",
+                "grade": "B",
+                "release_date": "2020-03"
+              }
+            ]
+          },
+          {
+            "code": "IMG-TAC-TB",
+            "name": "TAC tórax baja dosis",
+            "prep": "No requiere preparación especial.",
+            "reason": "Cumple criterio de tabaquismo para tamizaje de cáncer pulmonar con TAC de baja dosis.",
+            "uspstf_sources": [
+              {
+                "topic": "Lung Cancer",
+                "grade": "B",
+                "release_date": "2021-03"
+              }
+            ]
+          },
+          {
+            "code": "LAB-GLICEMIA",
+            "name": "Glicemia",
+            "prep": "Ayuno de 8 a 12 horas.",
+            "reason": "Edad y estado nutricional compatibles con tamizaje de prediabetes/diabetes tipo 2.",
+            "uspstf_sources": [
+              {
+                "topic": "Prediabetes and Type 2 Diabetes",
+                "grade": "B",
+                "release_date": "2021-08"
+              }
+            ]
+          },
+          {
+            "code": "LAB-HBA1C",
+            "name": "HbA1c",
+            "prep": "No requiere ayuno.",
+            "reason": "Edad y estado nutricional compatibles con tamizaje de prediabetes/diabetes tipo 2.",
+            "uspstf_sources": [
+              {
+                "topic": "Prediabetes and Type 2 Diabetes",
+                "grade": "B",
+                "release_date": "2021-08"
+              }
+            ]
+          }
+        ],
+        "engine_version": "uspstf-ab-exams-cl-2026-03-04-v1"
+      }
+    },
+    {
+      "name": "embarazada_28_semanas_28",
+      "input": {
+        "age": 28,
+        "sex": "Female",
+        "pregnant": true,
+        "gestationWeeks": 28,
+        "sexuallyActive": true
+      },
+      "expected": {
+        "exams": [
+          {
+            "code": "LAB-UROCULT",
+            "name": "Urocultivo",
+            "prep": "Idealmente usar muestra de orina de la mañana o retener al menos 3 horas.",
+            "reason": "Embarazo: corresponde tamizaje de bacteriuria asintomática con urocultivo.",
+            "uspstf_sources": [
+              {
+                "topic": "Asymptomatic Bacteriuria in Adults",
+                "grade": "B",
+                "release_date": "2019-09"
+              }
+            ]
+          },
+          {
+            "code": "PROC-PAP",
+            "name": "Papanicolau",
+            "prep": "Evitar relaciones sexuales, óvulos vaginales y duchas vaginales durante 48 horas previas.",
+            "reason": "Tamizaje cervical indicado entre 21 y 29 años con citología.",
+            "uspstf_sources": [
+              {
+                "topic": "Cervical Cancer",
+                "grade": "A",
+                "release_date": "2018-08"
+              }
+            ]
+          },
+          {
+            "code": "LAB-NAAT-CTNG",
+            "name": "NAAT CT/NG",
+            "prep": "Seguir indicaciones según tipo de muestra; idealmente no orinar 1 hora antes si es muestra urinaria.",
+            "reason": "Actividad sexual declarada en mujer: corresponde tamizaje de clamidia/gonorrea según USPSTF.",
+            "uspstf_sources": [
+              {
+                "topic": "Chlamydia and Gonorrhea",
+                "grade": "B",
+                "release_date": "2021-09"
+              }
+            ]
+          },
+          {
+            "code": "LAB-OGTT",
+            "name": "PTGO/OGTT",
+            "prep": "Ayuno de 8 a 12 horas antes del examen.",
+            "reason": "Embarazo desde 24 semanas o más: corresponde tamizaje de diabetes gestacional con PTGO/OGTT.",
+            "uspstf_sources": [
+              {
+                "topic": "Gestational Diabetes",
+                "grade": "B",
+                "release_date": "2021-08"
+              }
+            ]
+          },
+          {
+            "code": "LAB-HBSAG",
+            "name": "HBsAg",
+            "prep": "No requiere ayuno.",
+            "reason": "Embarazo: corresponde tamizaje universal de hepatitis B.",
+            "uspstf_sources": [
+              {
+                "topic": "Hepatitis B Virus Infection in Pregnant Women",
+                "grade": "A",
+                "release_date": "2019-07"
+              }
+            ]
+          },
+          {
+            "code": "LAB-ANTI-HCV",
+            "name": "Anti-HCV",
+            "prep": "No requiere ayuno.",
+            "reason": "Tamizaje de hepatitis C indicado entre 18 y 79 años.",
+            "uspstf_sources": [
+              {
+                "topic": "Hepatitis C Virus Infection in Adolescents and Adults",
+                "grade": "B",
+                "release_date": "2020-03"
+              }
+            ]
+          },
+          {
+            "code": "LAB-VIH",
+            "name": "VIH",
+            "prep": "No requiere ayuno.",
+            "reason": "Embarazo: corresponde tamizaje de VIH.",
+            "uspstf_sources": [
+              {
+                "topic": "Human Immunodeficiency Virus (HIV) Infection",
+                "grade": "A",
+                "release_date": "2019-06"
+              }
+            ]
+          },
+          {
+            "code": "LAB-SIFILIS",
+            "name": "VDRL/RPR + confirmatorio",
+            "prep": "No requiere ayuno.",
+            "reason": "Embarazo: corresponde tamizaje universal de sífilis.",
+            "uspstf_sources": [
+              {
+                "topic": "Syphilis Infection During Pregnancy",
+                "grade": "A",
+                "release_date": "2025-05"
+              }
+            ]
+          }
+        ],
+        "engine_version": "uspstf-ab-exams-cl-2026-03-04-v1"
+      }
+    }
+  ]
+}

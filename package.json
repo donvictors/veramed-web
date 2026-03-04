@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:checkup-recommend": "node --test tests/checkup-recommend.smoke.test.mjs"
   },
   "dependencies": {
     "next": "16.1.6",

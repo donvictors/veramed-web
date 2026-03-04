@@ -12,6 +12,7 @@ import {
 
 type CheckupRecord = {
   id: string;
+  userId?: string;
   createdAt: number;
   updatedAt: number;
   input: CheckupInput;
@@ -91,6 +92,7 @@ async function withStore<T>(updater: (store: CheckupStore) => T | Promise<T>) {
 }
 
 export async function createCheckupRecord(payload: {
+  userId?: string;
   input: CheckupInput;
   patient: PatientDetails;
 }) {
@@ -100,6 +102,7 @@ export async function createCheckupRecord(payload: {
     const rec = recommend(payload.input);
     const record: CheckupRecord = {
       id,
+      userId: payload.userId,
       createdAt: now,
       updatedAt: now,
       input: payload.input,
@@ -197,6 +200,7 @@ export function serializeCheckupRecord(record: CheckupRecord) {
 
   return {
     id: resolved.id,
+    userId: resolved.userId,
     createdAt: resolved.createdAt,
     updatedAt: resolved.updatedAt,
     input: resolved.input,
@@ -208,6 +212,27 @@ export function serializeCheckupRecord(record: CheckupRecord) {
     },
     status: resolved.status,
   };
+}
+
+export async function listCheckupsByUser(userId: string) {
+  return withStore((store) =>
+    Object.values(store.checkups)
+      .map((record) => resolveStatus(record))
+      .filter((record) => record.userId === userId)
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .map((record) => ({
+        id: record.id,
+        kind: "chequeo" as const,
+        title: "Chequeo preventivo",
+        patientName: record.patient.fullName || "Paciente",
+        createdAt: record.createdAt,
+        updatedAt: record.updatedAt,
+        status: record.status.status,
+        paid: Boolean(record.payment.confirmed?.paid),
+        href: `/chequeo/orden?id=${record.id}`,
+        reviewHref: `/chequeo/estado?id=${record.id}`,
+      })),
+  );
 }
 
 export function getReviewDelayMs() {

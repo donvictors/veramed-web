@@ -51,7 +51,7 @@ export default function ChronicControlOrderPage() {
         });
       })
       .catch(() => {
-        router.replace("/control-cronico");
+        router.replace("/mi-cuenta");
       });
   }, [requestId, router]);
 
