@@ -18,7 +18,6 @@ import {
 export default function ChronicControlPaymentPage() {
   const router = useRouter();
   const [data, setData] = useState<StoredChronicControl | null>(null);
-  const [payment, setPayment] = useState<StoredPayment | null>(null);
   const [cardholder, setCardholder] = useState("");
   const [cardNumber, setCardNumber] = useState("");
   const [expiry, setExpiry] = useState("");
@@ -33,81 +32,35 @@ export default function ChronicControlPaymentPage() {
     }
 
     const parsed = JSON.parse(raw) as StoredChronicControl;
-    const storedPayment = localStorage.getItem("veramed_chronic_payment");
 
     startTransition(() => {
       setData(parsed);
-      if (storedPayment) {
-        setPayment(JSON.parse(storedPayment) as StoredPayment);
-      }
     });
   }, [router]);
 
   function handlePayment() {
-    const normalizedCard = cardNumber.replace(/\D/g, "");
+    const normalizedCard = cardNumber.replace(/\D/g, "") || "4242424242424242";
     const last4 = normalizedCard.slice(-4);
 
-    if (
-      !data ||
-      cardholder.trim().length < 3 ||
-      normalizedCard.length < 16 ||
-      expiry.trim().length < 4 ||
-      cvv.trim().length < 3 ||
-      billingId.trim().length < 6
-    ) {
+    if (!data) {
       return;
     }
 
     const paymentRecord: StoredPayment = {
-      paid: true,
+      paid: false,
       amount: CHRONIC_CONTROL_PRICE_CLP,
       currency: "CLP",
-      paidAt: Date.now(),
+      paidAt: 0,
       paymentId: createPaymentId(),
       cardLast4: last4,
-      cardholder: cardholder.trim(),
+      cardholder: cardholder.trim() || "Pago de prueba Veramed",
     };
 
-    localStorage.setItem("veramed_chronic_payment", JSON.stringify(paymentRecord));
-    setPayment(paymentRecord);
+    localStorage.setItem("veramed_chronic_payment_pending", JSON.stringify(paymentRecord));
+    router.push("/control-cronico/pago/validacion");
   }
 
   if (!data) return null;
-
-  if (payment?.paid) {
-    return (
-      <main className="min-h-screen bg-slate-50 text-slate-900">
-        <div className="mx-auto max-w-4xl px-6 py-12">
-          <div className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-[0_22px_70px_-48px_rgba(15,23,42,0.45)]">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
-              Pago confirmado
-            </p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-              El pago de tu orden de control fue procesado correctamente.
-            </h1>
-            <p className="mt-3 text-sm leading-7 text-slate-600">
-              ID de pago: {payment.paymentId}. Puedes volver al resumen para revisar la orden
-              solicitada.
-            </p>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <Link
-                href="/control-cronico/resumen"
-                className="rounded-2xl bg-slate-950 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-slate-800"
-              >
-                Volver al resumen
-              </Link>
-              <Link
-                href="/control-cronico"
-                className="rounded-2xl border border-slate-300 bg-white px-5 py-3 text-center text-sm font-semibold text-slate-900 transition hover:border-slate-400 hover:bg-slate-50"
-              >
-                Nuevo control
-              </Link>
-            </div>
-          </div>
-        </div>
-      </main>
-    );
-  }
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
@@ -204,6 +157,11 @@ export default function ChronicControlPaymentPage() {
             >
               Pagar orden de control
             </button>
+
+            <p className="mt-3 text-xs leading-5 text-slate-500">
+              Pago simulado para demo. Al confirmar, avanzas a validación de pago y luego al estado
+              de emisión clínica.
+            </p>
           </section>
         </div>
       </div>

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Stepper from "@/components/checkup/Stepper";
+import { type PatientDetails } from "@/lib/checkup";
 import {
   CONDITION_OPTIONS,
   MEDICATION_OPTIONS,
@@ -16,6 +17,14 @@ import {
 export default function ChronicControlPage() {
   const router = useRouter();
   const [conditions, setConditions] = useState<ChronicCondition[]>(["hypertension"]);
+  const [patient, setPatient] = useState<PatientDetails>({
+    fullName: "",
+    rut: "",
+    birthDate: "",
+    email: "",
+    phone: "",
+    address: "",
+  });
   const [yearsSinceDiagnosis, setYearsSinceDiagnosis] = useState(3);
   const [hasRecentChanges, setHasRecentChanges] = useState(false);
   const [usesMedication, setUsesMedication] = useState(true);
@@ -56,6 +65,7 @@ export default function ChronicControlPage() {
       "veramed_chronic_control",
       JSON.stringify({
         conditions,
+        patient,
         yearsSinceDiagnosis,
         hasRecentChanges,
         usesMedication,
@@ -90,12 +100,76 @@ export default function ChronicControlPage() {
           <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_22px_70px_-48px_rgba(15,23,42,0.45)]">
             <div className="grid gap-6">
               <div className="rounded-3xl bg-slate-50 p-5">
-                <p className="text-sm font-semibold text-slate-900">1. Condición principal</p>
+                <p className="text-sm font-semibold text-slate-900">1. Datos del paciente y condición principal</p>
                 <p className="mt-1 text-sm text-slate-600">
-                  Selecciona la enfermedad o condición que requiere control periódico.
+                  Completa los datos de la persona y selecciona la condición que requiere control periódico.
                 </p>
 
                 <div className="mt-5 grid gap-5">
+                  <Field label="Nombre completo">
+                    <input
+                      className={inputCls}
+                      value={patient.fullName}
+                      onChange={(e) =>
+                        setPatient((current) => ({ ...current, fullName: e.target.value }))
+                      }
+                    />
+                  </Field>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Field label="RUT">
+                      <input
+                        className={inputCls}
+                        value={patient.rut}
+                        onChange={(e) =>
+                          setPatient((current) => ({ ...current, rut: e.target.value }))
+                        }
+                      />
+                    </Field>
+                    <Field label="Fecha de nacimiento">
+                      <input
+                        className={inputCls}
+                        type="date"
+                        value={patient.birthDate}
+                        onChange={(e) =>
+                          setPatient((current) => ({ ...current, birthDate: e.target.value }))
+                        }
+                      />
+                    </Field>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Field label="Correo electrónico">
+                      <input
+                        className={inputCls}
+                        type="email"
+                        value={patient.email}
+                        onChange={(e) =>
+                          setPatient((current) => ({ ...current, email: e.target.value }))
+                        }
+                      />
+                    </Field>
+                    <Field label="Teléfono">
+                      <input
+                        className={inputCls}
+                        value={patient.phone}
+                        onChange={(e) =>
+                          setPatient((current) => ({ ...current, phone: e.target.value }))
+                        }
+                      />
+                    </Field>
+                  </div>
+
+                  <Field label="Dirección">
+                    <input
+                      className={inputCls}
+                      value={patient.address}
+                      onChange={(e) =>
+                        setPatient((current) => ({ ...current, address: e.target.value }))
+                      }
+                    />
+                  </Field>
+
                   <div className="grid gap-3">
                     <span className="text-sm font-medium">Condiciones a controlar</span>
                     <div className="grid gap-3 md:grid-cols-2">

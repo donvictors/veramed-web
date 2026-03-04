@@ -37,6 +37,7 @@ export type ChronicControlRecommendation = {
 
 export type StoredChronicControl = {
   conditions: ChronicCondition[];
+  patient?: import("./checkup").PatientDetails;
   yearsSinceDiagnosis: number;
   hasRecentChanges: boolean;
   usesMedication: boolean;

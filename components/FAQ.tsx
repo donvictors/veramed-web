@@ -2,12 +2,12 @@ const faqs = [
   {
     question: "¿La orden es válida en cualquier laboratorio?",
     answer:
-      "La orden está pensada para uso ambulatorio. Su aceptación final depende de la validación clínica y de las políticas del laboratorio donde quieras realizar la toma.",
+      "¡Sí! La orden corresponde a una orden médica por alguno de los médicos de nuestro staff, todos los cuales cuentan con título para ejercer en Chile e inscripción en la Superintendencia de Salud. Cualquier laboratorio te la va a aceptar sin problemas.",
   },
   {
     question: "¿Cuánto se demora la validación?",
     answer:
-      "La validación se procesa antes de habilitar la descarga. El estado de revisión se muestra en línea para que puedas seguir el avance de la solicitud.",
+      "La validación se procesa antes de habilitar la descarga. El estado de revisión se muestra en línea para que puedas seguir el avance de la solicitud. En las solicitudes de exámenes de chequeo o de control de enfermedades crónicas el tiempo medio es de 1-2 minutos. En la funcionalidad de exámenes según síntomas la orden puede demorar hasta 12 horas en ser validada y emitida oficialmente por algún médico de nuestro equipo.",
   },
   {
     question: "¿Qué incluye el precio?",
@@ -25,9 +25,9 @@ const faqs = [
       "No. Es un apoyo para orientar una orden de laboratorio. No reemplaza evaluación clínica, diagnóstico, receta ni seguimiento médico.",
   },
   {
-    question: "¿Puedo usarlo si tengo síntomas, embarazo o signos de alarma?",
+    question: "¿Puedo usarlo si tengo síntomas de alarma?",
     answer:
-      "Si tienes síntomas nuevos, embarazo o cualquier red flag, la recomendación puede no ser suficiente. Frente a urgencia o duda clínica relevante, corresponde evaluación médica directa.",
+      "Si tienes síntomas de alarma como los que mencionamos en esta página, la recomendación es acudir a evaluación médica directa.",
   },
 ];
 

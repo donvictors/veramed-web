@@ -6,11 +6,9 @@ import { useRouter } from "next/navigation";
 import Stepper from "@/components/checkup/Stepper";
 import {
   CHECKUP_PRICE_CLP,
-  createOrderId,
   createPaymentId,
   inferOrderDetails,
   type StoredCheckup,
-  type StoredCheckupStatus,
   type StoredPayment,
 } from "@/lib/checkup";
 
@@ -42,39 +40,25 @@ export default function PaymentPage() {
   );
 
   function handlePayment() {
-    const normalizedCard = cardNumber.replace(/\D/g, "");
+    const normalizedCard = cardNumber.replace(/\D/g, "") || "4242424242424242";
     const last4 = normalizedCard.slice(-4);
 
-    if (
-      !data ||
-      cardholder.trim().length < 3 ||
-      normalizedCard.length < 16 ||
-      expiry.trim().length < 4 ||
-      cvv.trim().length < 3 ||
-      billingId.trim().length < 6
-    ) {
+    if (!data) {
       return;
     }
 
     const paymentRecord: StoredPayment = {
-      paid: true,
+      paid: false,
       amount: CHECKUP_PRICE_CLP,
       currency: "CLP",
-      paidAt: Date.now(),
+      paidAt: 0,
       paymentId: createPaymentId(),
       cardLast4: last4,
-      cardholder: cardholder.trim(),
+      cardholder: cardholder.trim() || "Pago de prueba Veramed",
     };
 
-    const statusPayload: StoredCheckupStatus = {
-      status: "queued",
-      queuedAt: Date.now(),
-      orderId: createOrderId(),
-    };
-
-    localStorage.setItem("veramed_payment", JSON.stringify(paymentRecord));
-    localStorage.setItem("veramed_checkup_status", JSON.stringify(statusPayload));
-    router.push("/chequeo/estado");
+    localStorage.setItem("veramed_payment_pending", JSON.stringify(paymentRecord));
+    router.push("/chequeo/pago/validacion");
   }
 
   if (!data || !orderDetails) return null;
@@ -198,8 +182,8 @@ export default function PaymentPage() {
             </button>
 
             <p className="mt-3 text-xs leading-5 text-slate-500">
-              Pago protegido. Al confirmar, se habilita la validación clínica y la emisión de la
-              orden para descarga.
+              Pago simulado para demo. Al confirmar, se activa la validación de pago y luego la
+              emisión clínica de la orden.
             </p>
           </section>
         </div>

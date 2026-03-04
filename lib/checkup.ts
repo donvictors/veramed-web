@@ -4,6 +4,15 @@ export type SexualActivity = "yes" | "no";
 export type Pregnancy = "yes" | "no" | "unknown";
 export type ReviewStatus = "queued" | "approved" | "rejected";
 
+export type PatientDetails = {
+  fullName: string;
+  rut: string;
+  birthDate: string;
+  email: string;
+  phone: string;
+  address: string;
+};
+
 export type CheckupInput = {
   age: number;
   sex: Sex;
@@ -27,6 +36,7 @@ export type CheckupRecommendation = {
 
 export type StoredCheckup = {
   input: CheckupInput;
+  patient?: PatientDetails;
   rec: CheckupRecommendation;
 };
 
@@ -131,10 +141,32 @@ export function createOrderId(timestamp = Date.now()) {
   return `VM-${dateCode}-${suffix}`;
 }
 
+export function createVerificationCode(rut: string | undefined, timestamp = Date.now()) {
+  const rutDigits = (rut ?? "")
+    .split("-")[0]
+    .replace(/\D/g, "")
+    .slice(-4)
+    .padStart(4, "0");
+  const issuedAt = new Date(timestamp);
+  const day = String(issuedAt.getDate()).padStart(2, "0");
+  const month = String(issuedAt.getMonth() + 1).padStart(2, "0");
+  const hours = String(issuedAt.getHours()).padStart(2, "0");
+  const minutes = String(issuedAt.getMinutes()).padStart(2, "0");
+
+  return `VRM${rutDigits}-${day}${month}-${hours}${minutes}`;
+}
+
 export function createPaymentId(timestamp = Date.now()) {
   const dateCode = new Date(timestamp).toISOString().slice(0, 10).replaceAll("-", "");
   const suffix = String(timestamp).slice(-5);
   return `PAY-${dateCode}-${suffix}`;
+}
+
+export function formatBirthDate(value: string) {
+  if (!value) return "No informado";
+  const parsed = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return new Intl.DateTimeFormat("es-CL", { dateStyle: "medium" }).format(parsed);
 }
 
 export function inferOrderDetails(tests: TestItem[]) {
