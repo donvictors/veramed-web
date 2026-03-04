@@ -21,29 +21,37 @@ function mergePatientDefaults(patient: PatientDetails, profile?: PatientDetails)
 }
 
 export async function POST(request: Request) {
-  const payload = (await request.json()) as {
-    input?: CheckupInput;
-    patient?: PatientDetails;
-  };
+  try {
+    const payload = (await request.json()) as {
+      input?: CheckupInput;
+      patient?: PatientDetails;
+    };
 
-  if (!payload.input || !payload.patient) {
-    return NextResponse.json({ error: "Datos incompletos." }, { status: 400 });
+    if (!payload.input || !payload.patient) {
+      return NextResponse.json({ error: "Datos incompletos." }, { status: 400 });
+    }
+
+    const cookieStore = await cookies();
+    const token = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
+    const user = await getUserFromSession(token);
+    const patient = mergePatientDefaults(payload.patient, user?.profile);
+
+    const record = await createCheckupRecord({
+      userId: user?.id,
+      input: payload.input,
+      patient,
+    });
+
+    if (user?.id) {
+      await syncUserProfileFromPatient(user.id, patient);
+    }
+
+    return NextResponse.json({ checkup: serializeCheckupRecord(record) }, { status: 201 });
+  } catch (error) {
+    console.error("POST /api/checkups failed", error);
+    return NextResponse.json(
+      { error: "No pudimos crear tu solicitud de chequeo." },
+      { status: 500 },
+    );
   }
-
-  const cookieStore = await cookies();
-  const token = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
-  const user = await getUserFromSession(token);
-  const patient = mergePatientDefaults(payload.patient, user?.profile);
-
-  const record = await createCheckupRecord({
-    userId: user?.id,
-    input: payload.input,
-    patient,
-  });
-
-  if (user?.id) {
-    await syncUserProfileFromPatient(user.id, patient);
-  }
-
-  return NextResponse.json({ checkup: serializeCheckupRecord(record) }, { status: 201 });
 }

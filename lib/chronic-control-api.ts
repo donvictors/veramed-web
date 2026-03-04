@@ -19,10 +19,28 @@ export type ChronicControlApiRecord = StoredChronicControl & {
 };
 
 async function readJson<T>(response: Response) {
-  const payload = (await response.json()) as T & { error?: string };
+  const raw = await response.text();
+
+  if (!raw.trim()) {
+    throw new Error(
+      response.ok
+        ? "El servidor devolvió una respuesta vacía."
+        : "No pudimos procesar tu solicitud en este momento.",
+    );
+  }
+
+  let payload: (T & { error?: string }) | null = null;
+
+  try {
+    payload = JSON.parse(raw) as T & { error?: string };
+  } catch {
+    throw new Error("El servidor devolvió una respuesta no válida.");
+  }
+
   if (!response.ok) {
     throw new Error(payload.error || "Error inesperado.");
   }
+
   return payload;
 }
 
