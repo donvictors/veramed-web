@@ -139,6 +139,10 @@ export default function OrderPage() {
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
               Tus órdenes de exámenes ➡️
             </h1>
+            <p className="mt-1 text-sm text-slate-600">
+              Te enviamos tus órdenes a tu correo. Haz clic en los recuadros de la derecha si
+              además deseas imprimirlas. 😉
+            </p>
             <p className="mt-1 text-sm text-slate-600">ID de referencia: {verificationCode}</p>
           </div>
 
