@@ -9,11 +9,11 @@ const items = [
   },
   {
     title: "Úsala en laboratorio",
-    body: "La aceptación final depende del laboratorio y del contexto clínico vigente.",
+    body: "Lleva la orden a tu laboratorio más cercano y toma tus exámenes. Algunos exámenes y procedimientos pueden estar disponibles sólo en algunos centros.",
   },
   {
     title: "Resultados y seguimiento",
-    body: "Una vez emitida la orden, el siguiente paso es realizar la toma y revisar tus resultados con criterio clínico.",
+    body: "Una vez tengas el resultado de tus exámenes agenda la hora con tu médico para revisar tus resultados con criterio clínico.",
   },
 ];
 

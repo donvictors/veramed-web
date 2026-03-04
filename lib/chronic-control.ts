@@ -77,20 +77,26 @@ export const MEDICATION_OPTIONS: MedicationOption[] = [
 
 const MEDICATION_TESTS: Record<MedicationOption, ControlTest[]> = {
   metformin: [
-    { name: "B12", why: "Seguimiento de déficit asociado a uso crónico de metformina." },
+    {
+      name: "Niveles de vitamina B12",
+      why: "Seguimiento de déficit asociado a uso crónico de metformina.",
+    },
   ],
   corticosteroids: [
-    { name: "Densitometría", why: "Control de riesgo óseo asociado a uso de corticoides." },
-    { name: "Calcio", why: "Seguimiento del metabolismo mineral." },
-    { name: "Vitamina D", why: "Apoyo al control de salud ósea." },
-    { name: "Glicemia", why: "Pesquisa de alteraciones glicémicas asociadas a corticoides." },
+    { name: "Densitometría ósea", why: "Control de riesgo óseo asociado a uso de corticoides." },
+    { name: "Calcio total", why: "Seguimiento del metabolismo mineral." },
+    { name: "Niveles de vitamina D", why: "Apoyo al control de salud ósea." },
+    { name: "Glucosa en sangre", why: "Pesquisa de alteraciones glicémicas asociadas a corticoides." },
     { name: "Perfil lipídico", why: "Seguimiento metabólico por impacto de tratamiento." },
   ],
   lithium: [
     { name: "Litio plasmático", why: "Monitoreo terapéutico del tratamiento con litio." },
-    { name: "Creatinina", why: "Seguimiento de función renal durante el tratamiento." },
+    { name: "Creatinina en sangre", why: "Seguimiento de función renal durante el tratamiento." },
     { name: "TSH", why: "Control de función tiroidea asociado a uso de litio." },
-    { name: "Electrolitos", why: "Monitoreo de equilibrio electrolítico." },
+    {
+      name: "Electrolitos en sangre (Na, K, Cl)",
+      why: "Monitoreo de equilibrio electrolítico.",
+    },
   ],
   antiepileptics: [
     { name: "Hemograma", why: "Seguimiento hematológico durante uso de antiepilépticos." },
@@ -102,7 +108,7 @@ const MEDICATION_TESTS: Record<MedicationOption, ControlTest[]> = {
   ],
   antidepressants: [
     {
-      name: "Electrolitos plasmáticos",
+      name: "Electrolitos en sangre (Na, K, Cl)",
       why: "Seguimiento de sodio y otros electrolitos en uso de antidepresivos.",
     },
   ],
@@ -117,12 +123,18 @@ export function recommendChronicControl(
     hypertension: {
       summary: "Control de hipertensión arterial con foco renal, metabólico y cardiovascular.",
       tests: [
-        { name: "Creatinina / eGFR", why: "Seguimiento de función renal en hipertensión." },
-        { name: "Potasio", why: "Monitoreo de efecto de tratamiento y balance electrolítico." },
+        { name: "Creatinina en sangre", why: "Seguimiento de función renal en hipertensión." },
+        {
+          name: "Electrolitos en sangre (Na, K, Cl)",
+          why: "Monitoreo de efecto de tratamiento y balance electrolítico.",
+        },
         { name: "Perfil lipídico", why: "Estratificación de riesgo cardiovascular." },
-        { name: "Glicemia o HbA1c", why: "Evaluación metabólica y de riesgo cardiometabólico." },
-        { name: "Microalbuminuria", why: "Pesquisa precoz de daño renal asociado." },
-        { name: "ECG", why: "Evaluación cardiovascular basal o de seguimiento." },
+        { name: "Glucosa en sangre", why: "Evaluación metabólica y de riesgo cardiometabólico." },
+        {
+          name: "Razón albuminuria / creatininuria (RAC) en orina aislada",
+          why: "Pesquisa precoz de daño renal asociado.",
+        },
+        { name: "Electrocardiograma (ECG)", why: "Evaluación cardiovascular basal o de seguimiento." },
       ],
       notes: ["Ideal complementar con control de presión arterial y revisión de tratamiento."],
     },
@@ -131,9 +143,12 @@ export function recommendChronicControl(
         "Control de cardiopatía isquémica en contexto de antecedente de infarto o pre-infarto.",
       tests: [
         { name: "Perfil lipídico", why: "Seguimiento de control lipídico secundario." },
-        { name: "HbA1c", why: "Evaluación de riesgo metabólico y control glucémico." },
-        { name: "Función renal", why: "Monitoreo de función renal en seguimiento cardiovascular." },
-        { name: "ECG", why: "Control de evolución eléctrica cardíaca." },
+        {
+          name: "Hemoglobina glicosilada (HbA1C)",
+          why: "Evaluación de riesgo metabólico y control glucémico.",
+        },
+        { name: "Creatinina en sangre", why: "Monitoreo de función renal en seguimiento cardiovascular." },
+        { name: "Electrocardiograma (ECG)", why: "Control de evolución eléctrica cardíaca." },
       ],
       notes: ["Correlacionar con evolución clínica, adherencia y tratamiento actual."],
     },
@@ -141,8 +156,11 @@ export function recommendChronicControl(
       summary:
         "Control de insuficiencia cardíaca con foco en función renal, balance electrolítico y marcadores de congestión.",
       tests: [
-        { name: "Creatinina", why: "Seguimiento de función renal durante el control." },
-        { name: "Electrolitos", why: "Monitoreo de sodio y potasio durante tratamiento." },
+        { name: "Creatinina en sangre", why: "Seguimiento de función renal durante el control." },
+        {
+          name: "Electrolitos en sangre (Na, K, Cl)",
+          why: "Monitoreo de sodio y potasio durante tratamiento.",
+        },
         { name: "NT-proBNP", why: "Apoyo al seguimiento de sobrecarga o congestión." },
         { name: "Hemograma", why: "Evaluación general y pesquisa de anemia asociada." },
       ],
@@ -153,8 +171,11 @@ export function recommendChronicControl(
         "Control de fibrilación auricular con foco en anticoagulación, función renal y causas asociadas.",
       tests: [
         { name: "INR", why: "Seguimiento de anticoagulación en pacientes que lo requieran." },
-        { name: "Función renal", why: "Ajuste y seguridad de tratamiento." },
-        { name: "Electrolitos", why: "Monitoreo de factores que favorecen descompensación." },
+        { name: "Creatinina en sangre", why: "Ajuste y seguridad de tratamiento." },
+        {
+          name: "Electrolitos en sangre (Na, K, Cl)",
+          why: "Monitoreo de factores que favorecen descompensación.",
+        },
         { name: "TSH", why: "Pesquisa de causas tiroideas asociadas." },
       ],
       notes: ["La periodicidad depende del tratamiento y del control clínico del ritmo."],
@@ -162,11 +183,18 @@ export function recommendChronicControl(
     type2_diabetes: {
       summary: "Control de diabetes tipo 2 con seguimiento glicémico, renal y metabólico.",
       tests: [
-        { name: "HbA1C", why: "Monitoreo del control glicémico periódico." },
+        { name: "Hemoglobina glicosilada (HbA1C)", why: "Monitoreo del control glicémico periódico." },
+        { name: "Glucosa en sangre", why: "Seguimiento glicémico complementario." },
         { name: "Perfil lipídico", why: "Seguimiento de riesgo cardiovascular asociado." },
-        { name: "Creatinina / eGFR", why: "Evaluación de función renal." },
-        { name: "Microalbuminuria", why: "Pesquisa temprana de compromiso renal." },
-        { name: "B12", why: "Control útil en contexto de tratamiento prolongado y riesgo de déficit." },
+        { name: "Creatinina en sangre", why: "Evaluación de función renal." },
+        {
+          name: "Razón albuminuria / creatininuria (RAC) en orina aislada",
+          why: "Pesquisa temprana de compromiso renal.",
+        },
+        {
+          name: "Niveles de vitamina B12",
+          why: "Control útil en contexto de tratamiento prolongado y riesgo de déficit.",
+        },
       ],
       notes: ["La frecuencia del control depende de metas clínicas y tratamiento actual."],
     },
@@ -174,8 +202,15 @@ export function recommendChronicControl(
       summary: "Control de obesidad o síndrome metabólico con evaluación cardiometabólica integral.",
       tests: [
         { name: "Perfil lipídico", why: "Seguimiento de riesgo cardiometabólico." },
-        { name: "Glicemia / HbA1c", why: "Evaluación de alteraciones en metabolismo de glucosa." },
-        { name: "PTGO", why: "Apoyo diagnóstico en evaluación metabólica según contexto." },
+        { name: "Glucosa en sangre", why: "Evaluación de alteraciones en metabolismo de glucosa." },
+        {
+          name: "Hemoglobina glicosilada (HbA1C)",
+          why: "Apoyo complementario para evaluación metabólica.",
+        },
+        {
+          name: "Prueba de tolerancia a la glucosa oral (PTGO)",
+          why: "Apoyo diagnóstico en evaluación metabólica según contexto.",
+        },
         { name: "TSH", why: "Pesquisa de alteraciones tiroideas asociadas." },
         { name: "Ácido úrico", why: "Evaluación metabólica complementaria." },
       ],
@@ -201,23 +236,31 @@ export function recommendChronicControl(
       summary:
         "Control de EPOC con énfasis en seguimiento funcional respiratorio y evaluación hematológica.",
       tests: [
-        { name: "Espirometría", why: "Seguimiento funcional respiratorio periódico." },
+        {
+          name: "Espirometría basal y post broncodilatador",
+          why: "Seguimiento funcional respiratorio periódico.",
+        },
         { name: "Hemograma", why: "Evaluación si existe sospecha de policitemia o compromiso asociado." },
       ],
       notes: ["El seguimiento debe complementarse con evaluación clínica respiratoria."],
     },
     asthma: {
       summary: "Control de asma con seguimiento de función pulmonar.",
-      tests: [{ name: "Espirometría", why: "Control funcional respiratorio en seguimiento de asma." }],
+      tests: [
+        {
+          name: "Espirometría basal y post broncodilatador",
+          why: "Control funcional respiratorio en seguimiento de asma.",
+        },
+      ],
       notes: ["La indicación se ajusta a control clínico y respuesta a tratamiento."],
     },
     osteoporosis: {
       summary: "Control de osteoporosis con evaluación ósea, mineral y renal.",
       tests: [
-        { name: "Densitometría", why: "Seguimiento de densidad mineral ósea." },
+        { name: "Densitometría ósea", why: "Seguimiento de densidad mineral ósea." },
         { name: "Calcio total", why: "Evaluación de metabolismo mineral." },
-        { name: "Vitamina D", why: "Control de suficiencia para manejo óseo." },
-        { name: "Creatinina", why: "Monitoreo de función renal." },
+        { name: "Niveles de vitamina D", why: "Control de suficiencia para manejo óseo." },
+        { name: "Creatinina en sangre", why: "Monitoreo de función renal." },
       ],
       notes: ["La periodicidad depende de tratamiento y riesgo de fractura."],
     },
@@ -225,7 +268,6 @@ export function recommendChronicControl(
       summary:
         "Control de artritis reumatoide con seguimiento inflamatorio, hematológico y hepático.",
       tests: [
-        { name: "PCR", why: "Seguimiento de actividad inflamatoria." },
         { name: "VHS", why: "Apoyo al control de actividad inflamatoria." },
         { name: "Hemograma", why: "Monitoreo hematológico en seguimiento clínico." },
         { name: "Perfil hepático", why: "Control si existe tratamiento con fármacos que lo requieran." },
@@ -236,9 +278,15 @@ export function recommendChronicControl(
       summary:
         "Control de enfermedad renal crónica con seguimiento renal, electrolítico y hematológico.",
       tests: [
-        { name: "Creatinina / eGFR", why: "Seguimiento de función renal y progresión." },
-        { name: "Electrolitos", why: "Monitoreo de balance electrolítico." },
-        { name: "Microalbuminuria", why: "Evaluación de daño renal asociado." },
+        { name: "Creatinina en sangre", why: "Seguimiento de función renal y progresión." },
+        {
+          name: "Electrolitos en sangre (Na, K, Cl)",
+          why: "Monitoreo de balance electrolítico.",
+        },
+        {
+          name: "Razón albuminuria / creatininuria (RAC) en orina aislada",
+          why: "Evaluación de daño renal asociado.",
+        },
         { name: "Hemograma", why: "Pesquisa de anemia asociada a enfermedad renal." },
       ],
       notes: ["La frecuencia depende de etapa de enfermedad renal y tratamiento."],
@@ -247,20 +295,22 @@ export function recommendChronicControl(
       summary:
         "Control de enfermedad hepática crónica (MASLD) con seguimiento bioquímico y por imágenes.",
       tests: [
-        { name: "TGO/TGP", why: "Seguimiento de actividad hepática." },
         { name: "GGT", why: "Evaluación bioquímica hepática complementaria." },
         { name: "Perfil lipídico", why: "Seguimiento metabólico asociado." },
-        { name: "Ecografía periódica", why: "Control estructural hepático según evolución." },
+        { name: "Perfil bioquímico", why: "Seguimiento bioquímico general asociado." },
       ],
       notes: ["Ideal complementar con control metabólico y seguimiento clínico."],
     },
     chronic_hiv: {
       summary: "Control de VIH crónico con seguimiento virológico, inmunológico, renal y hepático.",
       tests: [
-        { name: "Carga viral", why: "Monitoreo virológico del tratamiento." },
-        { name: "CD4", why: "Seguimiento inmunológico." },
+        { name: "Carga viral VIH", why: "Monitoreo virológico del tratamiento." },
+        {
+          name: "Cuantificación de subpoblaciones de linfocitos T (CD3, CD4, CD8)",
+          why: "Seguimiento inmunológico.",
+        },
         { name: "Perfil hepático", why: "Control de seguridad y evolución clínica." },
-        { name: "Creatinina", why: "Monitoreo de función renal." },
+        { name: "Creatinina en sangre", why: "Monitoreo de función renal." },
       ],
       notes: ["El seguimiento debe alinearse con control infectológico habitual."],
     },

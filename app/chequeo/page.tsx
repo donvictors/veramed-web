@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { startTransition, useEffect, useMemo, useState } from "react";
 import Stepper from "@/components/checkup/Stepper";
 import { fetchCurrentUser } from "@/lib/auth-api";
@@ -37,8 +38,10 @@ export default function CheckupPage() {
   const [smoking, setSmoking] = useState<Smoking>("never");
   const [cigarettesPerDay, setCigarettesPerDay] = useState(0);
   const [smokingYears, setSmokingYears] = useState(0);
+  const [quitSmokingYearsAgo, setQuitSmokingYearsAgo] = useState(0);
   const [sexualActivity, setSexualActivity] = useState<SexualActivity>("no");
   const [pregnancy, setPregnancy] = useState<Pregnancy>("no");
+  const [gestationWeeks, setGestationWeeks] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
@@ -75,8 +78,10 @@ export default function CheckupPage() {
       cigarettesPerDay: smoking === "never" ? 0 : cigarettesPerDay,
       smokingYears: smoking === "never" ? 0 : smokingYears,
       packYearIndex: smoking === "never" ? 0 : packYearIndex,
+      quitSmokingYearsAgo: smoking === "former" ? quitSmokingYearsAgo : 0,
       sexualActivity,
       pregnancy,
+      gestationWeeks: pregnancy === "yes" ? gestationWeeks : 0,
     }),
     [
       age,
@@ -85,6 +90,8 @@ export default function CheckupPage() {
       heightCm,
       packYearIndex,
       pregnancy,
+      gestationWeeks,
+      quitSmokingYearsAgo,
       sex,
       sexualActivity,
       smoking,
@@ -94,10 +101,23 @@ export default function CheckupPage() {
   );
 
   const rec = useMemo(() => recommend(input), [input]);
+  const missingRequiredFields = useMemo(() => {
+    const missing: string[] = [];
+
+    if (!nameFields.firstName.trim()) missing.push("Nombre");
+    if (!nameFields.paternalSurname.trim()) missing.push("Apellido paterno");
+    if (!nameFields.maternalSurname.trim()) missing.push("Apellido materno");
+    if (!rut.trim()) missing.push("RUT");
+    if (!birthDate) missing.push("Fecha de nacimiento");
+
+    return missing;
+  }, [birthDate, nameFields, rut]);
+  const hasMissingRequiredFields = missingRequiredFields.length > 0;
 
   useEffect(() => {
     if (sex === "M") {
       setPregnancy("no");
+      setGestationWeeks(0);
     }
   }, [sex]);
 
@@ -105,8 +125,28 @@ export default function CheckupPage() {
     if (smoking === "never") {
       setCigarettesPerDay(0);
       setSmokingYears(0);
+      setQuitSmokingYearsAgo(0);
+    }
+
+    if (smoking === "current") {
+      setQuitSmokingYearsAgo(0);
     }
   }, [smoking]);
+
+  useEffect(() => {
+    if (pregnancy === "no") {
+      setGestationWeeks(0);
+    }
+  }, [pregnancy]);
+
+  useEffect(() => {
+    if (
+      !hasMissingRequiredFields &&
+      submitError.startsWith("Completa los campos obligatorios antes de continuar:")
+    ) {
+      setSubmitError("");
+    }
+  }, [hasMissingRequiredFields, submitError]);
 
   useEffect(() => {
     void fetchCurrentUser()
@@ -135,6 +175,13 @@ export default function CheckupPage() {
   }, []);
 
   async function handleContinue() {
+    if (hasMissingRequiredFields) {
+      setSubmitError(
+        `Completa los campos obligatorios antes de continuar: ${missingRequiredFields.join(", ")}.`,
+      );
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       setSubmitError("");
@@ -149,6 +196,9 @@ export default function CheckupPage() {
   }
 
   const showsSmokingIntensity = smoking === "former" || smoking === "current";
+  const showsPregnancyWeeks = pregnancy === "yes";
+  const gestationWarning = gestationWeeks >= 42;
+  const underageWarning = Boolean(birthDate) && age < 15;
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
@@ -181,7 +231,7 @@ export default function CheckupPage() {
 
                 <div className="mt-5 grid gap-5">
                   <div className="grid gap-4 md:grid-cols-3">
-                    <Field label="Nombre">
+                    <Field label="Nombre *">
                       <input
                         className={inputCls}
                         value={nameFields.firstName}
@@ -191,7 +241,7 @@ export default function CheckupPage() {
                       />
                     </Field>
 
-                    <Field label="Apellido paterno">
+                    <Field label="Apellido paterno *">
                       <input
                         className={inputCls}
                         value={nameFields.paternalSurname}
@@ -204,7 +254,7 @@ export default function CheckupPage() {
                       />
                     </Field>
 
-                    <Field label="Apellido materno">
+                    <Field label="Apellido materno *">
                       <input
                         className={inputCls}
                         value={nameFields.maternalSurname}
@@ -219,10 +269,10 @@ export default function CheckupPage() {
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-2">
-                    <Field label="RUT">
+                    <Field label="RUT *">
                       <input className={inputCls} value={rut} onChange={(e) => setRut(e.target.value)} />
                     </Field>
-                    <Field label="Fecha de nacimiento">
+                    <Field label="Fecha de nacimiento *">
                       <input
                         className={inputCls}
                         type="date"
@@ -231,6 +281,17 @@ export default function CheckupPage() {
                       />
                     </Field>
                   </div>
+
+                  {underageWarning && (
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm leading-6 text-rose-800">
+                      El sistema de órdenes de chequeo preventivo sólo está disponible para
+                      personas de 15 años o más. Recuerda además que según nuestros{" "}
+                      <Link href="/terminos" className="font-semibold underline">
+                        Términos y Condiciones
+                      </Link>
+                      , los menores de edad deben contar con la supervisión de su tutor.
+                    </div>
+                  )}
 
                   <div className="grid gap-4 md:grid-cols-2">
                     <Field label="Correo electrónico">
@@ -335,8 +396,23 @@ export default function CheckupPage() {
 
                   {showsSmokingIntensity && (
                     <>
+                      {smoking === "former" && (
+                        <Field label="¡Felicitaciones! ¿Hace cuántos años dejaste de fumar?">
+                          <input
+                            className={inputCls}
+                            type="number"
+                            min={0}
+                            max={99}
+                            value={quitSmokingYearsAgo}
+                            onChange={(e) => setQuitSmokingYearsAgo(Number(e.target.value))}
+                          />
+                        </Field>
+                      )}
+
                       <p className="text-sm font-medium text-slate-900">
-                        En promedio, ¿cuántos cigarros ha fumado al día y durante cuánto tiempo?
+                        {smoking === "former"
+                          ? "En promedio, ¿cuántos cigarros fumabas al día y durante cuánto tiempo fumaste?"
+                          : "En promedio, ¿cuántos cigarros ha fumado al día y durante cuánto tiempo?"}
                       </p>
 
                       <div className="grid gap-4 md:grid-cols-2">
@@ -384,7 +460,7 @@ export default function CheckupPage() {
                     </select>
                   </Field>
 
-                  <Field label="¿Está embarazada?">
+                  <Field label="¿Estás embarazada?">
                     <select
                       className={sex === "F" ? inputCls : readonlyCls}
                       value={pregnancy}
@@ -395,6 +471,27 @@ export default function CheckupPage() {
                       <option value="yes">Sí</option>
                     </select>
                   </Field>
+
+                  {showsPregnancyWeeks && (
+                    <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+                      <Field label="¿Cuántas semanas tienes de gestación?">
+                        <input
+                          className={inputCls}
+                          type="number"
+                          min={0}
+                          max={99}
+                          value={gestationWeeks}
+                          onChange={(e) => setGestationWeeks(Number(e.target.value))}
+                        />
+                      </Field>
+
+                      {gestationWarning && (
+                        <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+                          ¿Segura? ¡Creo que entonces es hora de llamar a tu obstetra!
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -472,6 +569,13 @@ export default function CheckupPage() {
             >
               {isSubmitting ? "Creando solicitud..." : "Continuar a la ficha de orden"}
             </button>
+
+            {hasMissingRequiredFields && (
+              <p className="mt-3 text-xs leading-5 text-amber-700">
+                Debes completar estos campos obligatorios para continuar:{" "}
+                {missingRequiredFields.join(", ")}.
+              </p>
+            )}
 
             {submitError && <p className="mt-3 text-xs leading-5 text-rose-600">{submitError}</p>}
 

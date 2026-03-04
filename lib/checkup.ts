@@ -29,8 +29,10 @@ export type CheckupInput = {
   cigarettesPerDay?: number;
   smokingYears?: number;
   packYearIndex?: number;
+  quitSmokingYearsAgo?: number;
   sexualActivity: SexualActivity;
   pregnancy: Pregnancy;
+  gestationWeeks?: number;
 };
 
 export type TestItem = {
@@ -38,10 +40,18 @@ export type TestItem = {
   why: string;
 };
 
+export type TestSampleType =
+  | "Sangre"
+  | "Orina"
+  | "Hisopado endocervical"
+  | "Orina 2da micción muestra aislada"
+  | "Secreción endocervical / orina de primer chorro / secreción vaginal";
+
 export type CheckupRecommendation = {
   summary: string;
   tests: TestItem[];
   notes: string[];
+  removedTests?: TestItem[];
 };
 
 export type StoredCheckup = {
@@ -69,6 +79,16 @@ export type StoredPayment = {
 };
 
 export const CHECKUP_PRICE_CLP = 1990;
+
+const TEST_SAMPLE_TYPE_MAP: Record<string, string> = {
+  "Orina completa": "Orina",
+  Urocultivo: "Orina",
+  "PCR de virus papiloma humano (VPH)": "Hisopado endocervical",
+  "PCR Chlamydia trachomatis y Neisseria gonorrhoeae":
+    "Secreción endocervical / orina de primer chorro / secreción vaginal",
+  "Razón albuminuria / creatininuria (RAC) en orina aislada":
+    "Orina 2da micción muestra aislada",
+};
 
 export function splitPatientFullName(fullName: string): PatientNameFields {
   const parts = fullName
@@ -147,63 +167,183 @@ export function calculatePackYearIndex(cigarettesPerDay: number, smokingYears: n
 }
 
 export function recommend(input: CheckupInput): CheckupRecommendation {
-  if (input.sex === "F" && input.pregnancy === "yes") {
-    return {
-      summary: "Embarazo declarado: recomendamos control prenatal formal.",
-      tests: [
-        {
-          name: "Control prenatal",
-          why: "El panel depende de edad gestacional y antecedentes.",
-        },
-      ],
-      notes: ["Si hay dolor, sangrado o fiebre: consulta urgencia."],
-    };
+  const testMap = new Map<string, TestItem>();
+
+  function addTest(name: string, reason: string) {
+    const current = testMap.get(name);
+    if (!current) {
+      testMap.set(name, { name, why: reason });
+      return;
+    }
+
+    if (!current.why.includes(reason)) {
+      current.why = `${current.why} ${reason}`;
+    }
   }
 
-  const tests: TestItem[] = [
-    { name: "Hemograma", why: "Pesquisa anemia e infecciones frecuentes." },
-    {
-      name: "Perfil bioquímico (renal/electrolitos)",
-      why: "Línea basal de función renal y electrolitos.",
-    },
-    { name: "Glicemia en ayunas", why: "Pesquisa alteraciones de glucosa." },
-    { name: "Orina completa", why: "Pesquisa infecciones y alteraciones urinarias." },
-  ];
+  const isPregnant = input.sex === "F" && input.pregnancy === "yes";
+  const isSexuallyActive = input.sexualActivity === "yes";
+  const isFemale = input.sex === "F";
+  const isMale = input.sex === "M";
+  const bmi = input.bodyMassIndex ?? 0;
+  const gestationWeeks = input.gestationWeeks ?? 0;
+  const packYearIndex = input.packYearIndex ?? 0;
+  const quitSmokingYearsAgo = input.quitSmokingYearsAgo ?? 0;
+  const eligibleFormerSmoker = input.smoking === "former" && quitSmokingYearsAgo <= 15;
+  const eligibleCurrentSmoker = input.smoking === "current";
 
-  if (input.age >= 40) {
-    tests.push({
-      name: "Perfil lipídico",
-      why: "Estratificación de riesgo cardiovascular.",
-    });
-    tests.push({
-      name: "TSH",
-      why: "Pesquisa disfunción tiroidea (más prevalente con la edad).",
-    });
+  addTest(
+    "Glucosa en sangre",
+    "Lo pedimos como examen de tamizaje basal para todas las personas.",
+  );
+  addTest(
+    "Perfil lipídico",
+    "Lo pedimos como examen de tamizaje basal para todas las personas.",
+  );
+  addTest(
+    "Perfil hepático",
+    "Lo pedimos como evaluación basal de función hepática.",
+  );
+
+  if (input.age >= 15 && input.age <= 65) {
+    addTest(
+      "ELISA para VIH",
+      "Lo recomendamos como tamizaje universal entre los 15 y 65 años, y además en personas de cualquier edad que sean sexualmente activas.",
+    );
   }
 
-  if (input.age >= 60) {
-    tests.push({
-      name: "HbA1c",
-      why: "Pesquisa alteraciones crónicas de glucosa.",
-    });
+  if (isPregnant) {
+    addTest(
+      "ELISA para VIH",
+      "El embarazo requiere tamizaje universal para VIH, independiente de la edad.",
+    );
+    addTest(
+      "Antígeno de superficie Virus Hepatitis B (HBsAg)",
+      "El embarazo requiere tamizaje para hepatitis B.",
+    );
+    addTest(
+      "Orina completa",
+      "En embarazo se incluye control urinario preventivo.",
+    );
+    addTest(
+      "Urocultivo",
+      "En embarazo se incluye pesquisa de bacteriuria asintomática.",
+    );
   }
 
-  const notes: string[] = [];
-  if (input.smoking !== "never") {
-    notes.push("Por tabaco: priorizar prevención CV y consejería de cesación.");
-  }
-  if (input.sexualActivity === "yes") {
-    notes.push("Opcional: panel ITS según preferencia y contexto.");
+  if (input.age > 18) {
+    addTest(
+      "Holter de presión arterial (MAPA)",
+      "El tamizaje de hipertensión arterial lo recomendamos de forma preventiva en todas las personas mayores de 18 años. En la siguiente página puedes ver métodos de tamizaje distintos al Holter de presión.",
+    );
   }
 
+  if (isFemale && input.age >= 21 && input.age <= 65) {
+    addTest(
+      "Tamizaje de cáncer cervicouterino",
+      "En el siguiente paso puedes elegir la opción de método de tamizaje.",
+    );
+  }
+
+  if (input.age >= 45 && input.age <= 75) {
+    addTest(
+      "Tamizaje de cáncer colorrectal",
+      "Se lo indicamos a todas las personas de 45 años o más. En el siguiente paso puedes elegir la opción de método de tamizaje.",
+    );
+  }
+
+  if (isSexuallyActive) {
+    addTest(
+      "ELISA para VIH",
+      "Lo recomendamos como tamizaje universal entre los 15 y 65 años, y además en personas de cualquier edad que sean sexualmente activas.",
+    );
+    addTest(
+      "RPR/VDRL",
+      "Lo recomendamos en todas las personas sexualmente activas.",
+    );
+    addTest(
+      "Antígeno de superficie Virus Hepatitis B (HBsAg)",
+      "Lo recomendamos en todas las personas sexualmente activas.",
+    );
+    addTest(
+      "Anticuerpos anti Virus Hepatitis C",
+      "Lo recomendamos en todas las personas sexualmente activas.",
+    );
+  }
+
+  if ((isFemale && isSexuallyActive) || isPregnant) {
+    addTest(
+      "PCR Chlamydia trachomatis y Neisseria gonorrhoeae",
+      "Corresponde tamizaje de ITS según sexo y contexto clínico declarado.",
+    );
+  }
+
+  if (isPregnant && gestationWeeks >= 24) {
+    addTest(
+      "Prueba de tolerancia a la glucosa oral (PTGO)",
+      "Desde las 24 semanas se agrega tamizaje de diabetes gestacional.",
+    );
+  }
+
+  if (input.age >= 65 && input.age <= 75 && input.smoking !== "never") {
+    addTest(
+      "Ecografía abdominal",
+      "La pedimos a personas de entre 65 y 75 años que hayan fumado, para la detección precoz de aneurismas de aorta abdominal (AAA).",
+    );
+  }
+
+  if (isFemale && input.age >= 40 && input.age <= 74) {
+    addTest(
+      "Mamografía bilateral",
+      "Indicamos tamizaje de cáncer de mama a personas de sexo femenino entre 40 y 74 años. Por defecto se incluye mamografía bilateral y en el siguiente paso puedes optar por agregar una ecografía mamaria.",
+    );
+  }
+
+  if (
+    input.age >= 50 &&
+    input.age <= 80 &&
+    packYearIndex >= 20 &&
+    (eligibleCurrentSmoker || eligibleFormerSmoker)
+  ) {
+    addTest(
+      "TC de tórax de baja dosis",
+      "Es un scanner de tórax realizado con baja dosis de radiación. Lo pedimos según tu edad y carga tabáquica acumulada para la detección temprana del cáncer de pulmón.",
+    );
+  }
+
+  if (isFemale && input.age > 65) {
+    addTest(
+      "Densitometría ósea",
+      "Se agrega por tamizaje de salud ósea en mujer mayor de 65 años.",
+    );
+  }
+
+  if (input.age >= 35 && bmi >= 25) {
+    addTest(
+      "Hemoglobina glicosilada (HbA1C)",
+      "Además de la glucosa que la pedimos universalmente, solicitamos HbA1C a personas de más de 35 años que tengan sobrepeso según IMC.",
+    );
+  }
+
+  if (isMale && input.age >= 55 && input.age <= 69) {
+    addTest(
+      "Antígeno prostático específico (APE)",
+      "Lo pedimos a personas de sexo masculino entre 55 y 69 años para tamizaje de cáncer de próstata. En el siguiente paso podrás leer sobre los beneficios y riesgos del tamizaje con APE y las opiniones de las prinicipales sociedades médicas.",
+    );
+  }
+
+  const tests = Array.from(testMap.values());
   const summary =
-    input.age < 40
-      ? "Chequeo preventivo básico."
-      : input.age < 60
-        ? "Chequeo cardiometabólico ampliado."
-        : "Chequeo ampliado para adulto mayor.";
+    tests.length > 0
+      ? `Se identificaron ${tests.length} exámenes preventivos según tus datos clínicos.`
+      : "No se identificaron exámenes preventivos con la información ingresada.";
 
-  return { summary, tests, notes };
+  return {
+    summary,
+    tests,
+    notes: [],
+    removedTests: [],
+  };
 }
 
 export function formatSmoking(smoking: Smoking) {
@@ -247,6 +387,10 @@ export function createPaymentId(timestamp = Date.now()) {
   return `PAY-${dateCode}-${suffix}`;
 }
 
+export function getTestSampleType(testName: string) {
+  return TEST_SAMPLE_TYPE_MAP[testName] ?? "Sangre";
+}
+
 export function formatBirthDate(value: string) {
   if (!value) return "No informado";
   const parsed = new Date(`${value}T00:00:00`);
@@ -255,18 +399,34 @@ export function formatBirthDate(value: string) {
 }
 
 export function inferOrderDetails(tests: TestItem[]) {
+  const sampleTypeSet = new Set(tests.map((test) => getTestSampleType(test.name)));
+  const includesUrine =
+    sampleTypeSet.has("Orina") || sampleTypeSet.has("Orina 2da micción muestra aislada");
   const lowerTests = tests.map((test) => test.name.toLowerCase());
   const needsFasting = lowerTests.some(
     (name) =>
-      name.includes("glicemia") || name.includes("perfil lip") || name.includes("hba1c"),
+      name.includes("glicemia") ||
+      name.includes("glucosa") ||
+      name.includes("perfil lip") ||
+      name.includes("hba1c") ||
+      name.includes("ptgo"),
   );
-  const includesUrine = lowerTests.some((name) => name.includes("orina"));
-  const includesBlood = tests.some((test) => !test.name.toLowerCase().includes("control prenatal"));
-
   const sampleTypes: string[] = [];
-  if (includesBlood) sampleTypes.push("Sangre");
-  if (includesUrine) sampleTypes.push("Orina");
+  if (sampleTypeSet.has("Sangre")) sampleTypes.push("Sangre");
+  if (sampleTypeSet.has("Orina")) sampleTypes.push("Orina");
+  if (sampleTypeSet.has("Hisopado endocervical")) sampleTypes.push("Hisopado endocervical");
+  if (
+    sampleTypeSet.has("Secreción endocervical / orina de primer chorro / secreción vaginal")
+  ) {
+    sampleTypes.push("Secreción endocervical / orina de primer chorro / secreción vaginal");
+  }
+  if (sampleTypeSet.has("Orina 2da micción muestra aislada")) {
+    sampleTypes.push("Orina 2da micción muestra aislada");
+  }
   if (sampleTypes.length === 0) sampleTypes.push("Según evaluación clínica");
+  const sampleTypeLabel = sampleTypes
+    .map((sampleType) => sampleType.charAt(0).toLowerCase() + sampleType.slice(1))
+    .join(", ");
 
   const preparation: string[] = [];
   if (needsFasting) {
@@ -284,7 +444,7 @@ export function inferOrderDetails(tests: TestItem[]) {
   return {
     includedCount: tests.length,
     needsFasting,
-    sampleTypeLabel: sampleTypes.join(" / "),
+    sampleTypeLabel,
     preparation,
   };
 }

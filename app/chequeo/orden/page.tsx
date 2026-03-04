@@ -360,7 +360,7 @@ export default function OrderPage() {
               />
             </div>
             <p className="mt-1 text-sm text-slate-700">Dr. Víctor Rebolledo M.</p>
-            <p className="text-sm text-slate-700">Staff clínico VeraMed</p>
+            <p className="text-sm text-slate-700">RUT 18.856.820-3</p>
             <p className="text-sm text-slate-700">Registro SIS N°611341</p>
           </div>
 

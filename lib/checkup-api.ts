@@ -68,6 +68,33 @@ export async function fetchCheckupRequest(id: string) {
   return data.checkup;
 }
 
+export type CheckupScreeningPreferences = {
+  colorectalMethod?: "fit" | "colonoscopy";
+  cervicalMethod?: "pap" | "hpv" | "cotesting";
+  bloodPressureMethod?: "mapa" | "skip";
+  breastImaging?: "mammo_only" | "mammo_plus_ultrasound";
+  prostateMethod?: "include" | "skip";
+  addTestName?: string;
+  removeTestName?: string;
+  restoreTestName?: string;
+};
+
+export async function updateCheckupScreeningPreferences(
+  id: string,
+  preferences: CheckupScreeningPreferences,
+) {
+  const response = await fetch(`/api/checkups/${id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(preferences),
+  });
+
+  const data = await readJson<{ checkup: CheckupApiRecord }>(response);
+  return data.checkup;
+}
+
 export async function createCheckupPendingPayment(
   id: string,
   payment: Omit<StoredPayment, "paid" | "paidAt">,
