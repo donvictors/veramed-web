@@ -219,94 +219,95 @@ export default function ChronicControlOrderPage() {
           </div>
         </section>
 
-        <section className="hidden print:block print:px-8 print:py-6 print:pb-64">
-          <div className="border-b border-slate-300 pb-4">
+        <section className="hidden print:block print:px-8 print:py-6">
+          <div className="flex min-h-[255mm] flex-col">
             <div className="flex items-start justify-between gap-8">
-              <div>
-                <BrandLogo className="h-28 w-auto" />
-              </div>
-              <div className="text-right text-sm leading-6">
+              <BrandLogo className="h-10 w-auto" />
+              <div className="text-right text-[13px] leading-6">
                 <p className="font-semibold text-slate-900">ORDEN MÉDICA DIGITAL</p>
                 <p>{issuedAt}</p>
               </div>
             </div>
-            <h2 className="mt-8 text-center text-3xl font-semibold text-slate-900">
+
+            <h2 className="mt-6 text-center text-[2rem] font-semibold tracking-tight text-slate-900">
               ORDEN DE LABORATORIO
             </h2>
-          </div>
 
-          <div className="mt-4 border-b border-slate-300 pb-4 text-sm">
-            <div className="grid grid-cols-2 gap-8">
-              <div className="space-y-1">
-                <PrintRow label="Atención" value={issuedAt.split(",")[0] ?? issuedAt} />
-                <PrintRow label="Paciente" value={patient?.fullName || "Paciente Veramed"} />
-                <PrintRow label="RUT" value={patient?.rut || "No informado"} />
-                <PrintRow label="Dirección" value={patient?.address || "No informada"} />
-              </div>
-              <div className="space-y-1">
-                <PrintRow label="Nacimiento" value={formatBirthDate(patient?.birthDate || "")} />
-                <PrintRow label="Correo" value={patient?.email || "No informado"} />
-                <PrintRow label="Teléfono" value={patient?.phone || "No informado"} />
-                <PrintRow
-                  label="Condiciones"
-                  value={
-                    data.conditions.length > 0
-                      ? data.conditions.map(conditionLabel).join(", ")
-                      : "No declaradas"
-                  }
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-6 space-y-5 text-xs">
-            {data.rec.tests.map((test) => (
-              <div key={test.name} className="break-inside-avoid">
-                <div className="flex gap-3">
-                  <span className="mt-1">•</span>
-                  <div>
-                    <p className="font-semibold uppercase tracking-[0.02em] text-slate-900">{test.name}</p>
-                    <p className="text-slate-700">Observaciones: {test.why}</p>
-                    <p className="text-slate-700">
-                      Fecha: {issuedAt.split(",")[0] ?? issuedAt}
-                    </p>
-                    <p className="text-slate-700">Código interno: {buildInternalCode(test.name)}</p>
-                  </div>
+            <div className="mt-6 border-y border-slate-300 py-3 text-[13px] leading-7">
+              <div className="flex items-start justify-between gap-10">
+                <div className="w-[48%]">
+                  <PrintRow label="Atención" value={issuedAt.split(",")[0] ?? issuedAt} />
+                  <PrintRow label="Paciente" value={patient?.fullName || "Paciente Veramed"} />
+                  <PrintRow label="RUT" value={patient?.rut || "No informado"} />
+                  <PrintRow label="Dirección" value={patient?.address || "No informada"} />
+                </div>
+                <div className="w-[48%]">
+                  <PrintRow label="Nacimiento" value={formatBirthDate(patient?.birthDate || "")} />
+                  <PrintRow label="Correo" value={patient?.email || "No informado"} />
+                  <PrintRow label="Teléfono" value={patient?.phone || "No informado"} />
+                  <PrintRow
+                    label="Condiciones"
+                    value={
+                      data.conditions.length > 0
+                        ? data.conditions.map(conditionLabel).join(", ")
+                        : "No declaradas"
+                    }
+                  />
                 </div>
               </div>
-            ))}
-          </div>
-
-          <div className="fixed bottom-16 right-8 w-72 bg-white text-center">
-            <div className="mb-3 flex h-26 items-end justify-center border-b border-slate-500">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/firmas/firma-VRM.png"
-                alt="Firma Dr. Víctor Rebolledo"
-                loading="eager"
-                decoding="sync"
-                fetchPriority="high"
-                className="h-28 w-80 object-contain"
-              />
             </div>
-            <p className="mt-1 text-sm text-slate-700">Dr. Víctor Rebolledo M.</p>
-            <p className="text-sm text-slate-700">RUT 18.856.820-3</p>
-            <p className="text-sm text-slate-700">Registro SIS N°611341</p>
-          </div>
 
-          <div className="fixed bottom-0 left-0 right-0 border-t border-slate-300 bg-white px-8 py-4 text-xs text-slate-600">
-            <div className="grid grid-cols-3 items-end gap-8">
-              <div>
-                <p className="font-semibold text-slate-800">Código de verificación</p>
-                <p>{verificationCode}</p>
+            <div className="mt-8 flex-1 space-y-6 text-[13px] leading-6">
+              {data.rec.tests.map((test) => (
+                <div key={test.name} className="break-inside-avoid">
+                  <div className="flex gap-4">
+                    <span className="mt-0.5 text-base">•</span>
+                    <div>
+                      <p className="text-[13px] font-semibold uppercase tracking-[0.01em] text-slate-900">
+                        {test.name}
+                      </p>
+                      <p className="text-slate-700">Observaciones: {test.why}</p>
+                      <p className="text-slate-700">Fecha: {issuedAt.split(",")[0] ?? issuedAt}</p>
+                      <p className="text-slate-700">Código interno: {buildInternalCode(test.name)}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-12 flex justify-end">
+              <div className="w-80 bg-white text-center">
+                <div className="mb-3 flex h-24 items-end justify-center border-b border-slate-500">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/firmas/firma-VRM.png"
+                    alt="Firma Dr. Víctor Rebolledo"
+                    loading="eager"
+                    decoding="sync"
+                    fetchPriority="high"
+                    className="h-24 w-72 object-contain"
+                  />
+                </div>
+                <p className="mt-1 text-[13px] text-slate-700">Dr. Víctor Rebolledo M.</p>
+                <p className="text-[13px] text-slate-700">RUT 18.856.820-3</p>
+                <p className="text-[13px] text-slate-700">Registro SIS N°611341</p>
               </div>
-              <div className="text-center">
-                <p className="font-semibold text-slate-800">Fecha de emisión</p>
-                <p>{issuedAt}</p>
-              </div>
-              <div className="text-right">
-                <p className="font-semibold text-slate-800">veramed.cl</p>
-                <p>Página 1 de 1</p>
+            </div>
+
+            <div className="mt-8 border-t border-slate-300 pt-3 text-[11px] text-slate-600">
+              <div className="flex items-end justify-between gap-8">
+                <div>
+                  <p className="font-semibold text-slate-800">Código de verificación</p>
+                  <p>{verificationCode}</p>
+                </div>
+                <div className="text-center">
+                  <p className="font-semibold text-slate-800">Fecha de emisión</p>
+                  <p>{issuedAt}</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-semibold text-slate-800">veramed.cl</p>
+                  <p>Página 1 de 1</p>
+                </div>
               </div>
             </div>
           </div>
@@ -345,10 +346,10 @@ function SummaryCell({ label, value }: { label: string; value: string }) {
 
 function PrintRow({ label, value }: { label: string; value: string }) {
   return (
-    <p>
+    <div className="flex items-start gap-4">
       <span className="inline-block min-w-24 text-slate-700">{label}:</span>
       <span className="font-semibold text-slate-900">{value}</span>
-    </p>
+    </div>
   );
 }
 
