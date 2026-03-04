@@ -5,6 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Stepper from "@/components/checkup/Stepper";
 import {
+  createChronicPendingPayment,
+  fetchChronicControlRequest,
+  type ChronicControlApiRecord,
+} from "@/lib/chronic-control-api";
+import {
   createPaymentId,
   type StoredPayment,
 } from "@/lib/checkup";
@@ -12,52 +17,64 @@ import {
   CHRONIC_CONTROL_PRICE_CLP,
   conditionLabel,
   medicationLabel,
-  type StoredChronicControl,
 } from "@/lib/chronic-control";
 
 export default function ChronicControlPaymentPage() {
   const router = useRouter();
-  const [data, setData] = useState<StoredChronicControl | null>(null);
+  const [data, setData] = useState<ChronicControlApiRecord | null>(null);
   const [cardholder, setCardholder] = useState("");
   const [cardNumber, setCardNumber] = useState("");
   const [expiry, setExpiry] = useState("");
   const [cvv, setCvv] = useState("");
   const [billingId, setBillingId] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const requestId =
+    typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("id");
 
   useEffect(() => {
-    const raw = localStorage.getItem("veramed_chronic_control");
-    if (!raw) {
+    if (!requestId) {
       router.replace("/control-cronico");
       return;
     }
 
-    const parsed = JSON.parse(raw) as StoredChronicControl;
+    void fetchChronicControlRequest(requestId)
+      .then((request) => {
+        startTransition(() => {
+          setData(request);
+        });
+      })
+      .catch(() => {
+        router.replace("/control-cronico");
+      });
+  }, [requestId, router]);
 
-    startTransition(() => {
-      setData(parsed);
-    });
-  }, [router]);
-
-  function handlePayment() {
+  async function handlePayment() {
     const normalizedCard = cardNumber.replace(/\D/g, "") || "4242424242424242";
     const last4 = normalizedCard.slice(-4);
 
-    if (!data) {
+    if (!data || !requestId) {
       return;
     }
 
-    const paymentRecord: StoredPayment = {
-      paid: false,
+    const paymentRecord: Omit<StoredPayment, "paid" | "paidAt"> = {
       amount: CHRONIC_CONTROL_PRICE_CLP,
       currency: "CLP",
-      paidAt: 0,
       paymentId: createPaymentId(),
       cardLast4: last4,
       cardholder: cardholder.trim() || "Pago de prueba Veramed",
     };
 
-    localStorage.setItem("veramed_chronic_payment_pending", JSON.stringify(paymentRecord));
-    router.push("/control-cronico/pago/validacion");
+    try {
+      setIsSubmitting(true);
+      setSubmitError("");
+      await createChronicPendingPayment(requestId, paymentRecord);
+      router.push(`/control-cronico/pago/validacion?id=${requestId}`);
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "No pudimos iniciar el pago.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   if (!data) return null;
@@ -115,7 +132,7 @@ export default function ChronicControlPaymentPage() {
             </div>
 
             <Link
-              href="/control-cronico/resumen"
+              href={`/control-cronico/resumen?id=${data.id}`}
               className="mt-6 inline-flex text-sm font-semibold text-slate-700 transition hover:text-slate-950"
             >
               Volver al resumen
@@ -153,10 +170,15 @@ export default function ChronicControlPaymentPage() {
 
             <button
               onClick={handlePayment}
-              className="mt-6 w-full rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+              disabled={isSubmitting}
+              className="mt-6 w-full rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
             >
-              Pagar orden de control
+              {isSubmitting ? "Procesando..." : "Pagar orden de control"}
             </button>
+
+            {submitError && (
+              <p className="mt-3 text-xs leading-5 text-rose-600">{submitError}</p>
+            )}
 
             <p className="mt-3 text-xs leading-5 text-slate-500">
               Pago simulado para demo. Al confirmar, avanzas a validación de pago y luego al estado

@@ -2,70 +2,58 @@
 
 import { startTransition, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import BrandLogo from "@/components/BrandLogo";
 import {
+  fetchChronicControlRequest,
+  type ChronicControlApiRecord,
+} from "@/lib/chronic-control-api";
+import {
   createVerificationCode,
-  createOrderId,
   formatBirthDate,
-  type StoredCheckupStatus,
-  type StoredPayment,
 } from "@/lib/checkup";
 import {
   conditionLabel,
   medicationLabel,
-  type StoredChronicControl,
 } from "@/lib/chronic-control";
 
 export default function ChronicControlOrderPage() {
-  const [data, setData] = useState<StoredChronicControl | null>(null);
+  const router = useRouter();
+  const [data, setData] = useState<ChronicControlApiRecord | null>(null);
   const [approved, setApproved] = useState(false);
   const [paid, setPaid] = useState(false);
   const [issuedAt, setIssuedAt] = useState("");
   const [issuedAtTimestamp, setIssuedAtTimestamp] = useState(0);
+  const requestId =
+    typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("id");
 
   useEffect(() => {
-    const raw = localStorage.getItem("veramed_chronic_control");
-    const st = localStorage.getItem("veramed_chronic_control_status");
-    const paymentRaw = localStorage.getItem("veramed_chronic_payment");
-    const now = Date.now();
-    const formattedDate = new Intl.DateTimeFormat("es-CL", {
-      dateStyle: "medium",
-      timeStyle: "short",
-    }).format(new Date(now));
-
-    const nextData = raw ? (JSON.parse(raw) as StoredChronicControl) : null;
-
-    if (st) {
-      const storedStatus = JSON.parse(st) as StoredCheckupStatus;
-      const payment = paymentRaw ? (JSON.parse(paymentRaw) as StoredPayment) : null;
-      let nextOrderId = storedStatus.orderId;
-
-      if (!nextOrderId) {
-        nextOrderId = createOrderId();
-        localStorage.setItem(
-          "veramed_chronic_control_status",
-          JSON.stringify({ ...storedStatus, orderId: nextOrderId }),
-        );
-      }
-
-      startTransition(() => {
-        setData(nextData);
-        setIssuedAt(formattedDate);
-        setIssuedAtTimestamp(now);
-        setApproved(storedStatus.status === "approved");
-        setPaid(Boolean(payment?.paid));
-      });
+    if (!requestId) {
+      router.replace("/control-cronico");
       return;
     }
 
-    const payment = paymentRaw ? (JSON.parse(paymentRaw) as StoredPayment) : null;
-    startTransition(() => {
-      setData(nextData);
-      setIssuedAt(formattedDate);
-      setIssuedAtTimestamp(now);
-      setPaid(Boolean(payment?.paid));
-    });
-  }, []);
+    void fetchChronicControlRequest(requestId)
+      .then((request) => {
+        const issuedTimestamp =
+          request.status.approvedAt ?? request.status.queuedAt ?? request.updatedAt;
+        const formattedDate = new Intl.DateTimeFormat("es-CL", {
+          dateStyle: "medium",
+          timeStyle: "short",
+        }).format(new Date(issuedTimestamp));
+
+        startTransition(() => {
+          setData(request);
+          setIssuedAt(formattedDate);
+          setIssuedAtTimestamp(issuedTimestamp);
+          setApproved(request.status.status === "approved");
+          setPaid(Boolean(request.payment.confirmed?.paid));
+        });
+      })
+      .catch(() => {
+        router.replace("/control-cronico");
+      });
+  }, [requestId, router]);
 
   if (!data) {
     return (
@@ -91,13 +79,13 @@ export default function ChronicControlOrderPage() {
             </h1>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <Link
-                href="/control-cronico/pago"
+                href={`/control-cronico/pago?id=${requestId}`}
                 className="rounded-2xl bg-slate-950 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-slate-800"
               >
                 Ir a pagar
               </Link>
               <Link
-                href="/control-cronico/resumen"
+                href={`/control-cronico/resumen?id=${requestId}`}
                 className="rounded-2xl border border-slate-300 bg-white px-5 py-3 text-center text-sm font-semibold text-slate-900 transition hover:border-slate-400 hover:bg-slate-50"
               >
                 Volver al resumen
@@ -135,7 +123,7 @@ export default function ChronicControlOrderPage() {
               Imprimir / Guardar PDF
             </button>
             <Link
-              href="/control-cronico/estado"
+              href={`/control-cronico/estado?id=${requestId}`}
               className="rounded-xl border px-4 py-2 text-sm font-medium text-slate-900 hover:bg-slate-50"
             >
               Volver
@@ -148,7 +136,7 @@ export default function ChronicControlOrderPage() {
             <p className="text-sm font-semibold text-amber-900">Orden pendiente de aprobación</p>
             <p className="mt-1 text-sm text-amber-800">
               La orden se encuentra en revisión clínica. Puedes revisar el avance en{" "}
-              <Link className="font-semibold underline" href="/control-cronico/estado">
+              <Link className="font-semibold underline" href={`/control-cronico/estado?id=${requestId}`}>
                 estado
               </Link>
               .
@@ -231,7 +219,7 @@ export default function ChronicControlOrderPage() {
           </div>
         </section>
 
-        <section className="hidden print:block print:px-8 print:py-6 print:pb-52">
+        <section className="hidden print:block print:px-8 print:py-6 print:pb-64">
           <div className="border-b border-slate-300 pb-4">
             <div className="flex items-start justify-between gap-8">
               <div>
@@ -290,14 +278,15 @@ export default function ChronicControlOrderPage() {
           </div>
 
           <div className="fixed bottom-16 right-8 w-72 bg-white text-center">
-            <div className="relative mb-3 h-16 border-b border-slate-500">
+            <div className="mb-3 flex h-26 items-end justify-center border-b border-slate-500">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/firmas/firma-VRM.jpg"
+                src="/firmas/firma-VRM.png"
                 alt="Firma Dr. Víctor Rebolledo"
                 loading="eager"
+                decoding="sync"
                 fetchPriority="high"
-                className="absolute bottom-1 left-1/2 h-14 w-auto -translate-x-1/2 object-contain"
+                className="h-28 w-80 object-contain"
               />
             </div>
             <p className="mt-1 text-sm text-slate-700">Dr. Víctor Rebolledo M.</p>

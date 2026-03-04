@@ -5,27 +5,31 @@ import { startTransition, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Stepper from "@/components/checkup/Stepper";
 import WhatToExpect from "@/components/checkup/WhatToExpect";
-import {
-  inferOrderDetails,
-  type StoredCheckup,
-} from "@/lib/checkup";
+import { fetchCheckupRequest, type CheckupApiRecord } from "@/lib/checkup-api";
+import { inferOrderDetails } from "@/lib/checkup";
 
 export default function SummaryPage() {
   const router = useRouter();
-  const [data, setData] = useState<StoredCheckup | null>(null);
+  const [data, setData] = useState<CheckupApiRecord | null>(null);
+  const requestId =
+    typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("id");
 
   useEffect(() => {
-    const raw = localStorage.getItem("veramed_checkup");
-    if (!raw) {
+    if (!requestId) {
       router.replace("/chequeo");
       return;
     }
 
-    const parsed = JSON.parse(raw) as StoredCheckup;
-    startTransition(() => {
-      setData(parsed);
-    });
-  }, [router]);
+    void fetchCheckupRequest(requestId)
+      .then((checkup) => {
+        startTransition(() => {
+          setData(checkup);
+        });
+      })
+      .catch(() => {
+        router.replace("/chequeo");
+      });
+  }, [requestId, router]);
 
   if (!data) return null;
 
@@ -46,7 +50,7 @@ export default function SummaryPage() {
           </div>
 
           <Link
-            href="/chequeo"
+            href={`/chequeo?id=${data.id}`}
             className="rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
           >
             Editar datos
@@ -61,9 +65,7 @@ export default function SummaryPage() {
           <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_22px_70px_-48px_rgba(15,23,42,0.45)]">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  Ficha de orden
-                </p>
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Ficha de orden</p>
                 <h2 className="mt-2 text-2xl font-semibold text-slate-950">
                   Checklist clínico para laboratorio
                 </h2>
@@ -140,7 +142,7 @@ export default function SummaryPage() {
               </p>
 
               <Link
-                href="/chequeo/pago"
+                href={`/chequeo/pago?id=${data.id}`}
                 className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
               >
                 Ir a pagar

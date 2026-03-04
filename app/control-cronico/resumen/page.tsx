@@ -6,28 +6,37 @@ import { useRouter } from "next/navigation";
 import Stepper from "@/components/checkup/Stepper";
 import WhatToExpect from "@/components/checkup/WhatToExpect";
 import {
+  fetchChronicControlRequest,
+  type ChronicControlApiRecord,
+} from "@/lib/chronic-control-api";
+import {
   CHRONIC_CONTROL_PRICE_CLP,
   conditionLabel,
   medicationLabel,
-  type StoredChronicControl,
 } from "@/lib/chronic-control";
 
 export default function ChronicControlSummaryPage() {
   const router = useRouter();
-  const [data, setData] = useState<StoredChronicControl | null>(null);
+  const [data, setData] = useState<ChronicControlApiRecord | null>(null);
+  const requestId =
+    typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("id");
 
   useEffect(() => {
-    const raw = localStorage.getItem("veramed_chronic_control");
-    if (!raw) {
+    if (!requestId) {
       router.replace("/control-cronico");
       return;
     }
 
-    const parsed = JSON.parse(raw) as StoredChronicControl;
-    startTransition(() => {
-      setData(parsed);
-    });
-  }, [router]);
+    void fetchChronicControlRequest(requestId)
+      .then((request) => {
+        startTransition(() => {
+          setData(request);
+        });
+      })
+      .catch(() => {
+        router.replace("/control-cronico");
+      });
+  }, [requestId, router]);
 
   if (!data) return null;
 
@@ -46,7 +55,7 @@ export default function ChronicControlSummaryPage() {
           </div>
 
           <Link
-            href="/control-cronico"
+            href={`/control-cronico?id=${data.id}`}
             className="rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
           >
             Editar datos
@@ -143,7 +152,7 @@ export default function ChronicControlSummaryPage() {
               </p>
 
               <Link
-                href="/control-cronico/pago"
+                href={`/control-cronico/pago?id=${data.id}`}
                 className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
               >
                 Ir a pagar

@@ -4,56 +4,59 @@ import Link from "next/link";
 import { startTransition, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Stepper from "@/components/checkup/Stepper";
-import { type ReviewStatus, type StoredCheckupStatus } from "@/lib/checkup";
+import { fetchCheckupRequest } from "@/lib/checkup-api";
+import { type ReviewStatus } from "@/lib/checkup";
+
+const REVIEW_DELAY_MS = 8000;
 
 export default function StatusPage() {
   const router = useRouter();
   const [status, setStatus] = useState<ReviewStatus>("queued");
   const [secondsLeft, setSecondsLeft] = useState<number>(8);
-  const rejectionProbability = 0;
+  const requestId =
+    typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("id");
 
   useEffect(() => {
-    const raw = localStorage.getItem("veramed_checkup_status");
-    if (!raw) {
+    if (!requestId) {
       router.replace("/chequeo");
       return;
     }
 
-    const stored = JSON.parse(raw) as StoredCheckupStatus;
-    startTransition(() => {
-      setStatus(stored.status);
-      if (stored.status !== "queued") {
-        setSecondsLeft(0);
-      }
+    let isMounted = true;
+
+    const sync = async () => {
+      const checkup = await fetchCheckupRequest(requestId);
+      if (!isMounted) return;
+
+      startTransition(() => {
+        setStatus(checkup.status.status);
+
+        if (checkup.status.status !== "queued" || !checkup.status.queuedAt) {
+          setSecondsLeft(0);
+          return;
+        }
+
+        const elapsed = Date.now() - checkup.status.queuedAt;
+        const remaining = Math.max(0, Math.ceil((REVIEW_DELAY_MS - elapsed) / 1000));
+        setSecondsLeft(remaining);
+      });
+    };
+
+    void sync().catch(() => {
+      router.replace("/chequeo");
     });
 
-    if (stored.status !== "queued") {
-      return;
-    }
-
     const interval = setInterval(() => {
-      setSecondsLeft((s) => (s > 0 ? s - 1 : 0));
+      void sync().catch(() => {
+        router.replace("/chequeo");
+      });
     }, 1000);
 
-    const resolveReview = setTimeout(() => {
-      const nextStatus: ReviewStatus =
-        Math.random() < rejectionProbability ? "rejected" : "approved";
-      const nextPayload: StoredCheckupStatus = {
-        ...stored,
-        status: nextStatus,
-        approvedAt: nextStatus === "approved" ? Date.now() : undefined,
-        rejectedAt: nextStatus === "rejected" ? Date.now() : undefined,
-      };
-
-      localStorage.setItem("veramed_checkup_status", JSON.stringify(nextPayload));
-      setStatus(nextStatus);
-    }, 8000);
-
     return () => {
+      isMounted = false;
       clearInterval(interval);
-      clearTimeout(resolveReview);
     };
-  }, [rejectionProbability, router]);
+  }, [requestId, router]);
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
@@ -116,7 +119,7 @@ export default function StatusPage() {
               </div>
 
               <Link
-                href="/chequeo/resumen"
+                href={`/chequeo/resumen?id=${requestId}`}
                 className="mt-5 inline-flex text-sm font-semibold text-slate-700 transition hover:text-slate-950"
               >
                 Volver a la ficha de orden
@@ -133,7 +136,7 @@ export default function StatusPage() {
 
               <div className="mt-5 flex flex-col gap-3 sm:flex-row">
                 <Link
-                  href="/chequeo/orden"
+                  href={`/chequeo/orden?id=${requestId}`}
                   className="rounded-2xl bg-slate-950 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
                   Ver orden

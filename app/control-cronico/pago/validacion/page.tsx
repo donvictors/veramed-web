@@ -3,48 +3,40 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Stepper from "@/components/checkup/Stepper";
-import { createOrderId, type StoredCheckupStatus, type StoredPayment } from "@/lib/checkup";
+import { confirmChronicPayment, fetchChronicControlRequest } from "@/lib/chronic-control-api";
 
 export default function ChronicPaymentValidationPage() {
   const router = useRouter();
   const [secondsLeft, setSecondsLeft] = useState(3);
+  const requestId =
+    typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("id");
 
   useEffect(() => {
-    const raw = localStorage.getItem("veramed_chronic_payment_pending");
-    if (!raw) {
+    if (!requestId) {
       router.replace("/control-cronico/pago");
       return;
     }
-
-    const pendingPayment = JSON.parse(raw) as StoredPayment;
 
     const interval = setInterval(() => {
       setSecondsLeft((current) => (current > 0 ? current - 1 : 0));
     }, 1000);
 
     const confirmPayment = setTimeout(() => {
-      const confirmedPayment: StoredPayment = {
-        ...pendingPayment,
-        paid: true,
-        paidAt: Date.now(),
-      };
-      const statusPayload: StoredCheckupStatus = {
-        status: "queued",
-        queuedAt: Date.now(),
-        orderId: createOrderId(),
-      };
-
-      localStorage.setItem("veramed_chronic_payment", JSON.stringify(confirmedPayment));
-      localStorage.removeItem("veramed_chronic_payment_pending");
-      localStorage.setItem("veramed_chronic_control_status", JSON.stringify(statusPayload));
-      router.push("/control-cronico/estado");
+      void fetchChronicControlRequest(requestId)
+        .then(() => confirmChronicPayment(requestId))
+        .then(() => {
+          router.push(`/control-cronico/estado?id=${requestId}`);
+        })
+        .catch(() => {
+          router.replace(`/control-cronico/pago?id=${requestId}`);
+        });
     }, 3000);
 
     return () => {
       clearInterval(interval);
       clearTimeout(confirmPayment);
     };
-  }, [router]);
+  }, [requestId, router]);
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">

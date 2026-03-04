@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Stepper from "@/components/checkup/Stepper";
+import { createCheckupRequest } from "@/lib/checkup-api";
 import {
   type CheckupInput,
   type PatientDetails,
@@ -28,6 +29,8 @@ export default function CheckupPage() {
     phone: "",
     address: "",
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   const input: CheckupInput = useMemo(
     () => ({ age, sex, weightKg, heightCm, smoking, sexualActivity, pregnancy }),
@@ -35,6 +38,22 @@ export default function CheckupPage() {
   );
 
   const rec = useMemo(() => recommend(input), [input]);
+
+  async function handleContinue() {
+    try {
+      setIsSubmitting(true);
+      setSubmitError("");
+
+      const checkup = await createCheckupRequest({ input, patient });
+      window.location.href = `/chequeo/resumen?id=${checkup.id}`;
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error ? error.message : "No pudimos crear tu solicitud.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
@@ -272,14 +291,16 @@ export default function CheckupPage() {
             )}
 
             <button
-              onClick={() => {
-                localStorage.setItem("veramed_checkup", JSON.stringify({ input, patient, rec }));
-                window.location.href = "/chequeo/resumen";
-              }}
-              className="mt-6 w-full rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+              onClick={handleContinue}
+              disabled={isSubmitting}
+              className="mt-6 w-full rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
             >
-              Continuar a la ficha de orden
+              {isSubmitting ? "Creando solicitud..." : "Continuar a la ficha de orden"}
             </button>
+
+            {submitError && (
+              <p className="mt-3 text-xs leading-5 text-rose-600">{submitError}</p>
+            )}
 
             <p className="mt-3 text-xs leading-5 text-slate-500">
               La orden se emite después del pago y de la validación clínica correspondiente.

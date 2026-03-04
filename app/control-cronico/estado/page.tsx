@@ -4,51 +4,59 @@ import Link from "next/link";
 import { startTransition, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Stepper from "@/components/checkup/Stepper";
-import { type ReviewStatus, type StoredCheckupStatus } from "@/lib/checkup";
+import { fetchChronicControlRequest } from "@/lib/chronic-control-api";
+import { type ReviewStatus } from "@/lib/checkup";
+
+const REVIEW_DELAY_MS = 8000;
 
 export default function ChronicControlStatusPage() {
   const router = useRouter();
   const [status, setStatus] = useState<ReviewStatus>("queued");
   const [secondsLeft, setSecondsLeft] = useState<number>(8);
+  const requestId =
+    typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("id");
 
   useEffect(() => {
-    const raw = localStorage.getItem("veramed_chronic_control_status");
-    if (!raw) {
+    if (!requestId) {
       router.replace("/control-cronico");
       return;
     }
 
-    const stored = JSON.parse(raw) as StoredCheckupStatus;
-    startTransition(() => {
-      setStatus(stored.status);
-      if (stored.status !== "queued") {
-        setSecondsLeft(0);
-      }
+    let isMounted = true;
+
+    const sync = async () => {
+      const request = await fetchChronicControlRequest(requestId);
+      if (!isMounted) return;
+
+      startTransition(() => {
+        setStatus(request.status.status);
+
+        if (request.status.status !== "queued" || !request.status.queuedAt) {
+          setSecondsLeft(0);
+          return;
+        }
+
+        const elapsed = Date.now() - request.status.queuedAt;
+        const remaining = Math.max(0, Math.ceil((REVIEW_DELAY_MS - elapsed) / 1000));
+        setSecondsLeft(remaining);
+      });
+    };
+
+    void sync().catch(() => {
+      router.replace("/control-cronico");
     });
 
-    if (stored.status !== "queued") {
-      return;
-    }
-
     const interval = setInterval(() => {
-      setSecondsLeft((s) => (s > 0 ? s - 1 : 0));
+      void sync().catch(() => {
+        router.replace("/control-cronico");
+      });
     }, 1000);
 
-    const resolveReview = setTimeout(() => {
-      const nextPayload: StoredCheckupStatus = {
-        ...stored,
-        status: "approved",
-        approvedAt: Date.now(),
-      };
-      localStorage.setItem("veramed_chronic_control_status", JSON.stringify(nextPayload));
-      setStatus("approved");
-    }, 8000);
-
     return () => {
+      isMounted = false;
       clearInterval(interval);
-      clearTimeout(resolveReview);
     };
-  }, [router]);
+  }, [requestId, router]);
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
@@ -101,7 +109,7 @@ export default function ChronicControlStatusPage() {
                 />
               </div>
               <Link
-                href="/control-cronico/resumen"
+                href={`/control-cronico/resumen?id=${requestId}`}
                 className="mt-5 inline-flex text-sm font-semibold text-slate-700 transition hover:text-slate-950"
               >
                 Volver al resumen
@@ -118,7 +126,7 @@ export default function ChronicControlStatusPage() {
 
               <div className="mt-5 flex flex-col gap-3 sm:flex-row">
                 <Link
-                  href="/control-cronico/orden"
+                  href={`/control-cronico/orden?id=${requestId}`}
                   className="rounded-2xl bg-slate-950 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
                   Ver orden

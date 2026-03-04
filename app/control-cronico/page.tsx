@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import Stepper from "@/components/checkup/Stepper";
+import { createChronicControlRequest } from "@/lib/chronic-control-api";
 import { type PatientDetails } from "@/lib/checkup";
 import {
   CONDITION_OPTIONS,
@@ -15,7 +15,6 @@ import {
 } from "@/lib/chronic-control";
 
 export default function ChronicControlPage() {
-  const router = useRouter();
   const [conditions, setConditions] = useState<ChronicCondition[]>(["hypertension"]);
   const [patient, setPatient] = useState<PatientDetails>({
     fullName: "",
@@ -29,6 +28,8 @@ export default function ChronicControlPage() {
   const [hasRecentChanges, setHasRecentChanges] = useState(false);
   const [usesMedication, setUsesMedication] = useState(true);
   const [selectedMedications, setSelectedMedications] = useState<MedicationOption[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   const rec = useMemo(
     () =>
@@ -60,20 +61,28 @@ export default function ChronicControlPage() {
     );
   }
 
-  function continueToSummary() {
-    localStorage.setItem(
-      "veramed_chronic_control",
-      JSON.stringify({
+  async function continueToSummary() {
+    try {
+      setIsSubmitting(true);
+      setSubmitError("");
+
+      const request = await createChronicControlRequest({
         conditions,
         patient,
         yearsSinceDiagnosis,
         hasRecentChanges,
         usesMedication,
         selectedMedications,
-        rec,
-      }),
-    );
-    router.push("/control-cronico/resumen");
+      });
+
+      window.location.href = `/control-cronico/resumen?id=${request.id}`;
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error ? error.message : "No pudimos crear tu solicitud.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -350,10 +359,15 @@ export default function ChronicControlPage() {
 
             <button
               onClick={continueToSummary}
-              className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+              disabled={isSubmitting}
+              className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
             >
-              Continuar al resumen
+              {isSubmitting ? "Creando solicitud..." : "Continuar al resumen"}
             </button>
+
+            {submitError && (
+              <p className="mt-3 text-xs leading-5 text-rose-600">{submitError}</p>
+            )}
 
             <p className="mt-3 text-xs leading-5 text-slate-500">
               Revisa el detalle consolidado antes de continuar al pago y emitir la orden.

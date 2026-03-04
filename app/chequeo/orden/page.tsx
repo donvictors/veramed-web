@@ -2,72 +2,55 @@
 
 import { startTransition, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import BrandLogo from "@/components/BrandLogo";
+import { fetchCheckupRequest, type CheckupApiRecord } from "@/lib/checkup-api";
 import {
   createVerificationCode,
-  createOrderId,
   formatBirthDate,
   formatSex,
   formatSexualActivity,
   formatSmoking,
   inferOrderDetails,
-  type StoredCheckup,
-  type StoredCheckupStatus,
-  type StoredPayment,
 } from "@/lib/checkup";
 
 export default function OrderPage() {
-  const [data, setData] = useState<StoredCheckup | null>(null);
+  const router = useRouter();
+  const [data, setData] = useState<CheckupApiRecord | null>(null);
   const [approved, setApproved] = useState(false);
   const [paid, setPaid] = useState(false);
   const [issuedAt, setIssuedAt] = useState("");
   const [issuedAtTimestamp, setIssuedAtTimestamp] = useState(0);
+  const requestId =
+    typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("id");
 
   useEffect(() => {
-    const raw = localStorage.getItem("veramed_checkup");
-    const st = localStorage.getItem("veramed_checkup_status");
-    const paymentRaw = localStorage.getItem("veramed_payment");
-    const now = Date.now();
-    const formattedDate = new Intl.DateTimeFormat("es-CL", {
-      dateStyle: "medium",
-      timeStyle: "short",
-    }).format(new Date(now));
-
-    let nextData: StoredCheckup | null = null;
-    if (raw) {
-      nextData = JSON.parse(raw) as StoredCheckup;
-    }
-
-    if (st) {
-      const storedStatus = JSON.parse(st) as StoredCheckupStatus;
-      const nextApproved = storedStatus.status === "approved";
-      const payment = paymentRaw ? (JSON.parse(paymentRaw) as StoredPayment) : null;
-      let nextOrderId = storedStatus.orderId;
-
-      if (!nextOrderId) {
-        nextOrderId = createOrderId();
-        const nextStatus: StoredCheckupStatus = { ...storedStatus, orderId: nextOrderId };
-        localStorage.setItem("veramed_checkup_status", JSON.stringify(nextStatus));
-      }
-
-      startTransition(() => {
-        setData(nextData);
-        setIssuedAt(formattedDate);
-        setIssuedAtTimestamp(now);
-        setApproved(nextApproved);
-        setPaid(Boolean(payment?.paid));
-      });
+    if (!requestId) {
+      router.replace("/chequeo");
       return;
     }
 
-    const payment = paymentRaw ? (JSON.parse(paymentRaw) as StoredPayment) : null;
-    startTransition(() => {
-      setData(nextData);
-      setIssuedAt(formattedDate);
-      setIssuedAtTimestamp(now);
-      setPaid(Boolean(payment?.paid));
-    });
-  }, []);
+    void fetchCheckupRequest(requestId)
+      .then((checkup) => {
+        const issuedTimestamp =
+          checkup.status.approvedAt ?? checkup.status.queuedAt ?? checkup.updatedAt;
+        const formattedDate = new Intl.DateTimeFormat("es-CL", {
+          dateStyle: "medium",
+          timeStyle: "short",
+        }).format(new Date(issuedTimestamp));
+
+        startTransition(() => {
+          setData(checkup);
+          setIssuedAt(formattedDate);
+          setIssuedAtTimestamp(issuedTimestamp);
+          setApproved(checkup.status.status === "approved");
+          setPaid(Boolean(checkup.payment.confirmed?.paid));
+        });
+      })
+      .catch(() => {
+        router.replace("/chequeo");
+      });
+  }, [requestId, router]);
 
   if (!data) {
     return (
@@ -105,13 +88,13 @@ export default function OrderPage() {
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <Link
-                href="/chequeo/pago"
+                href={`/chequeo/pago?id=${requestId}`}
                 className="rounded-2xl bg-slate-950 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-slate-800"
               >
                 Ir a pagar
               </Link>
               <Link
-                href="/chequeo/resumen"
+                href={`/chequeo/resumen?id=${requestId}`}
                 className="rounded-2xl border border-slate-300 bg-white px-5 py-3 text-center text-sm font-semibold text-slate-900 transition hover:border-slate-400 hover:bg-slate-50"
               >
                 Volver al resumen
@@ -145,7 +128,7 @@ export default function OrderPage() {
               Imprimir / Guardar PDF
             </button>
             <Link
-              href="/chequeo/estado"
+              href={`/chequeo/estado?id=${requestId}`}
               className="rounded-xl border px-4 py-2 text-sm font-medium text-slate-900 hover:bg-slate-50"
             >
               Volver
@@ -158,7 +141,7 @@ export default function OrderPage() {
             <p className="text-sm font-semibold text-amber-900">Orden pendiente de aprobación</p>
             <p className="mt-1 text-sm text-amber-800">
               La orden se encuentra en revisión clínica. Puedes revisar el avance en{" "}
-              <Link className="font-semibold underline" href="/chequeo/estado">
+              <Link className="font-semibold underline" href={`/chequeo/estado?id=${requestId}`}>
                 estado
               </Link>
               .
@@ -311,7 +294,7 @@ export default function OrderPage() {
           Tip: usa “Imprimir” y selecciona “Guardar como PDF”.
         </p>
 
-        <section className="hidden print:block print:px-8 print:py-6 print:pb-52">
+        <section className="hidden print:block print:px-8 print:py-6 print:pb-64">
           <div className="border-b border-slate-300 pb-4">
             <div className="flex items-start justify-between gap-8">
               <div>
@@ -365,14 +348,15 @@ export default function OrderPage() {
           </div>
 
           <div className="fixed bottom-16 right-8 w-72 bg-white text-center">
-            <div className="relative mb-3 h-16 border-b border-slate-500">
+            <div className="mb-3 flex h-26 items-end justify-center border-b border-slate-500">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/firmas/firma-VRM.jpg"
+                src="/firmas/firma-VRM.png"
                 alt="Firma Dr. Víctor Rebolledo"
                 loading="eager"
+                decoding="sync"
                 fetchPriority="high"
-                className="absolute bottom-1 left-1/2 h-14 w-auto -translate-x-1/2 object-contain"
+                className="h-28 w-80 object-contain"
               />
             </div>
             <p className="mt-1 text-sm text-slate-700">Dr. Víctor Rebolledo M.</p>
