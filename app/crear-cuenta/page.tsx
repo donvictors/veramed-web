@@ -5,7 +5,9 @@ import { useState } from "react";
 import { registerWithEmail } from "@/lib/auth-api";
 
 export default function CreateAccountPage() {
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [paternalSurname, setPaternalSurname] = useState("");
+  const [maternalSurname, setMaternalSurname] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -15,10 +17,20 @@ export default function CreateAccountPage() {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    if (!firstName.trim() || !paternalSurname.trim() || !maternalSurname.trim()) {
+      setError("Completa nombre, apellido paterno y apellido materno.");
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError("Las contraseñas no coinciden.");
       return;
     }
+
+    const name = [firstName, paternalSurname, maternalSurname]
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .join(" ");
 
     try {
       setIsSubmitting(true);
@@ -47,9 +59,31 @@ export default function CreateAccountPage() {
           </p>
 
           <form className="mt-8 grid gap-5" onSubmit={handleSubmit}>
-            <Field label="Nombre completo">
-              <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} />
-            </Field>
+            <div className="grid gap-4 md:grid-cols-3">
+              <Field label="Nombre">
+                <input
+                  className={inputCls}
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                />
+              </Field>
+
+              <Field label="Apellido paterno">
+                <input
+                  className={inputCls}
+                  value={paternalSurname}
+                  onChange={(e) => setPaternalSurname(e.target.value)}
+                />
+              </Field>
+
+              <Field label="Apellido materno">
+                <input
+                  className={inputCls}
+                  value={maternalSurname}
+                  onChange={(e) => setMaternalSurname(e.target.value)}
+                />
+              </Field>
+            </div>
 
             <Field label="Correo electrónico">
               <input
