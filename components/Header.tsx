@@ -25,10 +25,10 @@ export default function Header() {
         </nav>
 
         <Link
-          href="/chequeo"
+          href="#servicios"
           className="rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
         >
-          Iniciar chequeo
+          ¡Quiero mi orden!
         </Link>
       </div>
     </header>
