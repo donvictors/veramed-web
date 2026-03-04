@@ -7,9 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:checkup-recommend": "node --test tests/checkup-recommend.smoke.test.mjs"
+    "test:checkup-recommend": "node --test tests/checkup-recommend.smoke.test.mjs",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@prisma/client": "^6.16.0",
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3"
@@ -21,6 +25,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "prisma": "^6.16.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

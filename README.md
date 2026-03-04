@@ -1,5 +1,56 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Prisma + Neon
+
+La integración usa Prisma con PostgreSQL en Neon.
+
+### Variables de entorno
+
+Define estas variables en `.env.local`:
+
+```bash
+DATABASE_URL="postgresql://...pooler.../neondb?sslmode=require&channel_binding=require"
+DIRECT_URL="postgresql://.../neondb?sslmode=require&channel_binding=require"
+```
+
+`DATABASE_URL` se usa por el cliente de aplicación y `DIRECT_URL` por migraciones.
+
+Además, Prisma CLI lee `.env` por defecto. En este repo quedó espejado el mismo contenido en `.env` y `.env.local` para que:
+- Next use `.env.local`
+- Prisma use `.env`
+
+### Migraciones
+
+```bash
+npm run db:migrate
+```
+
+Para aplicar migraciones ya existentes:
+
+```bash
+npm run db:deploy
+```
+
+Para abrir Prisma Studio:
+
+```bash
+npm run db:studio
+```
+
+### Probar la conexión
+
+Levanta el proyecto y consulta:
+
+```bash
+curl http://localhost:3000/api/health/db
+```
+
+La respuesta esperada es:
+
+```json
+{ "ok": true }
+```
+
 ## Getting Started
 
 First, run the development server:

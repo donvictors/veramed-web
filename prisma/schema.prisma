@@ -1,0 +1,144 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum ReviewStatusDb {
+  queued
+  approved
+  rejected
+}
+
+enum PaymentStatusDb {
+  pending
+  paid
+}
+
+model Healthcheck {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model User {
+  id                     String                 @id @default(cuid())
+  name                   String
+  email                  String                 @unique
+  passwordHash           String
+  passwordSalt           String
+  profileFirstName       String
+  profilePaternalSurname String                 @default("")
+  profileMaternalSurname String                 @default("")
+  profileRut             String                 @default("")
+  profileBirthDate       String                 @default("")
+  profileEmail           String
+  profilePhone           String                 @default("")
+  profileAddress         String                 @default("")
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+  sessions               Session[]
+  checkups               CheckupRequest[]
+  chronicControls        ChronicControlRequest[]
+}
+
+model Session {
+  token     String   @id
+  userId    String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model CheckupRequest {
+  id                    String         @id
+  userId                String?
+  input                 Json
+  patientFirstName      String
+  patientPaternalSurname String        @default("")
+  patientMaternalSurname String        @default("")
+  patientRut            String         @default("")
+  patientBirthDate      String         @default("")
+  patientEmail          String         @default("")
+  patientPhone          String         @default("")
+  patientAddress        String         @default("")
+  rec                   Json
+  reviewStatus          ReviewStatusDb @default(queued)
+  queuedAt              DateTime?
+  approvedAt            DateTime?
+  rejectedAt            DateTime?
+  orderId               String?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  user                  User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  payment               CheckupPayment?
+
+  @@index([userId])
+}
+
+model ChronicControlRequest {
+  id                    String                 @id
+  userId                String?
+  conditions            Json
+  patientFirstName      String
+  patientPaternalSurname String               @default("")
+  patientMaternalSurname String               @default("")
+  patientRut            String                 @default("")
+  patientBirthDate      String                 @default("")
+  patientEmail          String                 @default("")
+  patientPhone          String                 @default("")
+  patientAddress        String                 @default("")
+  yearsSinceDiagnosis   Int
+  hasRecentChanges      Boolean
+  usesMedication        Boolean
+  selectedMedications   Json
+  rec                   Json
+  reviewStatus          ReviewStatusDb         @default(queued)
+  queuedAt              DateTime?
+  approvedAt            DateTime?
+  rejectedAt            DateTime?
+  orderId               String?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  user                  User?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  payment               ChronicControlPayment?
+
+  @@index([userId])
+}
+
+model CheckupPayment {
+  requestId   String          @id
+  amount      Int
+  currency    String
+  paymentId   String          @unique
+  cardLast4   String
+  cardholder  String
+  status      PaymentStatusDb @default(pending)
+  createdAt   DateTime        @default(now())
+  paidAt      DateTime?
+  updatedAt   DateTime        @updatedAt
+  request     CheckupRequest  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+}
+
+model ChronicControlPayment {
+  requestId   String               @id
+  amount      Int
+  currency    String
+  paymentId   String               @unique
+  cardLast4   String
+  cardholder  String
+  status      PaymentStatusDb      @default(pending)
+  createdAt   DateTime             @default(now())
+  paidAt      DateTime?
+  updatedAt   DateTime             @updatedAt
+  request     ChronicControlRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+}

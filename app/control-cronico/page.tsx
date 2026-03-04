@@ -4,7 +4,12 @@ import { startTransition, useEffect, useMemo, useState } from "react";
 import Stepper from "@/components/checkup/Stepper";
 import { fetchCurrentUser } from "@/lib/auth-api";
 import { createChronicControlRequest } from "@/lib/chronic-control-api";
-import { type PatientDetails } from "@/lib/checkup";
+import {
+  joinPatientFullName,
+  type PatientDetails,
+  type PatientNameFields,
+  splitPatientFullName,
+} from "@/lib/checkup";
 import {
   CONDITION_OPTIONS,
   MEDICATION_OPTIONS,
@@ -17,20 +22,34 @@ import {
 
 export default function ChronicControlPage() {
   const [conditions, setConditions] = useState<ChronicCondition[]>(["hypertension"]);
-  const [patient, setPatient] = useState<PatientDetails>({
-    fullName: "",
-    rut: "",
-    birthDate: "",
-    email: "",
-    phone: "",
-    address: "",
+  const [nameFields, setNameFields] = useState<PatientNameFields>({
+    firstName: "",
+    paternalSurname: "",
+    maternalSurname: "",
   });
+  const [rut, setRut] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
   const [yearsSinceDiagnosis, setYearsSinceDiagnosis] = useState(3);
   const [hasRecentChanges, setHasRecentChanges] = useState(false);
   const [usesMedication, setUsesMedication] = useState(true);
   const [selectedMedications, setSelectedMedications] = useState<MedicationOption[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+
+  const patient: PatientDetails = useMemo(
+    () => ({
+      fullName: joinPatientFullName(nameFields),
+      rut,
+      birthDate,
+      email,
+      phone,
+      address,
+    }),
+    [address, birthDate, email, nameFields, phone, rut],
+  );
 
   const rec = useMemo(
     () =>
@@ -50,15 +69,20 @@ export default function ChronicControlPage() {
           return;
         }
 
+        const profileName = response.user.profile.fullName || response.user.name || "";
+        const parsedName = splitPatientFullName(profileName);
+
         startTransition(() => {
-          setPatient((current) => ({
-            fullName: current.fullName || response.user?.profile.fullName || response.user?.name || "",
-            rut: current.rut || response.user?.profile.rut || "",
-            birthDate: current.birthDate || response.user?.profile.birthDate || "",
-            email: current.email || response.user?.profile.email || response.user?.email || "",
-            phone: current.phone || response.user?.profile.phone || "",
-            address: current.address || response.user?.profile.address || "",
+          setNameFields((current) => ({
+            firstName: current.firstName || parsedName.firstName,
+            paternalSurname: current.paternalSurname || parsedName.paternalSurname,
+            maternalSurname: current.maternalSurname || parsedName.maternalSurname,
           }));
+          setRut((current) => current || response.user?.profile.rut || "");
+          setBirthDate((current) => current || response.user?.profile.birthDate || "");
+          setEmail((current) => current || response.user?.profile.email || response.user?.email || "");
+          setPhone((current) => current || response.user?.profile.phone || "");
+          setAddress((current) => current || response.user?.profile.address || "");
         });
       })
       .catch(() => undefined);
@@ -99,9 +123,7 @@ export default function ChronicControlPage() {
 
       window.location.href = `/control-cronico/resumen?id=${request.id}`;
     } catch (error) {
-      setSubmitError(
-        error instanceof Error ? error.message : "No pudimos crear tu solicitud.",
-      );
+      setSubmitError(error instanceof Error ? error.message : "No pudimos crear tu solicitud.");
     } finally {
       setIsSubmitting(false);
     }
@@ -137,34 +159,54 @@ export default function ChronicControlPage() {
                 </p>
 
                 <div className="mt-5 grid gap-5">
-                  <Field label="Nombre completo">
-                    <input
-                      className={inputCls}
-                      value={patient.fullName}
-                      onChange={(e) =>
-                        setPatient((current) => ({ ...current, fullName: e.target.value }))
-                      }
-                    />
-                  </Field>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <Field label="Nombre">
+                      <input
+                        className={inputCls}
+                        value={nameFields.firstName}
+                        onChange={(e) =>
+                          setNameFields((current) => ({ ...current, firstName: e.target.value }))
+                        }
+                      />
+                    </Field>
+
+                    <Field label="Apellido paterno">
+                      <input
+                        className={inputCls}
+                        value={nameFields.paternalSurname}
+                        onChange={(e) =>
+                          setNameFields((current) => ({
+                            ...current,
+                            paternalSurname: e.target.value,
+                          }))
+                        }
+                      />
+                    </Field>
+
+                    <Field label="Apellido materno">
+                      <input
+                        className={inputCls}
+                        value={nameFields.maternalSurname}
+                        onChange={(e) =>
+                          setNameFields((current) => ({
+                            ...current,
+                            maternalSurname: e.target.value,
+                          }))
+                        }
+                      />
+                    </Field>
+                  </div>
 
                   <div className="grid gap-4 md:grid-cols-2">
                     <Field label="RUT">
-                      <input
-                        className={inputCls}
-                        value={patient.rut}
-                        onChange={(e) =>
-                          setPatient((current) => ({ ...current, rut: e.target.value }))
-                        }
-                      />
+                      <input className={inputCls} value={rut} onChange={(e) => setRut(e.target.value)} />
                     </Field>
                     <Field label="Fecha de nacimiento">
                       <input
                         className={inputCls}
                         type="date"
-                        value={patient.birthDate}
-                        onChange={(e) =>
-                          setPatient((current) => ({ ...current, birthDate: e.target.value }))
-                        }
+                        value={birthDate}
+                        onChange={(e) => setBirthDate(e.target.value)}
                       />
                     </Field>
                   </div>
@@ -174,19 +216,15 @@ export default function ChronicControlPage() {
                       <input
                         className={inputCls}
                         type="email"
-                        value={patient.email}
-                        onChange={(e) =>
-                          setPatient((current) => ({ ...current, email: e.target.value }))
-                        }
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
                       />
                     </Field>
                     <Field label="Teléfono">
                       <input
                         className={inputCls}
-                        value={patient.phone}
-                        onChange={(e) =>
-                          setPatient((current) => ({ ...current, phone: e.target.value }))
-                        }
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
                       />
                     </Field>
                   </div>
@@ -194,10 +232,8 @@ export default function ChronicControlPage() {
                   <Field label="Dirección">
                     <input
                       className={inputCls}
-                      value={patient.address}
-                      onChange={(e) =>
-                        setPatient((current) => ({ ...current, address: e.target.value }))
-                      }
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
                     />
                   </Field>
 
@@ -326,10 +362,24 @@ export default function ChronicControlPage() {
               Recomendación
             </p>
             <h2 className="mt-2 text-2xl font-semibold text-slate-950">
-              Control para{" "}
-              {conditions.map(conditionLabel).join(", ")}
+              Control para {conditions.map(conditionLabel).join(", ")}
             </h2>
             <p className="mt-3 text-sm leading-7 text-slate-600">{rec.summary}</p>
+
+            <div className="mt-6 rounded-3xl bg-slate-50 p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Datos para la orden
+              </p>
+              <div className="mt-4 grid gap-3 text-sm text-slate-700">
+                <p>
+                  <span className="font-medium text-slate-900">Paciente:</span>{" "}
+                  {patient.fullName || "Sin completar"}
+                </p>
+                <p>
+                  <span className="font-medium text-slate-900">RUT:</span> {patient.rut || "Sin completar"}
+                </p>
+              </div>
+            </div>
 
             <div className="mt-6 rounded-3xl bg-slate-50 p-5">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -357,16 +407,13 @@ export default function ChronicControlPage() {
                 </li>
                 <li className="flex gap-2">
                   <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" />
-                  <span>
-                    Tratamiento actual: {usesMedication ? "sí" : "no"}.
-                  </span>
+                  <span>Tratamiento actual: {usesMedication ? "sí" : "no"}.</span>
                 </li>
                 {usesMedication && selectedMedications.length > 0 && (
                   <li className="flex gap-2">
                     <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" />
                     <span>
-                      Tratamientos seleccionados:{" "}
-                      {selectedMedications.map(medicationLabel).join(", ")}.
+                      Tratamientos seleccionados: {selectedMedications.map(medicationLabel).join(", ")}.
                     </span>
                   </li>
                 )}
@@ -387,9 +434,7 @@ export default function ChronicControlPage() {
               {isSubmitting ? "Creando solicitud..." : "Continuar al resumen"}
             </button>
 
-            {submitError && (
-              <p className="mt-3 text-xs leading-5 text-rose-600">{submitError}</p>
-            )}
+            {submitError && <p className="mt-3 text-xs leading-5 text-rose-600">{submitError}</p>}
 
             <p className="mt-3 text-xs leading-5 text-slate-500">
               Revisa el detalle consolidado antes de continuar al pago y emitir la orden.

@@ -1,8 +1,14 @@
 export type Sex = "M" | "F";
 export type Smoking = "never" | "former" | "current";
 export type SexualActivity = "yes" | "no";
-export type Pregnancy = "yes" | "no" | "unknown";
+export type Pregnancy = "yes" | "no";
 export type ReviewStatus = "queued" | "approved" | "rejected";
+
+export type PatientNameFields = {
+  firstName: string;
+  paternalSurname: string;
+  maternalSurname: string;
+};
 
 export type PatientDetails = {
   fullName: string;
@@ -18,7 +24,11 @@ export type CheckupInput = {
   sex: Sex;
   weightKg: number;
   heightCm: number;
+  bodyMassIndex?: number;
   smoking: Smoking;
+  cigarettesPerDay?: number;
+  smokingYears?: number;
+  packYearIndex?: number;
   sexualActivity: SexualActivity;
   pregnancy: Pregnancy;
 };
@@ -59,6 +69,82 @@ export type StoredPayment = {
 };
 
 export const CHECKUP_PRICE_CLP = 1990;
+
+export function splitPatientFullName(fullName: string): PatientNameFields {
+  const parts = fullName
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (parts.length === 0) {
+    return {
+      firstName: "",
+      paternalSurname: "",
+      maternalSurname: "",
+    };
+  }
+
+  if (parts.length === 1) {
+    return {
+      firstName: parts[0],
+      paternalSurname: "",
+      maternalSurname: "",
+    };
+  }
+
+  if (parts.length === 2) {
+    return {
+      firstName: parts[0],
+      paternalSurname: parts[1],
+      maternalSurname: "",
+    };
+  }
+
+  return {
+    firstName: parts.slice(0, -2).join(" "),
+    paternalSurname: parts.at(-2) ?? "",
+    maternalSurname: parts.at(-1) ?? "",
+  };
+}
+
+export function joinPatientFullName(fields: PatientNameFields) {
+  return [fields.firstName, fields.paternalSurname, fields.maternalSurname]
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .join(" ");
+}
+
+export function calculateAgeFromBirthDate(value: string, now = new Date()) {
+  if (!value) return 0;
+
+  const birth = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(birth.getTime())) return 0;
+
+  let age = now.getFullYear() - birth.getFullYear();
+  const monthDiff = now.getMonth() - birth.getMonth();
+  const dayDiff = now.getDate() - birth.getDate();
+
+  if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+    age -= 1;
+  }
+
+  return Math.max(0, age);
+}
+
+export function calculateBodyMassIndex(weightKg: number, heightCm: number) {
+  if (weightKg <= 0 || heightCm <= 0) return 0;
+
+  const heightMeters = heightCm / 100;
+  const bmi = weightKg / (heightMeters * heightMeters);
+  return Math.round(bmi * 10) / 10;
+}
+
+export function calculatePackYearIndex(cigarettesPerDay: number, smokingYears: number) {
+  if (cigarettesPerDay <= 0 || smokingYears <= 0) return 0;
+
+  const packIndex = (cigarettesPerDay / 20) * smokingYears;
+  return Math.round(packIndex * 10) / 10;
+}
 
 export function recommend(input: CheckupInput): CheckupRecommendation {
   if (input.sex === "F" && input.pregnancy === "yes") {
@@ -109,7 +195,6 @@ export function recommend(input: CheckupInput): CheckupRecommendation {
   if (input.sexualActivity === "yes") {
     notes.push("Opcional: panel ITS según preferencia y contexto.");
   }
-  notes.push("Esto no es diagnóstico. Si tienes síntomas, consulta.");
 
   const summary =
     input.age < 40

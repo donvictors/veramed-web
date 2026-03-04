@@ -5,40 +5,108 @@ import Stepper from "@/components/checkup/Stepper";
 import { fetchCurrentUser } from "@/lib/auth-api";
 import { createCheckupRequest } from "@/lib/checkup-api";
 import {
+  calculateAgeFromBirthDate,
+  calculateBodyMassIndex,
+  calculatePackYearIndex,
   type CheckupInput,
+  joinPatientFullName,
   type PatientDetails,
+  type PatientNameFields,
   type Pregnancy,
   type Sex,
   type SexualActivity,
   type Smoking,
   recommend,
+  splitPatientFullName,
 } from "@/lib/checkup";
 
 export default function CheckupPage() {
-  const [age, setAge] = useState(30);
+  const [nameFields, setNameFields] = useState<PatientNameFields>({
+    firstName: "",
+    paternalSurname: "",
+    maternalSurname: "",
+  });
+  const [rut, setRut] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
   const [sex, setSex] = useState<Sex>("M");
   const [weightKg, setWeightKg] = useState(75);
   const [heightCm, setHeightCm] = useState(175);
   const [smoking, setSmoking] = useState<Smoking>("never");
+  const [cigarettesPerDay, setCigarettesPerDay] = useState(0);
+  const [smokingYears, setSmokingYears] = useState(0);
   const [sexualActivity, setSexualActivity] = useState<SexualActivity>("no");
   const [pregnancy, setPregnancy] = useState<Pregnancy>("no");
-  const [patient, setPatient] = useState<PatientDetails>({
-    fullName: "",
-    rut: "",
-    birthDate: "",
-    email: "",
-    phone: "",
-    address: "",
-  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
+  const age = useMemo(() => calculateAgeFromBirthDate(birthDate), [birthDate]);
+  const bodyMassIndex = useMemo(
+    () => calculateBodyMassIndex(weightKg, heightCm),
+    [heightCm, weightKg],
+  );
+  const packYearIndex = useMemo(
+    () => calculatePackYearIndex(cigarettesPerDay, smokingYears),
+    [cigarettesPerDay, smokingYears],
+  );
+
+  const patient: PatientDetails = useMemo(
+    () => ({
+      fullName: joinPatientFullName(nameFields),
+      rut,
+      birthDate,
+      email,
+      phone,
+      address,
+    }),
+    [address, birthDate, email, nameFields, phone, rut],
+  );
+
   const input: CheckupInput = useMemo(
-    () => ({ age, sex, weightKg, heightCm, smoking, sexualActivity, pregnancy }),
-    [age, sex, weightKg, heightCm, smoking, sexualActivity, pregnancy]
+    () => ({
+      age,
+      sex,
+      weightKg,
+      heightCm,
+      bodyMassIndex,
+      smoking,
+      cigarettesPerDay: smoking === "never" ? 0 : cigarettesPerDay,
+      smokingYears: smoking === "never" ? 0 : smokingYears,
+      packYearIndex: smoking === "never" ? 0 : packYearIndex,
+      sexualActivity,
+      pregnancy,
+    }),
+    [
+      age,
+      bodyMassIndex,
+      cigarettesPerDay,
+      heightCm,
+      packYearIndex,
+      pregnancy,
+      sex,
+      sexualActivity,
+      smoking,
+      smokingYears,
+      weightKg,
+    ],
   );
 
   const rec = useMemo(() => recommend(input), [input]);
+
+  useEffect(() => {
+    if (sex === "M") {
+      setPregnancy("no");
+    }
+  }, [sex]);
+
+  useEffect(() => {
+    if (smoking === "never") {
+      setCigarettesPerDay(0);
+      setSmokingYears(0);
+    }
+  }, [smoking]);
 
   useEffect(() => {
     void fetchCurrentUser()
@@ -47,15 +115,20 @@ export default function CheckupPage() {
           return;
         }
 
+        const profileName = response.user.profile.fullName || response.user.name || "";
+        const parsedName = splitPatientFullName(profileName);
+
         startTransition(() => {
-          setPatient((current) => ({
-            fullName: current.fullName || response.user?.profile.fullName || response.user?.name || "",
-            rut: current.rut || response.user?.profile.rut || "",
-            birthDate: current.birthDate || response.user?.profile.birthDate || "",
-            email: current.email || response.user?.profile.email || response.user?.email || "",
-            phone: current.phone || response.user?.profile.phone || "",
-            address: current.address || response.user?.profile.address || "",
+          setNameFields((current) => ({
+            firstName: current.firstName || parsedName.firstName,
+            paternalSurname: current.paternalSurname || parsedName.paternalSurname,
+            maternalSurname: current.maternalSurname || parsedName.maternalSurname,
           }));
+          setRut((current) => current || response.user?.profile.rut || "");
+          setBirthDate((current) => current || response.user?.profile.birthDate || "");
+          setEmail((current) => current || response.user?.profile.email || response.user?.email || "");
+          setPhone((current) => current || response.user?.profile.phone || "");
+          setAddress((current) => current || response.user?.profile.address || "");
         });
       })
       .catch(() => undefined);
@@ -69,13 +142,13 @@ export default function CheckupPage() {
       const checkup = await createCheckupRequest({ input, patient });
       window.location.href = `/chequeo/resumen?id=${checkup.id}`;
     } catch (error) {
-      setSubmitError(
-        error instanceof Error ? error.message : "No pudimos crear tu solicitud.",
-      );
+      setSubmitError(error instanceof Error ? error.message : "No pudimos crear tu solicitud.");
     } finally {
       setIsSubmitting(false);
     }
   }
+
+  const showsSmokingIntensity = smoking === "former" || smoking === "current";
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
@@ -88,8 +161,8 @@ export default function CheckupPage() {
             Completa tus datos y revisa la recomendación.
           </h1>
           <p className="mt-3 text-base leading-7 text-slate-600">
-            Mantuvimos la lógica actual del chequeo y mejoramos la presentación para que el flujo
-            sea más claro, clínico y fácil de revisar.
+            Indica tus datos y recibe una recomendación estructurada de exámenes de chequeo
+            general, con orientación clínica clara y ordenada.
           </p>
         </div>
 
@@ -107,34 +180,54 @@ export default function CheckupPage() {
                 </p>
 
                 <div className="mt-5 grid gap-5">
-                  <Field label="Nombre completo">
-                    <input
-                      className={inputCls}
-                      value={patient.fullName}
-                      onChange={(e) =>
-                        setPatient((current) => ({ ...current, fullName: e.target.value }))
-                      }
-                    />
-                  </Field>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <Field label="Nombre">
+                      <input
+                        className={inputCls}
+                        value={nameFields.firstName}
+                        onChange={(e) =>
+                          setNameFields((current) => ({ ...current, firstName: e.target.value }))
+                        }
+                      />
+                    </Field>
+
+                    <Field label="Apellido paterno">
+                      <input
+                        className={inputCls}
+                        value={nameFields.paternalSurname}
+                        onChange={(e) =>
+                          setNameFields((current) => ({
+                            ...current,
+                            paternalSurname: e.target.value,
+                          }))
+                        }
+                      />
+                    </Field>
+
+                    <Field label="Apellido materno">
+                      <input
+                        className={inputCls}
+                        value={nameFields.maternalSurname}
+                        onChange={(e) =>
+                          setNameFields((current) => ({
+                            ...current,
+                            maternalSurname: e.target.value,
+                          }))
+                        }
+                      />
+                    </Field>
+                  </div>
 
                   <div className="grid gap-4 md:grid-cols-2">
                     <Field label="RUT">
-                      <input
-                        className={inputCls}
-                        value={patient.rut}
-                        onChange={(e) =>
-                          setPatient((current) => ({ ...current, rut: e.target.value }))
-                        }
-                      />
+                      <input className={inputCls} value={rut} onChange={(e) => setRut(e.target.value)} />
                     </Field>
                     <Field label="Fecha de nacimiento">
                       <input
                         className={inputCls}
                         type="date"
-                        value={patient.birthDate}
-                        onChange={(e) =>
-                          setPatient((current) => ({ ...current, birthDate: e.target.value }))
-                        }
+                        value={birthDate}
+                        onChange={(e) => setBirthDate(e.target.value)}
                       />
                     </Field>
                   </div>
@@ -144,19 +237,15 @@ export default function CheckupPage() {
                       <input
                         className={inputCls}
                         type="email"
-                        value={patient.email}
-                        onChange={(e) =>
-                          setPatient((current) => ({ ...current, email: e.target.value }))
-                        }
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
                       />
                     </Field>
                     <Field label="Teléfono">
                       <input
                         className={inputCls}
-                        value={patient.phone}
-                        onChange={(e) =>
-                          setPatient((current) => ({ ...current, phone: e.target.value }))
-                        }
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
                       />
                     </Field>
                   </div>
@@ -164,22 +253,27 @@ export default function CheckupPage() {
                   <Field label="Dirección">
                     <input
                       className={inputCls}
-                      value={patient.address}
-                      onChange={(e) =>
-                        setPatient((current) => ({ ...current, address: e.target.value }))
-                      }
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
                     />
                   </Field>
+                </div>
+              </div>
 
+              <div className="rounded-3xl bg-slate-50 p-5">
+                <p className="text-sm font-semibold text-slate-900">2. Contexto clínico</p>
+                <p className="mt-1 text-sm text-slate-600">
+                  Estos datos ajustan la recomendación clínica y permiten personalizar la orden.
+                </p>
+
+                <div className="mt-5 grid gap-5">
                   <div className="grid gap-4 md:grid-cols-2">
                     <Field label="Edad">
                       <input
-                        className={inputCls}
-                        type="number"
-                        min={18}
-                        max={120}
-                        value={age}
-                        onChange={(e) => setAge(Number(e.target.value))}
+                        className={readonlyCls}
+                        value={age > 0 ? String(age) : ""}
+                        readOnly
+                        placeholder="Se calcula con la fecha de nacimiento"
                       />
                     </Field>
 
@@ -217,16 +311,16 @@ export default function CheckupPage() {
                       />
                     </Field>
                   </div>
-                </div>
-              </div>
 
-              <div className="rounded-3xl bg-slate-50 p-5">
-                <p className="text-sm font-semibold text-slate-900">2. Contexto clínico</p>
-                <p className="mt-1 text-sm text-slate-600">
-                  Estos datos ajustan la recomendación clínica y permiten personalizar la orden.
-                </p>
+                  <Field label="IMC">
+                    <input
+                      className={readonlyCls}
+                      value={bodyMassIndex > 0 ? bodyMassIndex.toFixed(1) : ""}
+                      readOnly
+                      placeholder="Se calcula con peso y talla"
+                    />
+                  </Field>
 
-                <div className="mt-5 grid gap-5">
                   <Field label="Tabaco">
                     <select
                       className={inputCls}
@@ -239,7 +333,47 @@ export default function CheckupPage() {
                     </select>
                   </Field>
 
-                  <Field label="Actividad sexual">
+                  {showsSmokingIntensity && (
+                    <>
+                      <p className="text-sm font-medium text-slate-900">
+                        En promedio, ¿cuántos cigarros ha fumado al día y durante cuánto tiempo?
+                      </p>
+
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <Field label="Cigarros al día">
+                          <input
+                            className={inputCls}
+                            type="number"
+                            min={0}
+                            max={200}
+                            value={cigarettesPerDay}
+                            onChange={(e) => setCigarettesPerDay(Number(e.target.value))}
+                          />
+                        </Field>
+                        <Field label="Tiempo fumando (años)">
+                          <input
+                            className={inputCls}
+                            type="number"
+                            min={0}
+                            max={100}
+                            value={smokingYears}
+                            onChange={(e) => setSmokingYears(Number(e.target.value))}
+                          />
+                        </Field>
+                      </div>
+
+                      <Field label="IPA">
+                        <input
+                          className={readonlyCls}
+                          value={packYearIndex > 0 ? packYearIndex.toFixed(1) : ""}
+                          readOnly
+                          placeholder='Se calcula como: ("cigarros al día"/20) x años fumando'
+                        />
+                      </Field>
+                    </>
+                  )}
+
+                  <Field label="¿Eres sexualmente activo?">
                     <select
                       className={inputCls}
                       value={sexualActivity}
@@ -250,26 +384,26 @@ export default function CheckupPage() {
                     </select>
                   </Field>
 
-                  {sex === "F" && (
-                    <Field label="Embarazo (si aplica)">
-                      <select
-                        className={inputCls}
-                        value={pregnancy}
-                        onChange={(e) => setPregnancy(e.target.value as Pregnancy)}
-                      >
-                        <option value="no">No</option>
-                        <option value="yes">Sí</option>
-                        <option value="unknown">No estoy segura</option>
-                      </select>
-                    </Field>
-                  )}
+                  <Field label="¿Está embarazada?">
+                    <select
+                      className={sex === "F" ? inputCls : readonlyCls}
+                      value={pregnancy}
+                      onChange={(e) => setPregnancy(e.target.value as Pregnancy)}
+                      disabled={sex !== "F"}
+                    >
+                      <option value="no">No</option>
+                      <option value="yes">Sí</option>
+                    </select>
+                  </Field>
                 </div>
               </div>
 
               <div className="rounded-3xl border border-rose-200 bg-rose-50 p-5">
-                <p className="text-sm font-semibold text-rose-900">No usar en urgencias</p>
+                <p className="text-sm font-semibold text-rose-900">
+                  No usar en casos de urgencia.
+                </p>
                 <p className="mt-2 text-sm leading-6 text-rose-800">
-                  Si tienes síntomas de alarma, este flujo no reemplaza evaluación médica directa.
+                  Ante síntomas de alarma busca evaluación médica directa.
                 </p>
               </div>
             </div>
@@ -286,13 +420,32 @@ export default function CheckupPage() {
 
             <div className="mt-6 rounded-3xl bg-slate-50 p-5">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Datos para la orden
+              </p>
+              <div className="mt-4 grid gap-3 text-sm text-slate-700">
+                <p>
+                  <span className="font-medium text-slate-900">Paciente:</span>{" "}
+                  {patient.fullName || "Sin completar"}
+                </p>
+                <p>
+                  <span className="font-medium text-slate-900">RUT:</span>{" "}
+                  {patient.rut || "Sin completar"}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 rounded-3xl bg-slate-50 p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                 Exámenes sugeridos hoy
               </p>
               <div className="mt-4 grid gap-3">
-                {rec.tests.map((t) => (
-                  <div key={t.name} className="rounded-2xl border border-slate-200 bg-white p-4">
-                    <p className="text-sm font-semibold text-slate-900">{t.name}</p>
-                    <p className="mt-1 text-sm leading-6 text-slate-600">{t.why}</p>
+                {rec.tests.map((test) => (
+                  <div
+                    key={test.name}
+                    className="rounded-2xl border border-slate-200 bg-white p-4"
+                  >
+                    <p className="text-sm font-semibold text-slate-900">{test.name}</p>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">{test.why}</p>
                   </div>
                 ))}
               </div>
@@ -302,10 +455,10 @@ export default function CheckupPage() {
               <div className="mt-6 rounded-3xl bg-slate-50 p-5">
                 <p className="text-sm font-semibold text-slate-900">Notas clínicas</p>
                 <ul className="mt-3 grid gap-2 text-sm text-slate-700">
-                  {rec.notes.map((n, idx) => (
+                  {rec.notes.map((note, idx) => (
                     <li key={idx} className="flex gap-2">
                       <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" />
-                      <span>{n}</span>
+                      <span>{note}</span>
                     </li>
                   ))}
                 </ul>
@@ -320,9 +473,7 @@ export default function CheckupPage() {
               {isSubmitting ? "Creando solicitud..." : "Continuar a la ficha de orden"}
             </button>
 
-            {submitError && (
-              <p className="mt-3 text-xs leading-5 text-rose-600">{submitError}</p>
-            )}
+            {submitError && <p className="mt-3 text-xs leading-5 text-rose-600">{submitError}</p>}
 
             <p className="mt-3 text-xs leading-5 text-slate-500">
               La orden se emite después del pago y de la validación clínica correspondiente.
@@ -343,4 +494,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-const inputCls = "w-full rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-200";
+const inputCls =
+  "w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200";
+const readonlyCls =
+  "w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-600 outline-none";
