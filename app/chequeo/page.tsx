@@ -217,6 +217,12 @@ export default function CheckupPage() {
   const showsPregnancyWeeks = pregnancy === "yes";
   const gestationWarning = gestationWeeks >= 42;
   const underageWarning = Boolean(birthDate) && age < 15;
+  const selectZeroValueOnFocus = (event: React.FocusEvent<HTMLInputElement>) => {
+    const currentValue = event.currentTarget.value.trim();
+    if (currentValue === "0" || currentValue === "0.0" || currentValue === "0,0") {
+      event.currentTarget.select();
+    }
+  };
 
   function calculateCaretPosition(formattedValue: string, normalizedLengthBeforeCaret: number) {
     if (normalizedLengthBeforeCaret <= 0) return 0;
@@ -289,6 +295,12 @@ export default function CheckupPage() {
 
         <div className="mt-8 grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
           <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_22px_70px_-48px_rgba(15,23,42,0.45)]">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Información inicial
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold text-slate-950">
+              1. Completa tus datos acá
+            </h2>
             <div className="grid gap-6">
               <div className="rounded-3xl bg-slate-50 p-5">
                 <p className="text-sm font-semibold text-slate-900">1. Datos del paciente</p>
@@ -437,6 +449,7 @@ export default function CheckupPage() {
                         min={30}
                         max={300}
                         value={weightKg}
+                        onFocus={selectZeroValueOnFocus}
                         onChange={(e) => setWeightKg(Number(e.target.value))}
                       />
                     </Field>
@@ -447,6 +460,7 @@ export default function CheckupPage() {
                         min={120}
                         max={230}
                         value={heightCm}
+                        onFocus={selectZeroValueOnFocus}
                         onChange={(e) => setHeightCm(Number(e.target.value))}
                       />
                     </Field>
@@ -483,6 +497,7 @@ export default function CheckupPage() {
                             min={0}
                             max={99}
                             value={quitSmokingYearsAgo}
+                            onFocus={selectZeroValueOnFocus}
                             onChange={(e) => setQuitSmokingYearsAgo(Number(e.target.value))}
                           />
                         </Field>
@@ -502,6 +517,7 @@ export default function CheckupPage() {
                             min={0}
                             max={200}
                             value={cigarettesPerDay}
+                            onFocus={selectZeroValueOnFocus}
                             onChange={(e) => setCigarettesPerDay(Number(e.target.value))}
                           />
                         </Field>
@@ -512,12 +528,33 @@ export default function CheckupPage() {
                             min={0}
                             max={100}
                             value={smokingYears}
+                            onFocus={selectZeroValueOnFocus}
                             onChange={(e) => setSmokingYears(Number(e.target.value))}
                           />
                         </Field>
                       </div>
 
-                      <Field label="IPA">
+                      <Field
+                        label={
+                          <span className="inline-flex items-center gap-2">
+                            IPA
+                            <span className="group relative inline-flex">
+                              <button
+                                type="button"
+                                aria-label="¿Qué es el IPA?"
+                                className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-300 bg-white text-[11px] font-semibold leading-none text-slate-600"
+                              >
+                                ?
+                              </button>
+                              <span className="pointer-events-none absolute left-1/2 top-7 z-10 hidden w-64 -translate-x-1/2 rounded-xl border border-slate-200 bg-white p-3 text-xs font-normal leading-5 text-slate-600 shadow-xl group-hover:block group-focus-within:block">
+                                El IPA (índice paquete-año) estima la carga acumulada de tabaco:
+                                combina cuántos cigarros fumas/fumabas al día y por cuántos años.
+                                Nos ayuda a estimar riesgo y definir tamizajes como pulmón.
+                              </span>
+                            </span>
+                          </span>
+                        }
+                      >
                         <input
                           className={readonlyCls}
                           value={packYearIndex > 0 ? packYearIndex.toFixed(1) : ""}
@@ -560,6 +597,7 @@ export default function CheckupPage() {
                           min={0}
                           max={99}
                           value={gestationWeeks}
+                          onFocus={selectZeroValueOnFocus}
                           onChange={(e) => setGestationWeeks(Number(e.target.value))}
                         />
                       </Field>
@@ -646,7 +684,7 @@ export default function CheckupPage() {
               disabled={isSubmitting}
               className="mt-6 w-full rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
             >
-              {isSubmitting ? "Creando solicitud..." : "Continuar a la ficha de orden"}
+              {isSubmitting ? "Creando solicitud..." : "Continuar a la ficha de la orden"}
             </button>
 
             {hasMissingRequiredFields && (
@@ -668,7 +706,7 @@ export default function CheckupPage() {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
   return (
     <label className="grid gap-2">
       <span className="text-sm font-medium">{label}</span>

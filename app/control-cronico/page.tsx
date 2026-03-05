@@ -61,6 +61,12 @@ export default function ChronicControlPage() {
       ),
     [conditions, hasRecentChanges, selectedMedications, usesMedication],
   );
+  const selectZeroValueOnFocus = (event: React.FocusEvent<HTMLInputElement>) => {
+    const currentValue = event.currentTarget.value.trim();
+    if (currentValue === "0" || currentValue === "0.0" || currentValue === "0,0") {
+      event.currentTarget.select();
+    }
+  };
 
   useEffect(() => {
     void fetchCurrentUser()
@@ -272,6 +278,7 @@ export default function ChronicControlPage() {
                       min={0}
                       max={60}
                       value={yearsSinceDiagnosis}
+                      onFocus={selectZeroValueOnFocus}
                       onChange={(e) => setYearsSinceDiagnosis(Number(e.target.value))}
                     />
                   </Field>

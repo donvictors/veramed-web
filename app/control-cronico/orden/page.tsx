@@ -4,6 +4,7 @@ import { startTransition, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import BrandLogo from "@/components/BrandLogo";
+import { sendOrderReadyEmail } from "@/lib/email-api";
 import {
   fetchChronicControlRequest,
   type ChronicControlApiRecord,
@@ -54,6 +55,39 @@ export default function ChronicControlOrderPage() {
         router.replace("/mi-cuenta");
       });
   }, [requestId, router]);
+
+  useEffect(() => {
+    if (!data || !requestId || !approved || !paid) {
+      return;
+    }
+
+    const recipient = data.patient?.email?.trim();
+    if (!recipient) {
+      return;
+    }
+
+    const storageKey = `veramed:chronic-order-email:${requestId}`;
+    const alreadySent = sessionStorage.getItem(storageKey);
+    if (alreadySent === "sent" || alreadySent === "pending") {
+      return;
+    }
+
+    sessionStorage.setItem(storageKey, "pending");
+
+    const orderLink = `${window.location.origin}/control-cronico/orden?id=${requestId}`;
+
+    void sendOrderReadyEmail({
+      email: recipient,
+      patientName: data.patient?.fullName,
+      orderLink,
+    })
+      .then(() => {
+        sessionStorage.setItem(storageKey, "sent");
+      })
+      .catch(() => {
+        sessionStorage.removeItem(storageKey);
+      });
+  }, [approved, data, paid, requestId]);
 
   if (!data) {
     return (

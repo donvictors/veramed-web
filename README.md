@@ -51,6 +51,60 @@ La respuesta esperada es:
 { "ok": true }
 ```
 
+## Envío de correos con Resend
+
+Se agregó un endpoint en App Router para envío de correos:
+
+- `POST /api/send-email`
+
+### Variables de entorno requeridas
+
+```bash
+RESEND_API_KEY="re_..."
+AUTH_SECRET="..."
+AUTH_GOOGLE_ID="..."
+AUTH_GOOGLE_SECRET="..."
+```
+
+Para el envío de órdenes se usa:
+
+- `from: "Veramed <ordenes@mail.veramed.cl>"`
+- `subject: "Tu orden de exámenes está lista"`
+
+### Payload del endpoint
+
+```json
+{
+  "email": "paciente@correo.cl",
+  "orderLink": "https://veramed.cl/chequeo/orden?id=...",
+  "pdfUrl": "https://veramed.cl/api/checkups/chk_123/pdf",
+  "pdfBase64": "JVBERi0xLjc...",
+  "pdfFilename": "orden-veramed.pdf"
+}
+```
+
+`pdfUrl` o `pdfBase64` son opcionales. Si se envían, el endpoint intenta adjuntar el PDF.
+
+Endpoints de PDF protegidos disponibles:
+
+- `GET /api/checkups/:id/pdf`
+- `GET /api/chronic-controls/:id/pdf`
+
+### Ejemplo de llamada desde frontend
+
+```ts
+await fetch("/api/send-email", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    email: "paciente@correo.cl",
+    orderLink: `${window.location.origin}/chequeo/orden?id=abc123`,
+    pdfUrl: `${window.location.origin}/api/checkups/abc123/pdf`,
+    pdfFilename: "orden-chequeo-abc123.pdf",
+  }),
+});
+```
+
 ## Getting Started
 
 First, run the development server:
