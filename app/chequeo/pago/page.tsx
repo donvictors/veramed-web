@@ -31,7 +31,7 @@ export default function PaymentPage() {
 
   useEffect(() => {
     if (!requestId) {
-      router.replace("/chequeo");
+      router.replace("/mi-cuenta");
       return;
     }
 
@@ -42,7 +42,7 @@ export default function PaymentPage() {
         });
       })
       .catch(() => {
-        router.replace("/chequeo");
+        router.replace("/mi-cuenta");
       });
   }, [requestId, router]);
 

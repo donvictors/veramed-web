@@ -18,7 +18,7 @@ export default function StatusPage() {
 
   useEffect(() => {
     if (!requestId) {
-      router.replace("/chequeo");
+      router.replace("/mi-cuenta");
       return;
     }
 
@@ -43,12 +43,12 @@ export default function StatusPage() {
     };
 
     void sync().catch(() => {
-      router.replace("/chequeo");
+      router.replace("/mi-cuenta");
     });
 
     const interval = setInterval(() => {
       void sync().catch(() => {
-        router.replace("/chequeo");
+        router.replace("/mi-cuenta");
       });
     }, 1000);
 

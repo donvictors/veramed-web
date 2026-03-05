@@ -75,6 +75,8 @@ Para el envío de órdenes se usa:
 
 ```json
 {
+  "requestType": "checkup",
+  "requestId": "chk_abc123",
   "email": "paciente@correo.cl",
   "orderLink": "https://veramed.cl/chequeo/orden?id=...",
   "pdfUrl": "https://veramed.cl/api/checkups/chk_123/pdf",
@@ -84,6 +86,7 @@ Para el envío de órdenes se usa:
 ```
 
 `pdfUrl` o `pdfBase64` son opcionales. Si se envían, el endpoint intenta adjuntar el PDF.
+`requestType` y `requestId` son obligatorios para validar propiedad, estado e idempotencia del envío.
 
 Endpoints de PDF protegidos disponibles:
 
@@ -97,6 +100,8 @@ await fetch("/api/send-email", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
+    requestType: "checkup",
+    requestId: "abc123",
     email: "paciente@correo.cl",
     orderLink: `${window.location.origin}/chequeo/orden?id=abc123`,
     pdfUrl: `${window.location.origin}/api/checkups/abc123/pdf`,

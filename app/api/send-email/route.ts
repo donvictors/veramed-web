@@ -1,15 +1,23 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { Resend } from "resend";
+import { prisma } from "@/lib/prisma";
+import { AUTH_SESSION_COOKIE } from "@/lib/auth";
+import { getUserFromSession } from "@/lib/server/auth-store";
 
 export const runtime = "nodejs";
 
 const FROM_EMAIL = "Veramed <ordenes@mail.veramed.cl>";
-const DEFAULT_SUBJECT = "Veramed | Tu orden de exámenes está lista 📋";
+const DEFAULT_SUBJECT = "Tu orden de exámenes está lista 📋";
+
+type RequestType = "checkup" | "chronic_control";
 
 type SendEmailPayload = {
   email?: string;
   patientName?: string;
   orderLink?: string;
+  requestType?: RequestType;
+  requestId?: string;
   pdfUrl?: string;
   pdfBase64?: string;
   pdfFilename?: string;
@@ -39,6 +47,72 @@ function extractFirstName(fullName?: string) {
   }
 
   return trimmed.split(/\s+/)[0];
+}
+
+function isValidRequestType(value?: string): value is RequestType {
+  return value === "checkup" || value === "chronic_control";
+}
+
+function isPaidStatus(status: string | undefined) {
+  return status === "paid";
+}
+
+function isApprovedStatus(status: string | undefined) {
+  return status === "approved";
+}
+
+async function getRequestContext(payload: SendEmailPayload) {
+  if (!payload.requestId || !isValidRequestType(payload.requestType)) {
+    return { error: "Solicitud inválida para envío de correo." } as const;
+  }
+
+  if (payload.requestType === "checkup") {
+    const request = await prisma.checkupRequest.findUnique({
+      where: { id: payload.requestId },
+      include: { payment: true },
+    });
+
+    if (!request) {
+      return { error: "Solicitud no encontrada." } as const;
+    }
+
+    return { request } as const;
+  }
+
+  const request = await prisma.chronicControlRequest.findUnique({
+    where: { id: payload.requestId },
+    include: { payment: true },
+  });
+
+  if (!request) {
+    return { error: "Solicitud no encontrada." } as const;
+  }
+
+  return { request } as const;
+}
+
+async function markEmailSent(payload: SendEmailPayload, messageId: string | null) {
+  if (!payload.requestId || !isValidRequestType(payload.requestType)) {
+    return;
+  }
+
+  const data = {
+    orderEmailSentAt: new Date(),
+    orderEmailMessageId: messageId,
+  };
+
+  if (payload.requestType === "checkup") {
+    await prisma.checkupRequest.update({
+      where: { id: payload.requestId },
+      data,
+    });
+    return;
+  }
+
+  await prisma.chronicControlRequest.update({
+    where: { id: payload.requestId },
+    data,
+  });
 }
 
 async function buildPdfAttachments(payload: SendEmailPayload, request: Request) {
@@ -117,6 +191,50 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "Correo del paciente inválido." }, { status: 400 });
   }
 
+  const requestContext = await getRequestContext(payload);
+  if ("error" in requestContext) {
+    return NextResponse.json({ ok: false, error: requestContext.error }, { status: 400 });
+  }
+
+  const cookieStore = await cookies();
+  const token = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
+  const sessionUser = await getUserFromSession(token);
+  const ownerUserId = requestContext.request.userId;
+
+  if (ownerUserId && (!sessionUser || sessionUser.id !== ownerUserId)) {
+    return NextResponse.json({ ok: false, error: "No tienes acceso a esta solicitud." }, { status: 403 });
+  }
+
+  if (!requestContext.request.patientEmail || requestContext.request.patientEmail.trim().toLowerCase() !== email) {
+    return NextResponse.json(
+      { ok: false, error: "El correo no coincide con el paciente de la solicitud." },
+      { status: 400 },
+    );
+  }
+
+  if (!requestContext.request.payment || !isPaidStatus(requestContext.request.payment.status)) {
+    return NextResponse.json(
+      { ok: false, error: "La solicitud aún no tiene pago confirmado." },
+      { status: 400 },
+    );
+  }
+
+  if (!isApprovedStatus(requestContext.request.reviewStatus)) {
+    return NextResponse.json(
+      { ok: false, error: "La orden aún no está aprobada para envío." },
+      { status: 400 },
+    );
+  }
+
+  if (requestContext.request.orderEmailSentAt) {
+    return NextResponse.json({
+      ok: true,
+      deduped: true,
+      id: requestContext.request.orderEmailMessageId ?? null,
+      attachedPdf: false,
+    });
+  }
+
   let attachments: Array<{
     filename: string;
     content: string;
@@ -188,6 +306,8 @@ export async function POST(request: Request) {
       { status: 500 },
     );
   }
+
+  await markEmailSent(payload, result.data?.id ?? null);
 
   return NextResponse.json({
     ok: true,

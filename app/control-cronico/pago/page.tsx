@@ -34,7 +34,7 @@ export default function ChronicControlPaymentPage() {
 
   useEffect(() => {
     if (!requestId) {
-      router.replace("/control-cronico");
+      router.replace("/mi-cuenta");
       return;
     }
 
@@ -45,7 +45,7 @@ export default function ChronicControlPaymentPage() {
         });
       })
       .catch(() => {
-        router.replace("/control-cronico");
+        router.replace("/mi-cuenta");
       });
   }, [requestId, router]);
 

@@ -649,11 +649,14 @@ export async function listCheckupsByUser(userId: string) {
     kind: "chequeo" as const,
     title: "Chequeo preventivo",
     patientName: record.patient.fullName || "Paciente",
+    patientEmail: record.patient.email || "",
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
     status: record.status.status,
     paid: Boolean(record.payment.confirmed?.paid),
+    folio: record.status.orderId || record.id.toUpperCase(),
     href: `/chequeo/orden?id=${record.id}`,
+    paymentHref: `/chequeo/pago?id=${record.id}`,
     reviewHref: `/chequeo/estado?id=${record.id}`,
   }));
 }

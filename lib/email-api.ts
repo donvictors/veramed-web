@@ -1,4 +1,6 @@
 type SendOrderEmailPayload = {
+  requestType: "checkup" | "chronic_control";
+  requestId: string;
   email: string;
   patientName?: string;
   orderLink?: string;
@@ -20,6 +22,7 @@ export async function sendOrderReadyEmail(payload: SendOrderEmailPayload) {
     ok?: boolean;
     error?: string;
     id?: string | null;
+    deduped?: boolean;
   };
 
   if (!response.ok || !data.ok) {

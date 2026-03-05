@@ -1,5 +1,12 @@
 import { NextResponse } from "next/server";
-import { confirmChronicPendingPayment, serializeChronicControlRecord } from "@/lib/server/chronic-control-store";
+import { cookies } from "next/headers";
+import { AUTH_SESSION_COOKIE } from "@/lib/auth";
+import { getUserFromSession } from "@/lib/server/auth-store";
+import {
+  confirmChronicPendingPayment,
+  getChronicControlRecord,
+  serializeChronicControlRecord,
+} from "@/lib/server/chronic-control-store";
 
 type RouteContext = {
   params: Promise<{
@@ -9,6 +16,22 @@ type RouteContext = {
 
 export async function POST(_request: Request, context: RouteContext) {
   const { id } = await context.params;
+  const current = await getChronicControlRecord(id);
+
+  if (!current) {
+    return NextResponse.json({ error: "Solicitud no encontrada." }, { status: 404 });
+  }
+
+  if (current.userId) {
+    const cookieStore = await cookies();
+    const token = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
+    const user = await getUserFromSession(token);
+
+    if (!user || user.id !== current.userId) {
+      return NextResponse.json({ error: "No tienes acceso a esta solicitud." }, { status: 403 });
+    }
+  }
+
   const record = await confirmChronicPendingPayment(id);
 
   if (!record) {

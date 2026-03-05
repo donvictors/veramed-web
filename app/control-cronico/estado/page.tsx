@@ -18,7 +18,7 @@ export default function ChronicControlStatusPage() {
 
   useEffect(() => {
     if (!requestId) {
-      router.replace("/control-cronico");
+      router.replace("/mi-cuenta");
       return;
     }
 
@@ -43,12 +43,12 @@ export default function ChronicControlStatusPage() {
     };
 
     void sync().catch(() => {
-      router.replace("/control-cronico");
+      router.replace("/mi-cuenta");
     });
 
     const interval = setInterval(() => {
       void sync().catch(() => {
-        router.replace("/control-cronico");
+        router.replace("/mi-cuenta");
       });
     }, 1000);
 

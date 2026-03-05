@@ -65,25 +65,27 @@ export default function OrderPage() {
     }
 
     const storageKey = `veramed:order-email:${requestId}`;
-    const alreadySent = sessionStorage.getItem(storageKey);
+    const alreadySent = localStorage.getItem(storageKey);
     if (alreadySent === "sent" || alreadySent === "pending") {
       return;
     }
 
-    sessionStorage.setItem(storageKey, "pending");
+    localStorage.setItem(storageKey, "pending");
 
     const orderLink = `${window.location.origin}/chequeo/orden?id=${requestId}`;
 
     void sendOrderReadyEmail({
+      requestType: "checkup",
+      requestId,
       email: recipient,
       patientName: data.patient?.fullName,
       orderLink,
     })
       .then(() => {
-        sessionStorage.setItem(storageKey, "sent");
+        localStorage.setItem(storageKey, "sent");
       })
       .catch(() => {
-        sessionStorage.removeItem(storageKey);
+        localStorage.removeItem(storageKey);
       });
   }, [approved, data, paid, requestId]);
 

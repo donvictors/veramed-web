@@ -354,11 +354,14 @@ export async function listChronicControlsByUser(userId: string) {
     kind: "control_cronico" as const,
     title: "Control crónico",
     patientName: record.patient.fullName || "Paciente",
+    patientEmail: record.patient.email || "",
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
     status: record.status.status,
     paid: Boolean(record.payment.confirmed?.paid),
+    folio: record.status.orderId || record.id.toUpperCase(),
     href: `/control-cronico/orden?id=${record.id}`,
+    paymentHref: `/control-cronico/pago?id=${record.id}`,
     reviewHref: `/control-cronico/estado?id=${record.id}`,
   }));
 }

@@ -1,7 +1,9 @@
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import {
+  formatRut,
   joinPatientFullName,
+  normalizeRut,
   splitPatientFullName,
   type PatientDetails,
 } from "@/lib/checkup";
@@ -334,6 +336,59 @@ export async function getUserById(userId: string) {
   });
 
   return user ? serializeUser(user) : null;
+}
+
+export async function updateUserProfile(
+  userId: string,
+  payload: {
+    firstName: string;
+    paternalSurname: string;
+    maternalSurname: string;
+    rut: string;
+    birthDate: string;
+    email: string;
+    phone?: string;
+    address?: string;
+  },
+) {
+  const current = await prisma.user.findUnique({
+    where: { id: userId },
+  });
+
+  if (!current) {
+    return null;
+  }
+
+  const firstName = payload.firstName.trim();
+  const paternalSurname = payload.paternalSurname.trim();
+  const maternalSurname = payload.maternalSurname.trim();
+  const fullName = joinPatientFullName({
+    firstName,
+    paternalSurname,
+    maternalSurname,
+  });
+
+  const normalizedRut = formatRut(normalizeRut(payload.rut));
+  const normalizedEmail = normalizeEmail(payload.email);
+  const normalizedPhone = payload.phone?.trim() ?? "";
+  const normalizedAddress = payload.address?.trim() ?? "";
+
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      name: fullName || current.name,
+      profileFirstName: firstName,
+      profilePaternalSurname: paternalSurname,
+      profileMaternalSurname: maternalSurname,
+      profileRut: normalizedRut,
+      profileBirthDate: payload.birthDate,
+      profileEmail: normalizedEmail,
+      profilePhone: normalizedPhone,
+      profileAddress: normalizedAddress,
+    },
+  });
+
+  return serializeUser(updated);
 }
 
 export function getSessionTtlMs() {

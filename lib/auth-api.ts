@@ -14,17 +14,31 @@ type AccountHistoryItem = {
   kind: "chequeo" | "control_cronico";
   title: string;
   patientName: string;
+  patientEmail: string;
   createdAt: number;
   updatedAt: number;
   status: "queued" | "approved" | "rejected";
   paid: boolean;
+  folio: string;
   href: string;
+  paymentHref: string;
   reviewHref: string;
 };
 
 type AccountOverviewResponse = {
   user: AuthUser;
   history: AccountHistoryItem[];
+};
+
+type UpdateAccountProfilePayload = {
+  firstName: string;
+  paternalSurname: string;
+  maternalSurname: string;
+  rut: string;
+  birthDate: string;
+  email: string;
+  phone: string;
+  address: string;
 };
 
 async function readJson<T>(response: Response) {
@@ -91,4 +105,17 @@ export async function fetchAccountOverview() {
 
   const data = await readJson<AccountOverviewResponse>(response);
   return data;
+}
+
+export async function updateAccountProfile(payload: UpdateAccountProfilePayload) {
+  const response = await fetch("/api/account/profile", {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await readJson<AuthResponse>(response);
+  return data.user;
 }
