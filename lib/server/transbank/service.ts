@@ -237,7 +237,7 @@ async function persistCommitResult(
         : "Transacción rechazada por Transbank.";
   }
 
-  const updated = await markPaymentResult(current.token, {
+  const updatePayload = {
     status,
     authorizationCode: parsed.authorizationCode,
     buyOrder: parsed.buyOrder ?? current.orderId,
@@ -247,7 +247,14 @@ async function persistCommitResult(
     transactionDate: parsed.transactionDate,
     transbankResponse: commitRaw,
     errorReason,
-  });
+  } as const;
+
+  let updated = await markPaymentResult(current.token, updatePayload);
+
+  if (!updated) {
+    await rebindTokenForOrder(current.orderId, current.token);
+    updated = await markPaymentResult(current.token, updatePayload);
+  }
 
   if (!updated) {
     throw new Error("No pudimos actualizar el estado de la transacción.");

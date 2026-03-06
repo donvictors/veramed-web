@@ -49,20 +49,26 @@ export default async function TransbankReturnPage({
     redirect(buildErrorUrl(reason || "missing-token"));
   }
 
+  let committed: Awaited<ReturnType<typeof commitTransbankPayment>>;
   try {
-    const committed = await commitTransbankPayment(token);
-    if (committed.status === "PAID") {
-      if (committed.requestId) {
-        redirect(buildRequestStatusUrl({ requestType: committed.requestType, requestId: committed.requestId }));
-      }
-      redirect(buildSuccessUrl(committed.orderId));
-    }
-    redirect(buildErrorUrl("rejected", committed.orderId));
+    committed = await commitTransbankPayment(token);
   } catch (error) {
     console.error("GET /payments/transbank/return", error);
     const params = new URLSearchParams();
     params.set("reason", "commit-failed");
     params.set("token_ws", token);
+    if (error instanceof Error) {
+      params.set("detail", error.message.slice(0, 280));
+    }
     redirect(`/payment/error?${params.toString()}`);
   }
+
+  if (committed.status === "PAID") {
+    if (committed.requestId) {
+      redirect(buildRequestStatusUrl({ requestType: committed.requestType, requestId: committed.requestId }));
+    }
+    redirect(buildSuccessUrl(committed.orderId));
+  }
+
+  redirect(buildErrorUrl("rejected", committed.orderId));
 }
