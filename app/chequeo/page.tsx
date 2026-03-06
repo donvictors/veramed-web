@@ -519,6 +519,96 @@ export default function CheckupPage() {
                     </select>
                   </Field>
 
+                  {showsSmokingIntensity && (
+                    <>
+                      {smoking === "former" && (
+                        <Field
+                          label={
+                            <span className="text-xs font-medium text-slate-700">
+                              ¡Felicitaciones! ¿Hace cuántos años dejaste de fumar?
+                            </span>
+                          }
+                        >
+                          <input
+                            className={subInputCls}
+                            type="number"
+                            min={0}
+                            max={99}
+                            value={quitSmokingYearsAgo}
+                            onFocus={selectZeroValueOnFocus}
+                            onChange={(e) => setQuitSmokingYearsAgo(Number(e.target.value))}
+                          />
+                        </Field>
+                      )}
+
+                      <p className="text-xs font-medium text-slate-700">
+                        {smoking === "former"
+                          ? "En promedio, ¿cuántos cigarros fumabas al día y durante cuánto tiempo fumaste?"
+                          : "En promedio, ¿cuántos cigarros ha fumado al día y durante cuánto tiempo?"}
+                      </p>
+
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <Field label={<span className="text-xs font-medium text-slate-700">Cigarros al día</span>}>
+                          <input
+                            className={subInputCls}
+                            type="number"
+                            min={0}
+                            max={200}
+                            value={cigarettesPerDay}
+                            onFocus={selectZeroValueOnFocus}
+                            onChange={(e) => setCigarettesPerDay(Number(e.target.value))}
+                          />
+                        </Field>
+                        <Field
+                          label={
+                            <span className="text-xs font-medium text-slate-700">
+                              Tiempo fumando (años)
+                            </span>
+                          }
+                        >
+                          <input
+                            className={subInputCls}
+                            type="number"
+                            min={0}
+                            max={100}
+                            value={smokingYears}
+                            onFocus={selectZeroValueOnFocus}
+                            onChange={(e) => setSmokingYears(Number(e.target.value))}
+                          />
+                        </Field>
+                      </div>
+
+                      <Field
+                        label={
+                          <span className="inline-flex items-center gap-2 text-xs font-medium text-slate-700">
+                            IPA
+                            <span className="group relative inline-flex">
+                              <button
+                                type="button"
+                                aria-label="¿Qué es el IPA?"
+                                className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-300 bg-white text-[11px] font-semibold leading-none text-slate-600"
+                              >
+                                ?
+                              </button>
+                              <span className="pointer-events-none absolute left-1/2 top-7 z-10 hidden w-64 -translate-x-1/2 rounded-xl border border-slate-200 bg-white p-3 text-xs font-normal leading-5 text-slate-600 shadow-xl group-hover:block group-focus-within:block">
+                                El IPA (índice paquete-año) estima la carga acumulada de tabaco:
+                                combina cuántos cigarros fumas/fumabas al día y por cuántos años.
+                                Nos ayuda a estimar riesgo y definir tamizajes como pulmón.
+                              </span>
+                            </span>
+                          </span>
+                        }
+                      >
+                        <input
+                          className={subReadonlyCls}
+                          value={packYearIndex > 0 ? packYearIndex.toFixed(1) : ""}
+                          readOnly
+                          placeholder='Se calcula como: ("cigarros al día"/20) x años fumando'
+                        />
+                      </Field>
+                    </>
+                  )}
+
                   <Field label="¿Sigues alguna dieta especial o tienes alguna restricción alimentaria?">
                     <select
                       className={inputCls}
@@ -576,84 +666,6 @@ export default function CheckupPage() {
                         </label>
                       </div>
                     </div>
-                  )}
-
-                  {showsSmokingIntensity && (
-                    <>
-                      {smoking === "former" && (
-                        <Field label="¡Felicitaciones! ¿Hace cuántos años dejaste de fumar?">
-                          <input
-                            className={inputCls}
-                            type="number"
-                            min={0}
-                            max={99}
-                            value={quitSmokingYearsAgo}
-                            onFocus={selectZeroValueOnFocus}
-                            onChange={(e) => setQuitSmokingYearsAgo(Number(e.target.value))}
-                          />
-                        </Field>
-                      )}
-
-                      <p className="text-sm font-medium text-slate-900">
-                        {smoking === "former"
-                          ? "En promedio, ¿cuántos cigarros fumabas al día y durante cuánto tiempo fumaste?"
-                          : "En promedio, ¿cuántos cigarros ha fumado al día y durante cuánto tiempo?"}
-                      </p>
-
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <Field label="Cigarros al día">
-                          <input
-                            className={inputCls}
-                            type="number"
-                            min={0}
-                            max={200}
-                            value={cigarettesPerDay}
-                            onFocus={selectZeroValueOnFocus}
-                            onChange={(e) => setCigarettesPerDay(Number(e.target.value))}
-                          />
-                        </Field>
-                        <Field label="Tiempo fumando (años)">
-                          <input
-                            className={inputCls}
-                            type="number"
-                            min={0}
-                            max={100}
-                            value={smokingYears}
-                            onFocus={selectZeroValueOnFocus}
-                            onChange={(e) => setSmokingYears(Number(e.target.value))}
-                          />
-                        </Field>
-                      </div>
-
-                      <Field
-                        label={
-                          <span className="inline-flex items-center gap-2">
-                            IPA
-                            <span className="group relative inline-flex">
-                              <button
-                                type="button"
-                                aria-label="¿Qué es el IPA?"
-                                className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-300 bg-white text-[11px] font-semibold leading-none text-slate-600"
-                              >
-                                ?
-                              </button>
-                              <span className="pointer-events-none absolute left-1/2 top-7 z-10 hidden w-64 -translate-x-1/2 rounded-xl border border-slate-200 bg-white p-3 text-xs font-normal leading-5 text-slate-600 shadow-xl group-hover:block group-focus-within:block">
-                                El IPA (índice paquete-año) estima la carga acumulada de tabaco:
-                                combina cuántos cigarros fumas/fumabas al día y por cuántos años.
-                                Nos ayuda a estimar riesgo y definir tamizajes como pulmón.
-                              </span>
-                            </span>
-                          </span>
-                        }
-                      >
-                        <input
-                          className={readonlyCls}
-                          value={packYearIndex > 0 ? packYearIndex.toFixed(1) : ""}
-                          readOnly
-                          placeholder='Se calcula como: ("cigarros al día"/20) x años fumando'
-                        />
-                      </Field>
-                    </>
                   )}
 
                   <Field label="¿Eres sexualmente activo?">
@@ -827,7 +839,11 @@ function Field({ label, children }: { label: React.ReactNode; children: React.Re
 
 const inputCls =
   "w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200";
+const subInputCls =
+  "w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200";
 const errorInputCls =
   "w-full rounded-xl border border-rose-400 bg-white px-3 py-2 text-sm outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-200";
 const readonlyCls =
   "w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-600 outline-none";
+const subReadonlyCls =
+  "w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-1.5 text-xs text-slate-600 outline-none";

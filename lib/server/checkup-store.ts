@@ -156,21 +156,26 @@ function shouldAutoApprove(record: CheckupRecord) {
 }
 
 async function resolveStatus(record: CheckupRecord) {
-  if (!shouldAutoApprove(record)) {
+  const shouldApproveNow = shouldAutoApprove(record);
+  const shouldCheckMissingEmail = record.status.status === "approved";
+
+  if (!shouldApproveNow && !shouldCheckMissingEmail) {
     return record;
   }
 
-  const approvedAt = record.status.approvedAt ?? Date.now();
-  const transition = await prisma.checkupRequest.updateMany({
-    where: {
-      id: record.id,
-      reviewStatus: "queued",
-    },
-    data: {
-      reviewStatus: "approved",
-      approvedAt: new Date(approvedAt),
-    },
-  });
+  if (shouldApproveNow) {
+    const approvedAt = record.status.approvedAt ?? Date.now();
+    await prisma.checkupRequest.updateMany({
+      where: {
+        id: record.id,
+        reviewStatus: "queued",
+      },
+      data: {
+        reviewStatus: "approved",
+        approvedAt: new Date(approvedAt),
+      },
+    });
+  }
 
   const updated = await prisma.checkupRequest.findUnique({
     where: { id: record.id },
@@ -181,20 +186,23 @@ async function resolveStatus(record: CheckupRecord) {
     return record;
   }
 
-  if (transition.count === 0) {
-    return fromRow(updated);
-  }
+  const shouldSendEmail =
+    updated.reviewStatus === "approved" &&
+    updated.payment?.status === "paid" &&
+    !updated.orderEmailSentAt;
 
-  try {
-    await sendApprovedOrderEmail({
-      requestType: "checkup",
-      requestId: updated.id,
-    });
-  } catch (error) {
-    console.error("No pudimos enviar el correo de orden aprobada (checkup)", {
-      requestId: updated.id,
-      error,
-    });
+  if (shouldSendEmail) {
+    try {
+      await sendApprovedOrderEmail({
+        requestType: "checkup",
+        requestId: updated.id,
+      });
+    } catch (error) {
+      console.error("No pudimos enviar el correo de orden aprobada (checkup)", {
+        requestId: updated.id,
+        error,
+      });
+    }
   }
 
   return fromRow(updated);

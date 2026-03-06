@@ -21,6 +21,9 @@ export default function Footer() {
             <Link href="/blog" className="transition hover:text-slate-950">
               Blog
             </Link>
+            <Link href="/portal-medicos" className="transition hover:text-slate-950">
+              Médicos
+            </Link>
             <Link href="/terminos" className="transition hover:text-slate-950">
               Términos
             </Link>

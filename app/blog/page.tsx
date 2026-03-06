@@ -15,7 +15,7 @@ const posts = [
     summary:
       "Qué son las cascadas diagnósticas, por qué ocurren tras hallazgos incidentales y cómo evitar estudios innecesarios en prevención.",
     category: "Decisiones clínicas",
-    date: "04 marzo 2026",
+    date: "13 marzo 2026",
     readTime: "6 min",
     href: "",
   },
@@ -24,7 +24,7 @@ const posts = [
     summary:
       "Claves para leer tus resultados con contexto clínico y reconocer cuándo corresponde evaluación médica presencial.",
     category: "Educación clínica",
-    date: "04 marzo 2026",
+    date: "20 marzo 2026",
     readTime: "7 min",
     href: "",
   },

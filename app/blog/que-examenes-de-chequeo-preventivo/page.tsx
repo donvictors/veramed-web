@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 export default function PreventiveCheckupArticlePage() {
   return (
@@ -16,6 +17,16 @@ export default function PreventiveCheckupArticlePage() {
             por qué no existe un panel único para todas las personas.
           </p>
           <p className="mt-4 text-sm text-slate-500">04 marzo 2026</p>
+          <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200">
+            <Image
+              src="/brand/voxel-check_up.png"
+              alt="Paciente en evaluación clínica preventiva"
+              width={1366}
+              height={768}
+              className="h-auto w-full"
+              priority
+            />
+          </div>
 
           <div className="mt-8 space-y-6 text-sm leading-8 text-slate-700">
             <p>
