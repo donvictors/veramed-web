@@ -6,15 +6,17 @@ import { AUTH_SESSION_COOKIE } from "@/lib/auth";
 import { getUserFromSession } from "@/lib/server/auth-store";
 
 type RequestType = "checkup" | "chronic_control";
-type Category = "laboratory" | "image" | "procedure";
+type Category = "laboratory" | "image" | "procedure" | "interconsultation";
 
 function toRequestType(value: TransbankRequestTypeDb): RequestType {
   return value === "checkup" ? "checkup" : "chronic_control";
 }
 
 function toCategory(value: OrderPdfCategoryDb): Category {
-  if (value === "image") return "image";
-  if (value === "procedure") return "procedure";
+  const raw = String(value);
+  if (raw === "image") return "image";
+  if (raw === "procedure") return "procedure";
+  if (raw === "interconsultation") return "interconsultation";
   return "laboratory";
 }
 

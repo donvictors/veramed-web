@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { CHECKUP_PRICE_CLP, type StoredPayment } from "@/lib/checkup";
-import { CHRONIC_CONTROL_PRICE_CLP } from "@/lib/chronic-control";
+import {
+  getChronicControlTotalPrice,
+  type ChronicControlRecommendation,
+} from "@/lib/chronic-control";
 import { createPendingPayment, confirmPendingPayment } from "@/lib/server/checkup-store";
 import {
   createChronicPendingPayment,
@@ -138,15 +141,23 @@ async function resolveOrderTarget(orderId: string): Promise<ResolvedOrderTarget>
 
   const chronic = await prisma.chronicControlRequest.findUnique({
     where: { id: orderId },
-    select: { id: true, userId: true, payment: { select: { status: true } } },
+    select: {
+      id: true,
+      userId: true,
+      rec: true,
+      payment: { select: { status: true } },
+    },
   });
 
   if (chronic) {
+    const dynamicAmount = getChronicControlTotalPrice(
+      chronic.rec as unknown as ChronicControlRecommendation,
+    );
     return {
       requestType: "chronic_control",
       requestId: chronic.id,
       userId: chronic.userId,
-      expectedAmount: CHRONIC_CONTROL_PRICE_CLP,
+      expectedAmount: dynamicAmount,
       alreadyPaid: chronic.payment?.status === "paid",
     };
   }
@@ -373,9 +384,6 @@ export async function createTransbankPayment(
 
   const existing = await getPaymentByOrderId(input.orderId);
   if (existing) {
-    if (existing.amount !== input.amount || existing.sessionId !== input.sessionId) {
-      throw new Error("La orden ya existe con un monto o sesión distintos.");
-    }
     if (existing.status === "PAID") {
       throw new Error("La solicitud ya registra un pago confirmado.");
     }

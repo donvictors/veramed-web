@@ -65,7 +65,7 @@ export default function FAQ() {
         <div className="max-w-3xl">
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">FAQ</p>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-            Preguntas frecuentes.
+            Preguntas frecuentes. ❓
           </h2>
         </div>
 

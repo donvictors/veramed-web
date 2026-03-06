@@ -79,6 +79,33 @@ export async function fetchChronicControlRequest(
   return data.request;
 }
 
+export type ChronicControlScreeningPreferences = {
+  colorectalMethod?: "fit" | "colonoscopy";
+  cervicalMethod?: "pap" | "hpv" | "cotesting";
+  bloodPressureMethod?: "mapa" | "skip";
+  breastImaging?: "mammo_only" | "mammo_plus_ultrasound";
+  prostateMethod?: "include" | "skip";
+  addTestName?: string;
+  removeTestName?: string;
+  restoreTestName?: string;
+};
+
+export async function updateChronicControlScreeningPreferences(
+  id: string,
+  preferences: ChronicControlScreeningPreferences,
+) {
+  const response = await fetch(`/api/chronic-controls/${id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(preferences),
+  });
+
+  const data = await readJson<{ request: ChronicControlApiRecord }>(response);
+  return data.request;
+}
+
 export async function createChronicPendingPayment(
   id: string,
   payment: Omit<StoredPayment, "paid" | "paidAt">,

@@ -90,8 +90,12 @@ const TEST_SAMPLE_TYPE_MAP: Record<string, string> = {
   "PCR de virus papiloma humano (VPH)": "Hisopado endocervical",
   "PCR Chlamydia trachomatis y Neisseria gonorrhoeae":
     "Secreción endocervical / orina de primer chorro / secreción vaginal",
-  "Razón albuminuria / creatininuria (RAC) en orina aislada":
-    "Orina 2da micción muestra aislada",
+  "Razón albuminuria / creatininuria (RAC)": "Orina 2da micción muestra aislada",
+  "Razón albuminuria / creatininuria (RAC) en orina aislada": "Orina 2da micción muestra aislada",
+  "Razón proteinuria / creatininuria (IPC)": "Orina",
+  "Cuantificación de complemento C3": "Sangre",
+  "Cuantificación de complemento C4": "Sangre",
+  "Anticuerpos anti-DNA por ELISA": "Sangre",
 };
 
 export function splitPatientFullName(fullName: string): PatientNameFields {

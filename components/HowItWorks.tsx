@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 const steps = [
   {
     number: "01",
@@ -47,24 +49,36 @@ export default function HowItWorks() {
           </h2>
         </div>
 
-        <div className="mt-10 grid gap-6 md:grid-cols-3">
-          {steps.map((step) => (
-            <article
-              key={step.number}
-              className="rounded-[2rem] border border-slate-200 bg-slate-50 p-6"
-            >
-              <div className="inline-flex rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold tracking-[0.18em] text-slate-600">
-                {step.number}
-              </div>
-              <h3 className="mt-5 text-xl font-semibold text-slate-950">{step.title}</h3>
-              <p className="mt-3 text-sm leading-7 text-slate-600">{step.description}</p>
-              <div className="mt-6 space-y-2 text-sm text-slate-700">
-                {step.bullets.map((bullet) => (
-                  <ChecklistLine key={bullet} text={bullet} />
-                ))}
-              </div>
-            </article>
-          ))}
+        <div className="relative mt-10 pb-12 md:pb-16">
+          <div className="grid gap-6 md:grid-cols-3">
+            {steps.map((step) => (
+              <article
+                key={step.number}
+                className="rounded-[2rem] border border-slate-200 bg-slate-50 p-6"
+              >
+                <div className="inline-flex rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold tracking-[0.18em] text-slate-600">
+                  {step.number}
+                </div>
+                <h3 className="mt-5 text-xl font-semibold text-slate-950">{step.title}</h3>
+                <p className="mt-3 text-sm leading-7 text-slate-600">{step.description}</p>
+                <div className="mt-6 space-y-2 text-sm text-slate-700">
+                  {step.bullets.map((bullet) => (
+                    <ChecklistLine key={bullet} text={bullet} />
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <div className="pointer-events-none absolute -bottom-1 left-[67.5%] hidden -translate-x-1/2 lg:block">
+            <Image
+              src="/brand/voxel-doc.png"
+              alt="Médico en estilo voxel"
+              width={92}
+              height={92}
+              className="h-[92px] w-[92px] object-contain opacity-80"
+            />
+          </div>
         </div>
       </div>
     </section>

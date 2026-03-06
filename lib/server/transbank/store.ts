@@ -62,6 +62,13 @@ function createMemoryId() {
   return `tbk_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function isUniqueConstraintError(error: unknown) {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2002"
+  );
+}
+
 function mapStatus(status: TransbankTransactionStatusDb): TransbankPaymentStatus {
   if (status === "paid") return "PAID";
   if (status === "rejected") return "REJECTED";
@@ -115,12 +122,33 @@ export async function upsertCreatedPayment(input: {
     if (existingToken) {
       const existing = memoryByToken.get(existingToken);
       if (existing) {
-        if (existing.amount !== input.amount || existing.sessionId !== input.sessionId) {
-          throw new Error("La orden ya existe con un monto o sesión distintos.");
-        }
-
         if (existing.status !== "REJECTED") {
-          return existing;
+          const now = Date.now();
+          const replaced: TransbankPaymentRecord = {
+            ...existing,
+            sessionId: input.sessionId,
+            requestType: input.requestType,
+            requestId: input.requestId,
+            amount: input.amount,
+            token: input.token,
+            url: input.url,
+            status: "CREATED",
+            authorizationCode: undefined,
+            buyOrder: undefined,
+            responseCode: undefined,
+            paymentTypeCode: undefined,
+            cardLast4: undefined,
+            transactionDate: undefined,
+            transbankResponse: undefined,
+            errorReason: undefined,
+            committedAt: undefined,
+            paidAt: undefined,
+            updatedAt: now,
+          };
+          memoryByToken.delete(existingToken);
+          memoryByToken.set(input.token, replaced);
+          memoryTokenByOrder.set(input.orderId, input.token);
+          return replaced;
         }
       }
     }
@@ -153,9 +181,6 @@ export async function upsertCreatedPayment(input: {
   } as { where: { orderId: string } });
 
   if (existing) {
-    if (existing.amount !== input.amount || existing.sessionId !== input.sessionId) {
-      throw new Error("La orden ya existe con un monto o sesión distintos.");
-    }
     if (existing.status === "paid") {
       throw new Error("La orden ya registra un pago confirmado.");
     }
@@ -163,6 +188,10 @@ export async function upsertCreatedPayment(input: {
     const replaced = await tx.update({
       where: { orderId: input.orderId },
       data: {
+        sessionId: input.sessionId,
+        requestType: input.requestType as TransbankRequestTypeDb,
+        requestId: input.requestId,
+        amount: input.amount,
         token: input.token,
         webpayUrl: input.url,
         status: "created",
@@ -182,20 +211,63 @@ export async function upsertCreatedPayment(input: {
     return fromDb(replaced);
   }
 
-  const created = await tx.create({
-    data: {
-      orderId: input.orderId,
-      sessionId: input.sessionId,
-      requestType: input.requestType as TransbankRequestTypeDb,
-      requestId: input.requestId,
-      amount: input.amount,
-      token: input.token,
-      webpayUrl: input.url,
-      status: "created",
-    },
-  });
+  try {
+    const created = await tx.create({
+      data: {
+        orderId: input.orderId,
+        sessionId: input.sessionId,
+        requestType: input.requestType as TransbankRequestTypeDb,
+        requestId: input.requestId,
+        amount: input.amount,
+        token: input.token,
+        webpayUrl: input.url,
+        status: "created",
+      },
+    });
 
-  return fromDb(created);
+    return fromDb(created);
+  } catch (error) {
+    if (!isUniqueConstraintError(error)) {
+      throw error;
+    }
+
+    const collided = await tx.findUnique({
+      where: { orderId: input.orderId },
+    } as { where: { orderId: string } });
+
+    if (!collided) {
+      throw error;
+    }
+
+    if (collided.status === "paid") {
+      throw new Error("La orden ya registra un pago confirmado.");
+    }
+
+    const replaced = await tx.update({
+      where: { orderId: input.orderId },
+      data: {
+        sessionId: input.sessionId,
+        requestType: input.requestType as TransbankRequestTypeDb,
+        requestId: input.requestId,
+        amount: input.amount,
+        token: input.token,
+        webpayUrl: input.url,
+        status: "created",
+        authorizationCode: null,
+        buyOrder: null,
+        responseCode: null,
+        paymentTypeCode: null,
+        cardLast4: null,
+        transactionDate: null,
+        transbankResponse: Prisma.JsonNull,
+        errorReason: null,
+        committedAt: null,
+        paidAt: null,
+      },
+    });
+
+    return fromDb(replaced);
+  }
 }
 
 export async function getPaymentByToken(token: string) {

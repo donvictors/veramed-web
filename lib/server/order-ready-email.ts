@@ -15,7 +15,7 @@ type SendApprovedOrderEmailResult = {
   deduped?: boolean;
   messageId?: string | null;
   pdfAssets: Array<{
-    category: "laboratory" | "image" | "procedure";
+    category: "laboratory" | "image" | "procedure" | "interconsultation";
     url: string;
     fileName: string;
   }>;
@@ -41,14 +41,20 @@ function extractFirstName(fullName?: string) {
   return trimmed.split(/\s+/)[0];
 }
 
-function normalizeCategoryLabel(category: "laboratory" | "image" | "procedure") {
+function normalizeCategoryLabel(
+  category: "laboratory" | "image" | "procedure" | "interconsultation",
+) {
   if (category === "image") return "Orden de imágenes ☢️";
   if (category === "procedure") return "Orden de procedimientos 🏥";
+  if (category === "interconsultation") return "Orden de derivación 👁️";
   return "Orden de laboratorio 💉";
 }
 
 function buildPdfLinksHtml(
-  assets: Array<{ category: "laboratory" | "image" | "procedure"; blobUrl: string }>,
+  assets: Array<{
+    category: "laboratory" | "image" | "procedure" | "interconsultation";
+    blobUrl: string;
+  }>,
 ) {
   if (assets.length === 0) {
     return "";

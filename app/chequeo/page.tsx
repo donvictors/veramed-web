@@ -27,6 +27,7 @@ import {
 } from "@/lib/checkup";
 
 export default function CheckupPage() {
+  const recommendationCardRef = useRef<HTMLDivElement>(null);
   const [nameFields, setNameFields] = useState<PatientNameFields>({
     firstName: "",
     paternalSurname: "",
@@ -51,6 +52,7 @@ export default function CheckupPage() {
   const [sexualActivity, setSexualActivity] = useState<SexualActivity>("no");
   const [pregnancy, setPregnancy] = useState<Pregnancy>("no");
   const [gestationWeeks, setGestationWeeks] = useState(0);
+  const [highlightRecommendation, setHighlightRecommendation] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const rutInputRef = useRef<HTMLInputElement>(null);
@@ -225,6 +227,13 @@ export default function CheckupPage() {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  function focusRecommendationPanel() {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    recommendationCardRef.current?.focus({ preventScroll: true });
+    setHighlightRecommendation(true);
+    window.setTimeout(() => setHighlightRecommendation(false), 1600);
   }
 
   const showsSmokingIntensity = smoking === "former" || smoking === "current";
@@ -694,6 +703,16 @@ export default function CheckupPage() {
                 </div>
               </div>
 
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={focusRecommendationPanel}
+                  className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-[0_6px_18px_-14px_rgba(15,23,42,0.65)] transition hover:border-slate-400 hover:bg-slate-50"
+                >
+                  Continuar
+                </button>
+              </div>
+
               <div className="rounded-3xl border border-rose-200 bg-rose-50 p-5">
                 <p className="text-sm font-semibold text-rose-900">
                   No usar en casos de urgencia.
@@ -705,7 +724,15 @@ export default function CheckupPage() {
             </div>
           </section>
 
-          <aside className="rounded-[2rem] border border-slate-200 bg-white p-6">
+          <aside
+            ref={recommendationCardRef}
+            tabIndex={-1}
+            className={`rounded-[2rem] border bg-white p-6 transition ${
+              highlightRecommendation
+                ? "border-slate-400 shadow-[0_22px_70px_-34px_rgba(15,23,42,0.55)] ring-2 ring-slate-200"
+                : "border-slate-200"
+            }`}
+          >
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
               Vista previa
             </p>

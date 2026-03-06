@@ -2,11 +2,12 @@ import { put } from "@vercel/blob";
 import { OrderPdfCategoryDb, TransbankRequestTypeDb } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { type PatientDetails, type TestItem } from "@/lib/checkup";
+import { getOrderCategoryByTestName, type OrderCategory } from "@/lib/order-categories";
 import { buildOrderPdf } from "@/lib/server/order-pdf";
 import { renderOrderPdfFromOrderPage } from "@/lib/server/order-pdf-browser";
 
 type RequestType = "checkup" | "chronic_control";
-type OrderPdfCategory = "laboratory" | "image" | "procedure";
+type OrderPdfCategory = OrderCategory;
 
 type EnsureOrderPdfAssetsInput = {
   requestType: RequestType;
@@ -29,26 +30,12 @@ type StoredOrderPdfAsset = {
   renderError?: string | null;
 };
 
-const IMAGE_TESTS = new Set([
-  "Ecografía abdominal",
-  "Mamografía bilateral",
-  "Ecografía mamaria",
-  "TC de tórax de baja dosis",
-  "Densitometría ósea",
-]);
-
-const PROCEDURE_TESTS = new Set([
-  "Holter de presión arterial (MAPA)",
-  "Tamizaje de cáncer cervicouterino",
-  "Papanicolau (PAP)",
-  "Cotesting (PAP+VPH)",
-  "Tamizaje de cáncer colorrectal",
-  "Colonoscopía total",
-  "Electrocardiograma (ECG)",
-  "Espirometría basal y post broncodilatador",
-]);
-
-const CATEGORY_ORDER: OrderPdfCategory[] = ["laboratory", "image", "procedure"];
+const CATEGORY_ORDER: OrderPdfCategory[] = [
+  "laboratory",
+  "image",
+  "procedure",
+  "interconsultation",
+];
 const CURRENT_RENDER_VERSION = "v2";
 
 function toDbRequestType(value: RequestType): TransbankRequestTypeDb {
@@ -62,44 +49,41 @@ function fromDbRequestType(value: TransbankRequestTypeDb): RequestType {
 }
 
 function toDbCategory(value: OrderPdfCategory): OrderPdfCategoryDb {
-  if (value === "image") return OrderPdfCategoryDb.image;
-  if (value === "procedure") return OrderPdfCategoryDb.procedure;
-  return OrderPdfCategoryDb.laboratory;
+  return value as unknown as OrderPdfCategoryDb;
 }
 
 function fromDbCategory(value: OrderPdfCategoryDb): OrderPdfCategory {
-  if (value === OrderPdfCategoryDb.image) return "image";
-  if (value === OrderPdfCategoryDb.procedure) return "procedure";
+  const raw = String(value);
+  if (raw === "image") return "image";
+  if (raw === "procedure") return "procedure";
+  if (raw === "interconsultation") return "interconsultation";
   return "laboratory";
 }
 
 function classifyCheckupTest(name: string): OrderPdfCategory {
-  if (IMAGE_TESTS.has(name)) return "image";
-  if (PROCEDURE_TESTS.has(name)) return "procedure";
-  return "laboratory";
+  return getOrderCategoryByTestName(name);
 }
 
 function getTitleForCategory(category: OrderPdfCategory) {
+  if (category === "interconsultation") return "ORDEN DE DERIVACIÓN";
   if (category === "image") return "ORDEN DE IMÁGENES";
   if (category === "procedure") return "ORDEN DE PROCEDIMIENTOS";
   return "ORDEN DE LABORATORIO";
 }
 
 function getCategoryLabel(category: OrderPdfCategory) {
+  if (category === "interconsultation") return "interconsulta";
   if (category === "image") return "imagenes";
   if (category === "procedure") return "procedimientos";
   return "laboratorio";
 }
 
 function getTargetCategories(input: EnsureOrderPdfAssetsInput): Map<OrderPdfCategory, TestItem[]> {
-  if (input.requestType === "chronic_control") {
-    return new Map<OrderPdfCategory, TestItem[]>([["laboratory", input.tests]]);
-  }
-
   const grouped = new Map<OrderPdfCategory, TestItem[]>([
     ["laboratory", []],
     ["image", []],
     ["procedure", []],
+    ["interconsultation", []],
   ]);
 
   for (const test of input.tests) {
@@ -216,6 +200,7 @@ export async function ensureOrderPdfAssets(
         patient: input.patient,
         tests,
         issuedAtMs: input.issuedAtMs,
+        referralTo: category === "interconsultation" ? "Oftalmólogo/a" : undefined,
       });
     }
 

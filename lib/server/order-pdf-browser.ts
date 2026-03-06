@@ -1,9 +1,10 @@
 import { existsSync } from "node:fs";
 import { createInternalAccessParams } from "@/lib/server/internal-access";
 import { getAppUrl } from "@/lib/server/transbank/config";
+import { getOrderCategoryMeta, type OrderCategory } from "@/lib/order-categories";
 
 type RequestType = "checkup" | "chronic_control";
-type OrderPdfCategory = "laboratory" | "image" | "procedure";
+type OrderPdfCategory = OrderCategory;
 
 type RenderOrderPdfFromPageInput = {
   requestType: RequestType;
@@ -55,17 +56,12 @@ function buildOrderPageUrl(input: RenderOrderPdfFromPageInput) {
     return `${appUrl}/chequeo/orden?${params.toString()}`;
   }
 
+  params.set("printCategory", input.category);
   return `${appUrl}/control-cronico/orden?${params.toString()}`;
 }
 
 function expectedPrintTitle(input: RenderOrderPdfFromPageInput) {
-  if (input.requestType === "chronic_control") {
-    return "ORDEN DE LABORATORIO";
-  }
-
-  if (input.category === "image") return "ORDEN DE IMÁGENES";
-  if (input.category === "procedure") return "ORDEN DE PROCEDIMIENTOS";
-  return "ORDEN DE LABORATORIO";
+  return getOrderCategoryMeta(input.category).printTitle;
 }
 
 export async function renderOrderPdfFromOrderPage(input: RenderOrderPdfFromPageInput) {

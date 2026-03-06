@@ -3,8 +3,8 @@ import { cookies } from "next/headers";
 import { AUTH_SESSION_COOKIE } from "@/lib/auth";
 import { createChronicControlRecord, serializeChronicControlRecord } from "@/lib/server/chronic-control-store";
 import { getUserFromSession, syncUserProfileFromPatient } from "@/lib/server/auth-store";
-import { type PatientDetails } from "@/lib/checkup";
-import { type ChronicCondition, type MedicationOption } from "@/lib/chronic-control";
+import { type CheckupInput, type PatientDetails } from "@/lib/checkup";
+import { type AntiepilepticOption, type ChronicCondition, type MedicationOption } from "@/lib/chronic-control";
 
 function mergePatientDefaults(patient: PatientDetails, profile?: PatientDetails): PatientDetails {
   if (!profile) {
@@ -30,6 +30,8 @@ export async function POST(request: Request) {
       hasRecentChanges?: boolean;
       usesMedication?: boolean;
       selectedMedications?: MedicationOption[];
+      selectedAntiepileptics?: AntiepilepticOption[];
+      generalCheckupInput?: CheckupInput;
     };
 
     if (
@@ -56,6 +58,8 @@ export async function POST(request: Request) {
       hasRecentChanges: payload.hasRecentChanges,
       usesMedication: payload.usesMedication,
       selectedMedications: payload.selectedMedications,
+      selectedAntiepileptics: payload.selectedAntiepileptics ?? [],
+      generalCheckupInput: payload.generalCheckupInput,
     });
 
     if (user?.id) {

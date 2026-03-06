@@ -78,14 +78,20 @@ function isValidRequestType(value?: string): value is RequestType {
   return value === "checkup" || value === "chronic_control";
 }
 
-function normalizeCategoryLabel(category: "laboratory" | "image" | "procedure") {
+function normalizeCategoryLabel(
+  category: "laboratory" | "image" | "procedure" | "interconsultation",
+) {
   if (category === "image") return "Orden de imágenes ☢️";
   if (category === "procedure") return "Orden de procedimientos 🏥";
+  if (category === "interconsultation") return "Orden de derivación 👁️";
   return "Orden de laboratorio 💉";
 }
 
 function buildPdfLinksHtml(
-  assets: Array<{ category: "laboratory" | "image" | "procedure"; blobUrl: string }>,
+  assets: Array<{
+    category: "laboratory" | "image" | "procedure" | "interconsultation";
+    blobUrl: string;
+  }>,
 ) {
   if (assets.length === 0) {
     return "";

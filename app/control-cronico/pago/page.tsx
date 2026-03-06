@@ -10,8 +10,8 @@ import {
   type ChronicControlApiRecord,
 } from "@/lib/chronic-control-api";
 import {
-  CHRONIC_CONTROL_PRICE_CLP,
   conditionLabel,
+  getChronicControlTotalPrice,
   medicationLabel,
 } from "@/lib/chronic-control";
 import { useRequestId } from "@/lib/use-request-id";
@@ -45,6 +45,8 @@ export default function ChronicControlPaymentPage() {
       });
   }, [requestId, resolved, router]);
 
+  const totalAmount = data ? getChronicControlTotalPrice(data.rec) : 0;
+
   async function handlePayment() {
     if (createRequestLockRef.current || isSubmitting) {
       return;
@@ -67,7 +69,7 @@ export default function ChronicControlPaymentPage() {
         body: JSON.stringify({
           orderId: requestId,
           sessionId: `chronic-${requestId}`,
-          amount: CHRONIC_CONTROL_PRICE_CLP,
+          amount: totalAmount,
         }),
       });
 
@@ -123,7 +125,7 @@ export default function ChronicControlPaymentPage() {
                   </p>
                 </div>
                 <p className="text-2xl font-semibold text-slate-950">
-                  ${CHRONIC_CONTROL_PRICE_CLP.toLocaleString("es-CL")}
+                  ${totalAmount.toLocaleString("es-CL")}
                 </p>
               </div>
             </div>

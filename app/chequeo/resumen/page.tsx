@@ -240,9 +240,20 @@ export default function SummaryPage() {
   const selectedOptionalAdditionalTests = optionalAdditionalTests.filter((test) =>
     data.rec.tests.some((item) => item.name === test.name),
   );
-  const optionalAdditionalTestsToShow = optionalAdditionalTests.filter(
-    (test) => !(test.name === "Hemograma" && displayedTests.some((item) => item.name === "Hemograma")),
-  );
+  const optionalAdditionalTestsToShow = optionalAdditionalTests.filter((test) => {
+    if (test.name === "Hemograma" && displayedTests.some((item) => item.name === "Hemograma")) {
+      return false;
+    }
+
+    if (
+      test.name === "Niveles de vitamina D" &&
+      displayedTests.some((item) => item.name === "Niveles de vitamina D")
+    ) {
+      return false;
+    }
+
+    return true;
+  });
 
   async function handlePreferenceChange(
     preferences: Parameters<typeof updateCheckupScreeningPreferences>[1],

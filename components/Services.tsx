@@ -22,7 +22,7 @@ export default function Services() {
 
         <div className="mt-10 grid gap-6 lg:grid-cols-3">
           <article className="flex h-full flex-col rounded-[2rem] border border-slate-200 bg-white p-7 shadow-[0_18px_60px_-44px_rgba(15,23,42,0.45)]">
-            <div className="flex min-h-[20rem] flex-col">
+            <div className="flex min-h-[16rem] flex-col">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
                   Activo hoy
@@ -60,7 +60,7 @@ export default function Services() {
           </article>
 
           <article className="flex h-full flex-col rounded-[2rem] border border-slate-200 bg-white p-7 shadow-[0_18px_60px_-44px_rgba(15,23,42,0.45)]">
-            <div className="flex min-h-[20rem] flex-col">
+            <div className="flex min-h-[16rem] flex-col">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
                   Activo hoy
@@ -99,7 +99,7 @@ export default function Services() {
           </article>
 
           <article className="flex h-full flex-col rounded-[2rem] border border-slate-200 bg-white p-7">
-            <div className="flex min-h-[20rem] flex-col">
+            <div className="flex min-h-[16rem] flex-col">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
                   Próximamente...
@@ -109,9 +109,7 @@ export default function Services() {
                 </h3>
                 <p className="mt-3 text-sm leading-7 text-slate-600">
                   Usamos inteligencia artifical para contrastar lo que sientes con bases de datos
-                  de diagnóstico de última generación. Generamos la orden que necesitas para llevar
-                  los resultados a tu consulta médica. Un médico de nuestro equipo la revisa y
-                  valida en menos de 12 horas.
+                  de diagnóstico de última generación.
                 </p>
               </div>
               <span
@@ -124,9 +122,9 @@ export default function Services() {
             </div>
 
             <div className="mt-6 grid flex-1 gap-3 text-sm text-slate-700">
-              <ServicePoint text="Ingreso libre de síntomas por parte del paciente." />
-              <ServicePoint text="Estructuración clínica con IA y preguntas de seguimiento." />
-              <ServicePoint text="Recomendación de exámenes y validación médica dentro de 12 horas." />
+              <ServicePoint text="Ingresa tus síntomas en nuestro motor de búsqueda con IA." />
+              <ServicePoint text="Cotejamos tus síntomas con bases médicas actualizadas y te sugerimos los exámenes para tu consulta médica." />
+              <ServicePoint text="Esta orden es revisada y firmada por un médico de neustro equipo dentro de 12 horas." />
             </div>
 
             <div className="mt-8">

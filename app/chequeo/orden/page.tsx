@@ -549,6 +549,8 @@ function getTestCategory(testName: string): OrderCategory {
     "Colonoscopía total",
     "Electrocardiograma (ECG)",
     "Espirometría basal y post broncodilatador",
+    "Estudio de capacidad de difusion (DLCO)",
+    "Test de caminata en 6 minutos",
   ]);
 
   if (imageTests.has(testName)) {

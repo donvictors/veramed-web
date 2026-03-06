@@ -22,6 +22,7 @@ type BuildOrderPdfInput = {
   patient: PatientPayload;
   tests: TestPayload[];
   issuedAtMs: number;
+  referralTo?: string;
 };
 
 function formatIssuedAt(issuedAtMs: number) {
@@ -37,11 +38,22 @@ function drawHeader(args: {
   patient: PatientPayload;
   issuedAtLabel: string;
   verificationCode: string;
+  referralTo?: string;
   font: import("pdf-lib").PDFFont;
   fontBold: import("pdf-lib").PDFFont;
   logoImage: import("pdf-lib").PDFImage | null;
 }) {
-  const { page, title, patient, issuedAtLabel, verificationCode, font, fontBold, logoImage } = args;
+  const {
+    page,
+    title,
+    patient,
+    issuedAtLabel,
+    verificationCode,
+    referralTo,
+    font,
+    fontBold,
+    logoImage,
+  } = args;
   const { width, height } = page.getSize();
   const marginX = 42;
   let y = height - 42;
@@ -135,7 +147,19 @@ function drawHeader(args: {
     thickness: 0.8,
   });
 
-  y -= 18;
+  if (referralTo) {
+    y -= 18;
+    page.drawText(`Se solicita derivación a: ${referralTo}`, {
+      x: marginX,
+      y,
+      size: 10,
+      font: fontBold,
+    });
+    y -= 16;
+  } else {
+    y -= 18;
+  }
+
   page.drawText(`ID: ${verificationCode}`, {
     x: marginX,
     y,
@@ -289,6 +313,7 @@ export async function buildOrderPdf(input: BuildOrderPdfInput) {
     patient: input.patient,
     issuedAtLabel,
     verificationCode,
+    referralTo: input.referralTo,
     font,
     fontBold,
     logoImage,
@@ -307,6 +332,7 @@ export async function buildOrderPdf(input: BuildOrderPdfInput) {
         patient: input.patient,
         issuedAtLabel,
         verificationCode,
+        referralTo: input.referralTo,
         font,
         fontBold,
         logoImage,

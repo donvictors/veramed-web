@@ -13,6 +13,12 @@ import {
   createVerificationCode,
   formatBirthDate,
 } from "@/lib/checkup";
+import {
+  getOrderCategoryByTestName,
+  getOrderCategoryMeta,
+  parseOrderCategory,
+  type OrderCategory,
+} from "@/lib/order-categories";
 import { useRequestId } from "@/lib/use-request-id";
 import {
   conditionLabel,
@@ -31,6 +37,7 @@ export default function ChronicControlOrderPage() {
     typeof window === "undefined" ? null : new URLSearchParams(window.location.search);
   const internalTs = queryParams?.get("internalTs")?.trim() || "";
   const internalSig = queryParams?.get("internalSig")?.trim() || "";
+  const requestedPrintCategory = parseOrderCategory(queryParams?.get("printCategory") || null);
   const queryReady = typeof window !== "undefined";
 
   useEffect(() => {
@@ -120,6 +127,21 @@ export default function ChronicControlOrderPage() {
   const verificationCode = issuedAtTimestamp
     ? createVerificationCode(patient?.rut, issuedAtTimestamp)
     : "";
+  const categorizedTests = categorizeControlTests(data.rec.tests);
+  const availablePrintCategories = ORDER_CATEGORIES.filter(
+    (category) => categorizedTests[category].length > 0,
+  );
+  const effectivePrintCategory =
+    requestedPrintCategory &&
+    availablePrintCategories.some((category) => category === requestedPrintCategory)
+      ? requestedPrintCategory
+      : null;
+  const printCategoryMeta = effectivePrintCategory
+    ? getOrderCategoryMeta(effectivePrintCategory)
+    : null;
+  const printTests = effectivePrintCategory
+    ? categorizedTests[effectivePrintCategory]
+    : data.rec.tests;
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900 print:bg-white">
@@ -238,8 +260,8 @@ export default function ChronicControlOrderPage() {
           </div>
         </section>
 
-        <section className="hidden print:block print:px-8 print:py-6">
-          <div className="flex min-h-[255mm] flex-col">
+        <section className="veramed-print-shell hidden print:block print:px-8 print:py-6">
+          <article className="veramed-order-page flex min-h-[255mm] flex-col">
             <div className="flex items-start justify-between gap-8">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -257,7 +279,7 @@ export default function ChronicControlOrderPage() {
             </div>
 
             <h2 className="mt-6 text-center text-[2rem] font-semibold tracking-tight text-slate-900">
-              ORDEN DE LABORATORIO
+              {printCategoryMeta?.printTitle ?? "ORDEN DE LABORATORIO"}
             </h2>
 
             <div className="mt-6 border-y border-slate-300 py-3 text-[13px] leading-7">
@@ -284,7 +306,14 @@ export default function ChronicControlOrderPage() {
             </div>
 
             <div className="mt-8 flex-1 space-y-6 text-[13px] leading-6">
-              {data.rec.tests.map((test) => (
+              {effectivePrintCategory === "interconsultation" && (
+                <div className="break-inside-avoid rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p className="text-[13px] font-semibold text-slate-900">
+                    Se solicita derivación a: Oftalmólogo/a
+                  </p>
+                </div>
+              )}
+              {printTests.map((test) => (
                 <div key={test.name} className="break-inside-avoid">
                   <div className="flex gap-4">
                     <span className="mt-0.5 text-base">•</span>
@@ -336,7 +365,7 @@ export default function ChronicControlOrderPage() {
                 </div>
               </div>
             </div>
-          </div>
+          </article>
         </section>
       </div>
     </main>
@@ -387,4 +416,22 @@ function buildInternalCode(testName: string) {
     .replace(/[^A-Z0-9]/g, "")
     .slice(0, 6);
   return `VM-${base.padEnd(6, "0")}`;
+}
+
+const ORDER_CATEGORIES: OrderCategory[] = [
+  "laboratory",
+  "image",
+  "procedure",
+  "interconsultation",
+];
+
+function categorizeControlTests(tests: ChronicControlApiRecord["rec"]["tests"]) {
+  return {
+    laboratory: tests.filter((test) => getOrderCategoryByTestName(test.name) === "laboratory"),
+    image: tests.filter((test) => getOrderCategoryByTestName(test.name) === "image"),
+    procedure: tests.filter((test) => getOrderCategoryByTestName(test.name) === "procedure"),
+    interconsultation: tests.filter(
+      (test) => getOrderCategoryByTestName(test.name) === "interconsultation",
+    ),
+  };
 }

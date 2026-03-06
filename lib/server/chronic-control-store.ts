@@ -9,10 +9,12 @@ import {
 import { PaymentStatusDb, ReviewStatusDb } from "@prisma/client";
 import {
   recommendMultipleChronicControls,
+  type AntiepilepticOption,
   type ChronicCondition,
   type ChronicControlRecommendation,
   type MedicationOption,
 } from "@/lib/chronic-control";
+import { type CheckupInput } from "@/lib/checkup";
 import { prisma } from "@/lib/prisma";
 import { sendApprovedOrderEmail } from "@/lib/server/order-ready-email";
 
@@ -27,6 +29,7 @@ type ChronicControlRecord = {
   hasRecentChanges: boolean;
   usesMedication: boolean;
   selectedMedications: MedicationOption[];
+  selectedAntiepileptics?: AntiepilepticOption[];
   rec: ChronicControlRecommendation;
   payment: {
     pending: StoredPayment | null;
@@ -145,6 +148,7 @@ function fromRow(row: ChronicControlRow): ChronicControlRecord {
     hasRecentChanges: row.hasRecentChanges,
     usesMedication: row.usesMedication,
     selectedMedications: row.selectedMedications as MedicationOption[],
+    selectedAntiepileptics: [],
     rec: row.rec as ChronicControlRecommendation,
     payment,
     status: {
@@ -223,6 +227,8 @@ export async function createChronicControlRecord(payload: {
   hasRecentChanges: boolean;
   usesMedication: boolean;
   selectedMedications: MedicationOption[];
+  selectedAntiepileptics?: AntiepilepticOption[];
+  generalCheckupInput?: CheckupInput;
 }) {
   const conditions: ChronicCondition[] =
     payload.conditions.length > 0 ? payload.conditions : ["hypertension"];
@@ -231,6 +237,8 @@ export async function createChronicControlRecord(payload: {
     payload.hasRecentChanges,
     payload.usesMedication,
     payload.selectedMedications,
+    payload.selectedAntiepileptics ?? [],
+    payload.generalCheckupInput,
   );
 
   const record = await prisma.chronicControlRequest.create({
@@ -308,6 +316,325 @@ export async function createChronicPendingPayment(
               status: "pending",
             },
           },
+    },
+    include: { payment: true },
+  });
+
+  return fromRow(updated);
+}
+
+export async function updateChronicControlScreeningPreferences(
+  id: string,
+  preferences: {
+    colorectalMethod?: "fit" | "colonoscopy";
+    cervicalMethod?: "pap" | "hpv" | "cotesting";
+    bloodPressureMethod?: "mapa" | "skip";
+    breastImaging?: "mammo_only" | "mammo_plus_ultrasound";
+    prostateMethod?: "include" | "skip";
+    addTestName?: string;
+    removeTestName?: string;
+    restoreTestName?: string;
+  },
+) {
+  const current = await prisma.chronicControlRequest.findUnique({
+    where: { id },
+    include: { payment: true },
+  });
+
+  if (!current) {
+    return null;
+  }
+
+  const record = fromRow(current);
+  let nextTests = [...record.rec.tests];
+  let nextRemovedTests = [...(record.rec.removedTests ?? [])];
+
+  if (preferences.colorectalMethod) {
+    const colorectalNames = new Set([
+      "Tamizaje de cáncer colorrectal",
+      "Test inmunológico de sangre oculta en deposiciones",
+      "Colonoscopía total",
+    ]);
+    const nextColorectalName =
+      preferences.colorectalMethod === "fit"
+        ? "Test inmunológico de sangre oculta en deposiciones"
+        : "Colonoscopía total";
+    const nextColorectalWhy =
+      "Indicamos tamizaje de cáncer colorrectal a todas las personas de 45 años o más. Se incluye el método de tu elección realizada en la parte superior.";
+    let replaced = false;
+
+    nextTests = nextTests.map((test) => {
+      if (!colorectalNames.has(test.name)) {
+        return test;
+      }
+
+      replaced = true;
+      return {
+        name: nextColorectalName,
+        why: nextColorectalWhy,
+      };
+    });
+
+    if (!replaced) {
+      nextTests.push({
+        name: nextColorectalName,
+        why: nextColorectalWhy,
+      });
+    }
+
+    nextRemovedTests = nextRemovedTests.filter((test) => !colorectalNames.has(test.name));
+  }
+
+  if (preferences.cervicalMethod) {
+    const cervicalNames = new Set([
+      "Tamizaje de cáncer cervicouterino",
+      "Papanicolau",
+      "Papanicolau (PAP)",
+      "Test de VPH (HPV)",
+      "PCR de virus papiloma humano (VPH)",
+      "Cotesting (PAP+VPH)",
+    ]);
+    const nextCervicalWhy =
+      "Indicamos tamizaje de cáncer cervicouterino a todas las personas de sexo femenino entre 21 y 65 años. Se incluye el método de tu elección realizada en la parte superior.";
+    const baseTests = nextTests.filter((test) => !cervicalNames.has(test.name));
+    let nextCervicalTests: typeof nextTests = [];
+
+    if (preferences.cervicalMethod === "pap") {
+      nextCervicalTests = [
+        {
+          name: "Papanicolau (PAP)",
+          why: nextCervicalWhy,
+        },
+      ];
+    } else if (preferences.cervicalMethod === "hpv") {
+      nextCervicalTests = [
+        {
+          name: "PCR de virus papiloma humano (VPH)",
+          why: nextCervicalWhy,
+        },
+      ];
+    } else {
+      nextCervicalTests = [
+        {
+          name: "Papanicolau (PAP)",
+          why: nextCervicalWhy,
+        },
+        {
+          name: "PCR de virus papiloma humano (VPH)",
+          why: nextCervicalWhy,
+        },
+      ];
+    }
+
+    nextTests = [...baseTests, ...nextCervicalTests];
+    nextRemovedTests = nextRemovedTests.filter((test) => !cervicalNames.has(test.name));
+  }
+
+  if (preferences.breastImaging) {
+    const mammographyName = "Mamografía bilateral";
+    const ultrasoundName = "Ecografía mamaria";
+    const legacyBreastName = "Tamizaje de cáncer de mama";
+    const mammographyWhy =
+      "Indicamos tamizaje de cáncer de mama a personas de sexo femenino entre 40 y 74 años. Se mantiene mamografía bilateral como examen base.";
+    const ultrasoundWhy =
+      "Se agrega como complemento opcional si deseas sumar una ecografía mamaria a la mamografía bilateral.";
+
+    if (
+      !nextTests.some((test) => test.name === mammographyName || test.name === legacyBreastName)
+    ) {
+      nextTests.push({
+        name: mammographyName,
+        why: mammographyWhy,
+      });
+    } else {
+      nextTests = nextTests.map((test) =>
+        test.name === mammographyName || test.name === legacyBreastName
+          ? {
+              name: mammographyName,
+              why: mammographyWhy,
+            }
+          : test,
+      );
+    }
+
+    if (preferences.breastImaging === "mammo_plus_ultrasound") {
+      nextRemovedTests = nextRemovedTests.filter(
+        (test) => test.name !== ultrasoundName && test.name !== legacyBreastName,
+      );
+      if (!nextTests.some((test) => test.name === ultrasoundName)) {
+        nextTests.push({
+          name: ultrasoundName,
+          why: ultrasoundWhy,
+        });
+      }
+    } else {
+      const removed = nextTests.find((test) => test.name === ultrasoundName);
+      nextTests = nextTests.filter((test) => test.name !== ultrasoundName);
+      if (removed && !nextRemovedTests.some((test) => test.name === ultrasoundName)) {
+        nextRemovedTests.push(removed);
+      }
+    }
+  }
+
+  if (preferences.bloodPressureMethod) {
+    const bloodPressureName = "Holter de presión arterial (MAPA)";
+    const bloodPressureWhy =
+      "Indicamos tamizaje de presión arterial una vez al año en todas las personas mayores de 18 años. Se mantiene el Holter de presión arterial (MAPA) como método incluido en tu orden.";
+    const hasBloodPressureTest = nextTests.some((test) => test.name === bloodPressureName);
+
+    if (preferences.bloodPressureMethod === "skip") {
+      const removed = nextTests.find((test) => test.name === bloodPressureName);
+      nextTests = nextTests.filter((test) => test.name !== bloodPressureName);
+      if (removed && !nextRemovedTests.some((test) => test.name === removed.name)) {
+        nextRemovedTests.push(removed);
+      }
+    } else {
+      nextRemovedTests = nextRemovedTests.filter((test) => test.name !== bloodPressureName);
+      if (hasBloodPressureTest) {
+        nextTests = nextTests.map((test) =>
+          test.name === bloodPressureName
+            ? {
+                name: bloodPressureName,
+                why: bloodPressureWhy,
+              }
+            : test,
+        );
+      } else {
+        nextTests.push({
+          name: bloodPressureName,
+          why: bloodPressureWhy,
+        });
+      }
+    }
+  }
+
+  if (preferences.prostateMethod) {
+    const prostateName = "Antígeno prostático específico (APE)";
+    const prostateWhy =
+      "Lo pedimos a personas de sexo masculino entre 55 y 69 años para tamizaje de cáncer de próstata. Se mantiene en tu orden según tu elección realizada en la parte superior.";
+    const hasProstateTest = nextTests.some((test) => test.name === prostateName);
+
+    if (preferences.prostateMethod === "skip") {
+      const removed = nextTests.find((test) => test.name === prostateName);
+      nextTests = nextTests.filter((test) => test.name !== prostateName);
+      if (removed && !nextRemovedTests.some((test) => test.name === removed.name)) {
+        nextRemovedTests.push(removed);
+      }
+    } else {
+      nextRemovedTests = nextRemovedTests.filter((test) => test.name !== prostateName);
+      if (hasProstateTest) {
+        nextTests = nextTests.map((test) =>
+          test.name === prostateName
+            ? {
+                name: prostateName,
+                why: prostateWhy,
+              }
+            : test,
+        );
+      } else {
+        nextTests.push({
+          name: prostateName,
+          why: prostateWhy,
+        });
+      }
+    }
+  }
+
+  if (preferences.addTestName) {
+    const normalizedName = preferences.addTestName.trim();
+    const optionalTests = new Map([
+      [
+        "Hemograma",
+        "Examen complementario no esencial para tamizaje basado en evidencia, pero de uso clínico frecuente.",
+      ],
+      [
+        "Creatinina en sangre",
+        "Examen complementario para revisar función renal basal cuando deseas añadirlo de forma voluntaria.",
+      ],
+      [
+        "Perfil bioquímico",
+        "Examen complementario para revisar parámetros metabólicos generales cuando deseas añadirlo de forma voluntaria.",
+      ],
+      [
+        "Niveles de vitamina D",
+        "Examen complementario opcional. En Chile el déficit de vitamina D es frecuente y este estudio permite pesquisarlo.",
+      ],
+    ]);
+    const why = optionalTests.get(normalizedName);
+
+    if (why && !nextTests.some((test) => test.name === normalizedName)) {
+      nextTests.push({
+        name: normalizedName,
+        why,
+      });
+    }
+
+    nextRemovedTests = nextRemovedTests.filter((test) => test.name !== normalizedName);
+  }
+
+  if (preferences.removeTestName) {
+    const normalizedName = preferences.removeTestName.trim();
+    const colorectalNames = new Set([
+      "Tamizaje de cáncer colorrectal",
+      "Test inmunológico de sangre oculta en deposiciones",
+      "Colonoscopía total",
+    ]);
+    const cervicalNames = new Set([
+      "Tamizaje de cáncer cervicouterino",
+      "Papanicolau",
+      "Papanicolau (PAP)",
+      "Test de VPH (HPV)",
+      "PCR de virus papiloma humano (VPH)",
+      "Cotesting (PAP+VPH)",
+    ]);
+
+    const removedNow: typeof nextRemovedTests = [];
+
+    nextTests = nextTests.filter((test) => {
+      if (colorectalNames.has(normalizedName) && colorectalNames.has(test.name)) {
+        removedNow.push(test);
+        return false;
+      }
+
+      if (cervicalNames.has(normalizedName) && cervicalNames.has(test.name)) {
+        removedNow.push(test);
+        return false;
+      }
+
+      if (test.name === normalizedName) {
+        removedNow.push(test);
+        return false;
+      }
+
+      return true;
+    });
+
+    for (const removed of removedNow) {
+      if (!nextRemovedTests.some((test) => test.name === removed.name)) {
+        nextRemovedTests.push(removed);
+      }
+    }
+  }
+
+  if (preferences.restoreTestName) {
+    const normalizedName = preferences.restoreTestName.trim();
+    const restoring = nextRemovedTests.find((test) => test.name === normalizedName);
+
+    if (restoring && !nextTests.some((test) => test.name === restoring.name)) {
+      nextTests.push(restoring);
+    }
+
+    nextRemovedTests = nextRemovedTests.filter((test) => test.name !== normalizedName);
+  }
+
+  const updated = await prisma.chronicControlRequest.update({
+    where: { id },
+    data: {
+      rec: {
+        ...record.rec,
+        tests: nextTests,
+        removedTests: nextRemovedTests,
+      },
     },
     include: { payment: true },
   });
