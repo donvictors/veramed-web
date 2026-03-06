@@ -1,4 +1,6 @@
 import { PDFDocument, StandardFonts } from "pdf-lib";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { calculateAgeFromBirthDate, createVerificationCode } from "@/lib/checkup";
 
 type PatientPayload = {
@@ -37,18 +39,30 @@ function drawHeader(args: {
   verificationCode: string;
   font: import("pdf-lib").PDFFont;
   fontBold: import("pdf-lib").PDFFont;
+  logoImage: import("pdf-lib").PDFImage | null;
 }) {
-  const { page, title, patient, issuedAtLabel, verificationCode, font, fontBold } = args;
+  const { page, title, patient, issuedAtLabel, verificationCode, font, fontBold, logoImage } = args;
   const { width, height } = page.getSize();
   const marginX = 42;
   let y = height - 42;
 
-  page.drawText("Veramed", {
-    x: marginX,
-    y,
-    size: 17,
-    font: fontBold,
-  });
+  if (logoImage) {
+    const logoWidth = 146;
+    const logoHeight = (logoImage.height / logoImage.width) * logoWidth;
+    page.drawImage(logoImage, {
+      x: marginX,
+      y: y - 4,
+      width: logoWidth,
+      height: logoHeight,
+    });
+  } else {
+    page.drawText("Veramed", {
+      x: marginX,
+      y,
+      size: 17,
+      font: fontBold,
+    });
+  }
 
   page.drawText("ORDEN MÉDICA DIGITAL", {
     x: width - 210,
@@ -140,67 +154,131 @@ function drawFooter(args: {
   issuedAtLabel: string;
   font: import("pdf-lib").PDFFont;
   fontBold: import("pdf-lib").PDFFont;
+  signatureImage: import("pdf-lib").PDFImage | null;
 }) {
-  const { page, pageNumber, totalPages, verificationCode, issuedAtLabel, font, fontBold } = args;
+  const { page, pageNumber, totalPages, verificationCode, issuedAtLabel, font, fontBold, signatureImage } = args;
   const { width } = page.getSize();
   const marginX = 42;
-  const y = 36;
+  const y = 28;
 
   page.drawLine({
-    start: { x: marginX, y: y + 24 },
-    end: { x: width - marginX, y: y + 24 },
+    start: { x: marginX, y: y + 96 },
+    end: { x: width - marginX, y: y + 96 },
     thickness: 0.8,
   });
 
   page.drawText("Código de verificación", {
     x: marginX,
-    y: y + 10,
+    y: y + 74,
     size: 9,
     font: fontBold,
   });
   page.drawText(verificationCode, {
     x: marginX,
-    y: y - 2,
+    y: y + 62,
     size: 9,
     font,
   });
 
   page.drawText("Fecha de emisión", {
-    x: width / 2 - 48,
-    y: y + 10,
+    x: marginX,
+    y: y + 46,
     size: 9,
     font: fontBold,
   });
   page.drawText(issuedAtLabel, {
-    x: width / 2 - 52,
-    y: y - 2,
+    x: marginX,
+    y: y + 34,
     size: 9,
     font,
   });
 
   page.drawText("veramed.cl", {
-    x: width - 130,
-    y: y + 10,
+    x: width / 2 - 30,
+    y: y + 64,
     size: 9,
     font: fontBold,
   });
   page.drawText(`Página ${pageNumber} de ${totalPages}`, {
-    x: width - 130,
-    y: y - 2,
+    x: width / 2 - 40,
+    y: y + 50,
     size: 9,
     font,
   });
+
+  const signatureRightX = width - marginX;
+  const signatureLineY = y + 60;
+  const signatureLineStartX = signatureRightX - 188;
+  const signatureTextX = signatureRightX - 178;
+
+  if (signatureImage) {
+    const signatureWidth = 118;
+    const signatureHeight = (signatureImage.height / signatureImage.width) * signatureWidth;
+    page.drawImage(signatureImage, {
+      x: signatureRightX - 132,
+      y: y + 66,
+      width: signatureWidth,
+      height: signatureHeight,
+    });
+  }
+
+  page.drawLine({
+    start: { x: signatureLineStartX, y: signatureLineY },
+    end: { x: signatureRightX, y: signatureLineY },
+    thickness: 0.8,
+  });
+
+  page.drawText("Dr. Víctor Rebolledo M.", {
+    x: signatureTextX,
+    y: y + 42,
+    size: 9,
+    font,
+  });
+  page.drawText("RUT 18.856.820-3", {
+    x: signatureTextX + 10,
+    y: y + 30,
+    size: 9,
+    font,
+  });
+  page.drawText("Registro SIS N°611341", {
+    x: signatureTextX,
+    y: y + 18,
+    size: 9,
+    font,
+  });
+}
+
+async function loadSignatureImage(doc: PDFDocument) {
+  try {
+    const imagePath = path.join(process.cwd(), "public", "firmas", "firma-VRM.png");
+    const imageBytes = await readFile(imagePath);
+    return await doc.embedPng(imageBytes);
+  } catch {
+    return null;
+  }
+}
+
+async function loadBrandLogoImage(doc: PDFDocument) {
+  try {
+    const imagePath = path.join(process.cwd(), "public", "brand", "veramed-logo.png");
+    const imageBytes = await readFile(imagePath);
+    return await doc.embedPng(imageBytes);
+  } catch {
+    return null;
+  }
 }
 
 export async function buildOrderPdf(input: BuildOrderPdfInput) {
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const signatureImage = await loadSignatureImage(doc);
+  const logoImage = await loadBrandLogoImage(doc);
   const issuedAtLabel = formatIssuedAt(input.issuedAtMs);
   const verificationCode = createVerificationCode(input.patient.rut, input.issuedAtMs);
 
   const topLimit = 210;
-  const bottomLimit = 86;
+  const bottomLimit = 136;
   const marginX = 52;
   const lineHeight = 14;
 
@@ -213,6 +291,7 @@ export async function buildOrderPdf(input: BuildOrderPdfInput) {
     verificationCode,
     font,
     fontBold,
+    logoImage,
   });
 
   const pages: import("pdf-lib").PDFPage[] = [page];
@@ -230,6 +309,7 @@ export async function buildOrderPdf(input: BuildOrderPdfInput) {
         verificationCode,
         font,
         fontBold,
+        logoImage,
       });
     }
 
@@ -272,6 +352,7 @@ export async function buildOrderPdf(input: BuildOrderPdfInput) {
       issuedAtLabel,
       font,
       fontBold,
+      signatureImage,
     });
   });
 

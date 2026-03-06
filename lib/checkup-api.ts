@@ -59,8 +59,21 @@ export async function createCheckupRequest(payload: {
   return data.checkup;
 }
 
-export async function fetchCheckupRequest(id: string) {
-  const response = await fetch(`/api/checkups/${id}`, {
+export async function fetchCheckupRequest(
+  id: string,
+  options?: {
+    internalTs?: string;
+    internalSig?: string;
+  },
+) {
+  const searchParams = new URLSearchParams();
+  if (options?.internalTs && options?.internalSig) {
+    searchParams.set("internalTs", options.internalTs);
+    searchParams.set("internalSig", options.internalSig);
+  }
+
+  const suffix = searchParams.toString();
+  const response = await fetch(`/api/checkups/${id}${suffix ? `?${suffix}` : ""}`, {
     cache: "no-store",
   });
 

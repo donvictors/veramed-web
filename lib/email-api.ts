@@ -7,6 +7,7 @@ type SendOrderEmailPayload = {
   pdfUrl?: string;
   pdfBase64?: string;
   pdfFilename?: string;
+  forceResend?: boolean;
 };
 
 export async function sendOrderReadyEmail(payload: SendOrderEmailPayload) {

@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import BrandLogo from "@/components/BrandLogo";
 import { fetchCheckupRequest, type CheckupApiRecord } from "@/lib/checkup-api";
-import { sendOrderReadyEmail } from "@/lib/email-api";
 import {
   calculateAgeFromBirthDate,
   createVerificationCode,
@@ -26,9 +25,15 @@ export default function OrderPage() {
   const [issuedAt, setIssuedAt] = useState("");
   const [issuedAtTimestamp, setIssuedAtTimestamp] = useState(0);
   const { requestId, resolved } = useRequestId();
+  const queryParams =
+    typeof window === "undefined" ? null : new URLSearchParams(window.location.search);
+  const internalTs = queryParams?.get("internalTs")?.trim() || "";
+  const internalSig = queryParams?.get("internalSig")?.trim() || "";
+  const requestedCategory = parseOrderCategory(queryParams?.get("printCategory") || null);
+  const queryReady = typeof window !== "undefined";
 
   useEffect(() => {
-    if (!resolved) {
+    if (!resolved || !queryReady) {
       return;
     }
 
@@ -37,7 +42,15 @@ export default function OrderPage() {
       return;
     }
 
-    void fetchCheckupRequest(requestId)
+    void fetchCheckupRequest(
+      requestId,
+      internalTs && internalSig
+        ? {
+            internalTs,
+            internalSig,
+          }
+        : undefined,
+    )
       .then((checkup) => {
         const issuedTimestamp =
           checkup.status.approvedAt ?? checkup.status.queuedAt ?? checkup.updatedAt;
@@ -57,42 +70,7 @@ export default function OrderPage() {
       .catch(() => {
         router.replace("/mi-cuenta");
       });
-  }, [requestId, resolved, router]);
-
-  useEffect(() => {
-    if (!data || !requestId || !approved || !paid) {
-      return;
-    }
-
-    const recipient = data.patient?.email?.trim();
-    if (!recipient) {
-      return;
-    }
-
-    const storageKey = `veramed:order-email:${requestId}`;
-    const alreadySent = localStorage.getItem(storageKey);
-    if (alreadySent === "sent" || alreadySent === "pending") {
-      return;
-    }
-
-    localStorage.setItem(storageKey, "pending");
-
-    const orderLink = `${window.location.origin}/chequeo/orden?id=${requestId}`;
-
-    void sendOrderReadyEmail({
-      requestType: "checkup",
-      requestId,
-      email: recipient,
-      patientName: data.patient?.fullName,
-      orderLink,
-    })
-      .then(() => {
-        localStorage.setItem(storageKey, "sent");
-      })
-      .catch(() => {
-        localStorage.removeItem(storageKey);
-      });
-  }, [approved, data, paid, requestId]);
+  }, [requestId, resolved, router, internalTs, internalSig, queryReady]);
 
   if (!data) {
     return (
@@ -115,7 +93,7 @@ export default function OrderPage() {
     (category) => categorizedTests[category].length > 0,
   );
   const printCategory =
-    availableCategories.find((category) => category === selectedCategory) ??
+    availableCategories.find((category) => category === (requestedCategory ?? selectedCategory)) ??
     availableCategories[0] ??
     "laboratory";
   const printTests = categorizedTests[printCategory];
@@ -508,6 +486,13 @@ const LETTER_PRINT_CONFIG = {
   contentHeightMm: 257.4,
   bodyHeightMm: 164,
 };
+
+function parseOrderCategory(value: string | null): OrderCategory | null {
+  if (value === "laboratory" || value === "image" || value === "procedure") {
+    return value;
+  }
+  return null;
+}
 
 function categorizeCheckupTests(tests: CheckupApiRecord["rec"]["tests"]) {
   return {

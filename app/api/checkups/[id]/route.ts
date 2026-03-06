@@ -7,6 +7,7 @@ import {
   serializeCheckupRecord,
   updateCheckupScreeningPreferences,
 } from "@/lib/server/checkup-store";
+import { hasValidInternalAccess } from "@/lib/server/internal-access";
 
 type RouteContext = {
   params: Promise<{
@@ -22,7 +23,12 @@ export async function GET(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Solicitud no encontrada." }, { status: 404 });
   }
 
-  if (record.userId) {
+  const internalAccess = hasValidInternalAccess(_request, {
+    requestType: "checkup",
+    requestId: id,
+  });
+
+  if (record.userId && !internalAccess) {
     const cookieStore = await cookies();
     const token = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
     const user = await getUserFromSession(token);

@@ -1,0 +1,118 @@
+import { existsSync } from "node:fs";
+import { createInternalAccessParams } from "@/lib/server/internal-access";
+import { getAppUrl } from "@/lib/server/transbank/config";
+
+type RequestType = "checkup" | "chronic_control";
+type OrderPdfCategory = "laboratory" | "image" | "procedure";
+
+type RenderOrderPdfFromPageInput = {
+  requestType: RequestType;
+  requestId: string;
+  category: OrderPdfCategory;
+};
+
+async function resolveExecutablePath(chromium: { executablePath: () => Promise<string> }) {
+  if (process.env.CHROME_EXECUTABLE_PATH) {
+    return process.env.CHROME_EXECUTABLE_PATH;
+  }
+
+  const chromiumPath = await chromium.executablePath();
+  if (chromiumPath) {
+    return chromiumPath;
+  }
+
+  const localCandidates = [
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Chromium.app/Contents/MacOS/Chromium",
+    "/usr/bin/google-chrome-stable",
+    "/usr/bin/google-chrome",
+    "/usr/bin/chromium-browser",
+  ];
+
+  const found = localCandidates.find((candidate) => existsSync(candidate));
+  if (found) {
+    return found;
+  }
+
+  throw new Error("No encontramos un ejecutable Chromium/Chrome para renderizar PDF.");
+}
+
+function buildOrderPageUrl(input: RenderOrderPdfFromPageInput) {
+  const appUrl = getAppUrl();
+  const internal = createInternalAccessParams({
+    requestType: input.requestType,
+    requestId: input.requestId,
+  });
+
+  const params = new URLSearchParams({
+    id: input.requestId,
+    internalTs: internal.internalTs,
+    internalSig: internal.internalSig,
+  });
+
+  if (input.requestType === "checkup") {
+    params.set("printCategory", input.category);
+    return `${appUrl}/chequeo/orden?${params.toString()}`;
+  }
+
+  return `${appUrl}/control-cronico/orden?${params.toString()}`;
+}
+
+function expectedPrintTitle(input: RenderOrderPdfFromPageInput) {
+  if (input.requestType === "chronic_control") {
+    return "ORDEN DE LABORATORIO";
+  }
+
+  if (input.category === "image") return "ORDEN DE IMÁGENES";
+  if (input.category === "procedure") return "ORDEN DE PROCEDIMIENTOS";
+  return "ORDEN DE LABORATORIO";
+}
+
+export async function renderOrderPdfFromOrderPage(input: RenderOrderPdfFromPageInput) {
+  const [{ default: chromium }, { default: puppeteer }] = await Promise.all([
+    import("@sparticuz/chromium"),
+    import("puppeteer-core"),
+  ]);
+
+  const executablePath = await resolveExecutablePath(chromium);
+  const url = buildOrderPageUrl(input);
+  const expectedTitle = expectedPrintTitle(input);
+
+  const browser = await puppeteer.launch({
+    args: chromium.args,
+    executablePath,
+    headless: true,
+  });
+
+  try {
+    const page = await browser.newPage();
+    await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
+    await page.emulateMediaType("print");
+
+    await page.waitForSelector(".veramed-print-shell .veramed-order-page", { timeout: 45000 });
+    await page.waitForFunction(
+      (title: string) => {
+        const el = document.querySelector(".veramed-order-page h2");
+        return Boolean(el?.textContent?.includes(title));
+      },
+      { timeout: 15000 },
+      expectedTitle,
+    );
+
+    const pdf = await page.pdf({
+      format: "letter",
+      printBackground: true,
+      preferCSSPageSize: true,
+      margin: {
+        top: "0mm",
+        right: "0mm",
+        bottom: "0mm",
+        left: "0mm",
+      },
+    });
+
+    return Buffer.from(pdf);
+  } finally {
+    await browser.close();
+  }
+}

@@ -11,6 +11,7 @@ import {
 } from "@/lib/checkup";
 import { PaymentStatusDb, ReviewStatusDb } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { sendApprovedOrderEmail } from "@/lib/server/order-ready-email";
 
 type CheckupRecord = {
   id: string;
@@ -160,14 +161,41 @@ async function resolveStatus(record: CheckupRecord) {
   }
 
   const approvedAt = record.status.approvedAt ?? Date.now();
-  const updated = await prisma.checkupRequest.update({
-    where: { id: record.id },
+  const transition = await prisma.checkupRequest.updateMany({
+    where: {
+      id: record.id,
+      reviewStatus: "queued",
+    },
     data: {
       reviewStatus: "approved",
       approvedAt: new Date(approvedAt),
     },
+  });
+
+  const updated = await prisma.checkupRequest.findUnique({
+    where: { id: record.id },
     include: { payment: true },
   });
+
+  if (!updated) {
+    return record;
+  }
+
+  if (transition.count === 0) {
+    return fromRow(updated);
+  }
+
+  try {
+    await sendApprovedOrderEmail({
+      requestType: "checkup",
+      requestId: updated.id,
+    });
+  } catch (error) {
+    console.error("No pudimos enviar el correo de orden aprobada (checkup)", {
+      requestId: updated.id,
+      error,
+    });
+  }
 
   return fromRow(updated);
 }

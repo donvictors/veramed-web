@@ -57,8 +57,21 @@ export async function createChronicControlRequest(payload: Omit<StoredChronicCon
   return data.request;
 }
 
-export async function fetchChronicControlRequest(id: string) {
-  const response = await fetch(`/api/chronic-controls/${id}`, {
+export async function fetchChronicControlRequest(
+  id: string,
+  options?: {
+    internalTs?: string;
+    internalSig?: string;
+  },
+) {
+  const searchParams = new URLSearchParams();
+  if (options?.internalTs && options?.internalSig) {
+    searchParams.set("internalTs", options.internalTs);
+    searchParams.set("internalSig", options.internalSig);
+  }
+
+  const suffix = searchParams.toString();
+  const response = await fetch(`/api/chronic-controls/${id}${suffix ? `?${suffix}` : ""}`, {
     cache: "no-store",
   });
 

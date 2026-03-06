@@ -106,6 +106,7 @@ export default function AccountPage() {
         email: item.patientEmail || user?.email || "",
         patientName: item.patientName,
         orderLink: `${window.location.origin}${item.href}`,
+        forceResend: true,
       });
 
       setNotice("Correo reenviado correctamente.");

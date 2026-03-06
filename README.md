@@ -61,6 +61,7 @@ Se agregó un endpoint en App Router para envío de correos:
 
 ```bash
 RESEND_API_KEY="re_..."
+BLOB_READ_WRITE_TOKEN="vercel_blob_rw_..."
 AUTH_SECRET="..."
 AUTH_GOOGLE_ID="..."
 AUTH_GOOGLE_SECRET="..."
@@ -87,6 +88,29 @@ Para el envío de órdenes se usa:
 
 `pdfUrl` o `pdfBase64` son opcionales. Si se envían, el endpoint intenta adjuntar el PDF.
 `requestType` y `requestId` son obligatorios para validar propiedad, estado e idempotencia del envío.
+
+Si no envías `pdfUrl`/`pdfBase64`, el backend genera automáticamente los PDFs de la orden y los guarda en Vercel Blob:
+
+- `ordenes/checkup/<requestId>/...` para chequeo (laboratorio / imágenes / procedimientos según corresponda)
+- `ordenes/chronic_control/<requestId>/...` para control crónico
+
+La metadata (URL, categoría, tamaño) se guarda en Neon mediante Prisma en `OrderPdfAsset`.
+
+### Endpoint interno de soporte (PDFs guardados)
+
+Se agregó:
+
+- `GET /api/internal/order-pdfs?requestId=<id>&requestType=checkup|chronic_control`
+
+Parámetros:
+
+- `requestId` obligatorio
+- `requestType` opcional (si no se envía, intenta ambos flujos)
+
+Acceso:
+
+- Usuario autenticado dueño de la solicitud, o
+- Header `x-support-token` con valor `INTERNAL_SUPPORT_TOKEN` (opcional, para soporte interno).
 
 Endpoints de PDF protegidos disponibles:
 

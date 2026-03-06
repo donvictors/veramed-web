@@ -30,6 +30,12 @@ enum TransbankRequestTypeDb {
   chronic_control
 }
 
+enum OrderPdfCategoryDb {
+  laboratory
+  image
+  procedure
+}
+
 model Healthcheck {
   id        String   @id @default(cuid())
   key       String   @unique
@@ -183,4 +189,20 @@ model TransbankPaymentTransaction {
 
   @@index([requestType, requestId])
   @@index([status, createdAt])
+}
+
+model OrderPdfAsset {
+  id          String                 @id @default(cuid())
+  requestType TransbankRequestTypeDb
+  requestId   String
+  category    OrderPdfCategoryDb
+  fileName    String
+  blobUrl     String
+  blobPath    String
+  sizeBytes   Int
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+
+  @@unique([requestType, requestId, category])
+  @@index([requestType, requestId])
 }

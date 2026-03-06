@@ -14,6 +14,7 @@ import {
   type MedicationOption,
 } from "@/lib/chronic-control";
 import { prisma } from "@/lib/prisma";
+import { sendApprovedOrderEmail } from "@/lib/server/order-ready-email";
 
 type ChronicControlRecord = {
   id: string;
@@ -175,14 +176,41 @@ async function resolveStatus(record: ChronicControlRecord) {
   }
 
   const approvedAt = record.status.approvedAt ?? Date.now();
-  const updated = await prisma.chronicControlRequest.update({
-    where: { id: record.id },
+  const transition = await prisma.chronicControlRequest.updateMany({
+    where: {
+      id: record.id,
+      reviewStatus: "queued",
+    },
     data: {
       reviewStatus: "approved",
       approvedAt: new Date(approvedAt),
     },
+  });
+
+  const updated = await prisma.chronicControlRequest.findUnique({
+    where: { id: record.id },
     include: { payment: true },
   });
+
+  if (!updated) {
+    return record;
+  }
+
+  if (transition.count === 0) {
+    return fromRow(updated);
+  }
+
+  try {
+    await sendApprovedOrderEmail({
+      requestType: "chronic_control",
+      requestId: updated.id,
+    });
+  } catch (error) {
+    console.error("No pudimos enviar el correo de orden aprobada (control crónico)", {
+      requestId: updated.id,
+      error,
+    });
+  }
 
   return fromRow(updated);
 }

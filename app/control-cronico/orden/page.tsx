@@ -4,7 +4,6 @@ import { startTransition, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import BrandLogo from "@/components/BrandLogo";
-import { sendOrderReadyEmail } from "@/lib/email-api";
 import {
   fetchChronicControlRequest,
   type ChronicControlApiRecord,
@@ -28,9 +27,14 @@ export default function ChronicControlOrderPage() {
   const [issuedAt, setIssuedAt] = useState("");
   const [issuedAtTimestamp, setIssuedAtTimestamp] = useState(0);
   const { requestId, resolved } = useRequestId();
+  const queryParams =
+    typeof window === "undefined" ? null : new URLSearchParams(window.location.search);
+  const internalTs = queryParams?.get("internalTs")?.trim() || "";
+  const internalSig = queryParams?.get("internalSig")?.trim() || "";
+  const queryReady = typeof window !== "undefined";
 
   useEffect(() => {
-    if (!resolved) {
+    if (!resolved || !queryReady) {
       return;
     }
 
@@ -39,7 +43,15 @@ export default function ChronicControlOrderPage() {
       return;
     }
 
-    void fetchChronicControlRequest(requestId)
+    void fetchChronicControlRequest(
+      requestId,
+      internalTs && internalSig
+        ? {
+            internalTs,
+            internalSig,
+          }
+        : undefined,
+    )
       .then((request) => {
         const issuedTimestamp =
           request.status.approvedAt ?? request.status.queuedAt ?? request.updatedAt;
@@ -59,42 +71,7 @@ export default function ChronicControlOrderPage() {
       .catch(() => {
         router.replace("/mi-cuenta");
       });
-  }, [requestId, resolved, router]);
-
-  useEffect(() => {
-    if (!data || !requestId || !approved || !paid) {
-      return;
-    }
-
-    const recipient = data.patient?.email?.trim();
-    if (!recipient) {
-      return;
-    }
-
-    const storageKey = `veramed:chronic-order-email:${requestId}`;
-    const alreadySent = localStorage.getItem(storageKey);
-    if (alreadySent === "sent" || alreadySent === "pending") {
-      return;
-    }
-
-    localStorage.setItem(storageKey, "pending");
-
-    const orderLink = `${window.location.origin}/control-cronico/orden?id=${requestId}`;
-
-    void sendOrderReadyEmail({
-      requestType: "chronic_control",
-      requestId,
-      email: recipient,
-      patientName: data.patient?.fullName,
-      orderLink,
-    })
-      .then(() => {
-        localStorage.setItem(storageKey, "sent");
-      })
-      .catch(() => {
-        localStorage.removeItem(storageKey);
-      });
-  }, [approved, data, paid, requestId]);
+  }, [requestId, resolved, router, internalTs, internalSig, queryReady]);
 
   if (!data) {
     return (
