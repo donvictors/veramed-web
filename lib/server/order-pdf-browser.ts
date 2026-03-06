@@ -98,6 +98,25 @@ export async function renderOrderPdfFromOrderPage(input: RenderOrderPdfFromPageI
       { timeout: 15000 },
       expectedTitle,
     );
+    await page.evaluate(async () => {
+      if ("fonts" in document && document.fonts?.ready) {
+        await document.fonts.ready;
+      }
+    });
+    await page.waitForFunction(
+      () => {
+        const requiredImages = Array.from(
+          document.querySelectorAll<HTMLImageElement>(
+            "img.veramed-print-logo, img.veramed-print-signature",
+          ),
+        );
+        return (
+          requiredImages.length > 0 &&
+          requiredImages.every((img) => img.complete && img.naturalWidth > 0)
+        );
+      },
+      { timeout: 15000 },
+    );
 
     const pdf = await page.pdf({
       format: "letter",

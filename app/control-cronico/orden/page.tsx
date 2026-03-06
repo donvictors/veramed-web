@@ -241,7 +241,15 @@ export default function ChronicControlOrderPage() {
         <section className="hidden print:block print:px-8 print:py-6">
           <div className="flex min-h-[255mm] flex-col">
             <div className="flex items-start justify-between gap-8">
-              <BrandLogo className="h-10 w-auto" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/brand/veramed-logo.png"
+                alt="Veramed"
+                loading="eager"
+                decoding="sync"
+                fetchPriority="high"
+                className="veramed-print-logo h-10 w-auto object-contain"
+              />
               <div className="text-right text-[13px] leading-6">
                 <p className="font-semibold text-slate-900">ORDEN MÉDICA DIGITAL</p>
                 <p>{issuedAt}</p>
@@ -303,7 +311,7 @@ export default function ChronicControlOrderPage() {
                     loading="eager"
                     decoding="sync"
                     fetchPriority="high"
-                    className="h-24 w-72 object-contain"
+                    className="veramed-print-signature h-24 w-72 object-contain"
                   />
                 </div>
                 <p className="mt-1 text-[13px] text-slate-700">Dr. Víctor Rebolledo M.</p>

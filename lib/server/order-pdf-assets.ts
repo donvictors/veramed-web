@@ -49,6 +49,7 @@ const PROCEDURE_TESTS = new Set([
 ]);
 
 const CATEGORY_ORDER: OrderPdfCategory[] = ["laboratory", "image", "procedure"];
+const CURRENT_RENDER_VERSION = "v2";
 
 function toDbRequestType(value: RequestType): TransbankRequestTypeDb {
   return value === "checkup"
@@ -177,17 +178,20 @@ export async function ensureOrderPdfAssets(
   );
 
   for (const [category, tests] of requestedCategories.entries()) {
-    if (existingByCategory.has(category) && !input.forceRegenerate) {
+    const existingAsset = existingByCategory.get(category);
+    const hasCurrentVersionPath = existingAsset?.blobPath.includes(`/${CURRENT_RENDER_VERSION}/`);
+    if (existingAsset && !input.forceRegenerate && hasCurrentVersionPath) {
       continue;
     }
 
     const fileName = `orden-${input.requestType}-${input.requestId}-${getCategoryLabel(category)}.pdf`;
-    const blobPath = `ordenes/${input.requestType}/${input.requestId}/${getCategoryLabel(
+    const blobPath = `ordenes/${CURRENT_RENDER_VERSION}/${input.requestType}/${input.requestId}/${getCategoryLabel(
       category,
     )}-${input.issuedAtMs}.pdf`;
     let buffer: Buffer;
     let renderEngine: "chromium" | "pdf-lib" = "chromium";
     let renderError: string | null = null;
+    const allowFallbackPdfLib = process.env.ORDER_PDF_ALLOW_FALLBACK === "1";
     try {
       buffer = await renderOrderPdfFromOrderPage({
         requestType: input.requestType,
@@ -195,6 +199,10 @@ export async function ensureOrderPdfAssets(
         category,
       });
     } catch (error) {
+      if (!allowFallbackPdfLib) {
+        throw error;
+      }
+
       renderEngine = "pdf-lib";
       renderError = error instanceof Error ? error.message : "Error desconocido renderizando con Chromium.";
       console.error("No pudimos renderizar PDF con Chromium, usamos fallback pdf-lib", {

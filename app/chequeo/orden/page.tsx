@@ -628,7 +628,15 @@ function OrderHeader({
   return (
     <header className="veramed-order-header">
       <div className="flex items-start justify-between gap-6">
-        <BrandLogo className="h-20 w-auto" />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/brand/veramed-logo.png"
+          alt="Veramed"
+          loading="eager"
+          decoding="sync"
+          fetchPriority="high"
+          className="veramed-print-logo h-20 w-auto object-contain"
+        />
         <div className="text-right text-[12px] leading-5">
           <p className="font-semibold text-slate-900">ORDEN MÉDICA DIGITAL</p>
           <p>{issuedAt}</p>
@@ -767,7 +775,7 @@ function OrderFooter({
               loading="eager"
               decoding="sync"
               fetchPriority="high"
-              className="h-12 w-36 object-contain"
+              className="veramed-print-signature h-12 w-36 object-contain"
             />
           </div>
           <p className="mt-1 text-[12px] text-slate-700">Dr. Víctor Rebolledo M.</p>
