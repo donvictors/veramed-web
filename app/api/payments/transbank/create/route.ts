@@ -6,6 +6,7 @@ import {
   createTransbankPayment,
   validateCreatePayload,
 } from "@/lib/server/transbank/service";
+import { getRequestAccessCookieName } from "@/lib/server/request-access";
 
 export const runtime = "nodejs";
 
@@ -45,8 +46,12 @@ export async function POST(request: Request) {
     const cookieStore = await cookies();
     const token = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
     const user = await getUserFromSession(token);
+    const requestAccessCookie = cookieStore.get(getRequestAccessCookieName())?.value;
 
-    const created = await createTransbankPayment(validation.value, user?.id);
+    const created = await createTransbankPayment(validation.value, {
+      userId: user?.id,
+      requestAccessCookie,
+    });
     return NextResponse.json(created);
   } catch (error) {
     const message =

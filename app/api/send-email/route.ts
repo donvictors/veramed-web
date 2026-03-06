@@ -299,6 +299,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "No tienes acceso a esta solicitud." }, { status: 403 });
   }
 
+  if (!ownerUserId) {
+    const expectedSupportToken = process.env.INTERNAL_SUPPORT_TOKEN?.trim();
+    const providedSupportToken = request.headers.get("x-support-token")?.trim();
+    if (!expectedSupportToken || !providedSupportToken || providedSupportToken !== expectedSupportToken) {
+      return NextResponse.json(
+        { ok: false, error: "No tienes acceso a esta solicitud." },
+        { status: 403 },
+      );
+    }
+  }
+
   if (!requestContext.patientEmail || requestContext.patientEmail !== email) {
     return NextResponse.json(
       { ok: false, error: "El correo no coincide con el paciente de la solicitud." },

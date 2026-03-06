@@ -26,6 +26,8 @@ type SessionRecord = {
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 const SEEDED_TEST_EMAIL = "test@veramed.cl";
 const SEEDED_TEST_PASSWORD = "test123";
+const ENABLE_AUTO_SEEDED_TEST_USER = process.env.ENABLE_AUTO_SEEDED_TEST_USER === "1";
+let seedUserPromise: Promise<void> | null = null;
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
@@ -162,12 +164,24 @@ export async function ensureSeededTestUser() {
   return serializeUser(user);
 }
 
+async function maybeEnsureSeededTestUser() {
+  if (!ENABLE_AUTO_SEEDED_TEST_USER) {
+    return;
+  }
+
+  if (!seedUserPromise) {
+    seedUserPromise = ensureSeededTestUser().then(() => undefined);
+  }
+
+  await seedUserPromise;
+}
+
 export async function registerUser(payload: {
   name: string;
   email: string;
   password: string;
 }) {
-  await ensureSeededTestUser();
+  await maybeEnsureSeededTestUser();
   await purgeExpiredSessions();
 
   const email = normalizeEmail(payload.email);
@@ -209,7 +223,7 @@ export async function registerUser(payload: {
 }
 
 export async function loginUser(payload: { email: string; password: string }) {
-  await ensureSeededTestUser();
+  await maybeEnsureSeededTestUser();
   await purgeExpiredSessions();
 
   const email = normalizeEmail(payload.email);
@@ -230,7 +244,7 @@ export async function loginUser(payload: { email: string; password: string }) {
 }
 
 export async function loginOrRegisterOAuthUser(payload: { email: string; name: string }) {
-  await ensureSeededTestUser();
+  await maybeEnsureSeededTestUser();
   await purgeExpiredSessions();
 
   const email = normalizeEmail(payload.email);
@@ -276,7 +290,7 @@ export async function getUserFromSession(token: string | undefined) {
     return null;
   }
 
-  await ensureSeededTestUser();
+  await maybeEnsureSeededTestUser();
   await purgeExpiredSessions();
 
   const session = await prisma.session.findUnique({

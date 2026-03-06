@@ -5,6 +5,10 @@ import { createChronicControlRecord, serializeChronicControlRecord } from "@/lib
 import { getUserFromSession, syncUserProfileFromPatient } from "@/lib/server/auth-store";
 import { type CheckupInput, type PatientDetails } from "@/lib/checkup";
 import { type AntiepilepticOption, type ChronicCondition, type MedicationOption } from "@/lib/chronic-control";
+import {
+  getRequestAccessCookieName,
+  upsertRequestAccessCookie,
+} from "@/lib/server/request-access";
 
 function mergePatientDefaults(patient: PatientDetails, profile?: PatientDetails): PatientDetails {
   if (!profile) {
@@ -61,6 +65,23 @@ export async function POST(request: Request) {
       selectedAntiepileptics: payload.selectedAntiepileptics ?? [],
       generalCheckupInput: payload.generalCheckupInput,
     });
+
+    if (!user?.id) {
+      const currentAccessCookie = cookieStore.get(getRequestAccessCookieName())?.value;
+      const nextAccessCookie = upsertRequestAccessCookie(currentAccessCookie, {
+        requestType: "chronic_control",
+        requestId: record.id,
+        createdAtMs: record.createdAt,
+      });
+
+      cookieStore.set(getRequestAccessCookieName(), nextAccessCookie, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 30,
+      });
+    }
 
     if (user?.id) {
       await syncUserProfileFromPatient(user.id, patient);

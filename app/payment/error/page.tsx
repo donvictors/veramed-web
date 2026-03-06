@@ -27,7 +27,6 @@ export default async function PaymentErrorPage({
   const orderId = getSingleParam(resolved.orderId);
   const reason = getSingleParam(resolved.reason);
   const tokenWs = getSingleParam(resolved.token_ws);
-  const detail = getSingleParam(resolved.detail);
   const label = reasonLabel[reason] ?? "No pudimos completar la confirmación del pago.";
 
   return (
@@ -40,11 +39,6 @@ export default async function PaymentErrorPage({
           No fue posible completar tu pago
         </h1>
         <p className="mt-3 text-sm text-red-900/80">{label}</p>
-        {detail ? (
-          <p className="mt-2 text-xs text-red-700/90">
-            Detalle técnico: <span className="font-mono">{detail}</span>
-          </p>
-        ) : null}
         {orderId ? (
           <p className="mt-4 text-sm text-red-900/90">
             Orden de referencia: <span className="font-semibold">{orderId}</span>

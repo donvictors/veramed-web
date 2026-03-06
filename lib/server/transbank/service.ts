@@ -21,6 +21,10 @@ import {
   type TransbankRequestType,
 } from "@/lib/server/transbank/store";
 import {
+  getRequestAccessTokenFromCookie,
+  isRequestAccessTokenValid,
+} from "@/lib/server/request-access";
+import {
   parseCommitResponse,
   parseCreateResponse,
   toNormalizedStatus,
@@ -50,6 +54,7 @@ type ResolvedOrderTarget = {
   requestType: TransbankRequestType;
   requestId: string;
   userId: string | null;
+  createdAtMs: number;
   expectedAmount: number;
   alreadyPaid: boolean;
 };
@@ -126,7 +131,12 @@ function toCommitResponse(record: TransbankPaymentRecord): NormalizedCommitResul
 async function resolveOrderTarget(orderId: string): Promise<ResolvedOrderTarget> {
   const checkup = await prisma.checkupRequest.findUnique({
     where: { id: orderId },
-    select: { id: true, userId: true, payment: { select: { status: true } } },
+    select: {
+      id: true,
+      userId: true,
+      createdAt: true,
+      payment: { select: { status: true } },
+    },
   });
 
   if (checkup) {
@@ -134,6 +144,7 @@ async function resolveOrderTarget(orderId: string): Promise<ResolvedOrderTarget>
       requestType: "checkup",
       requestId: checkup.id,
       userId: checkup.userId,
+      createdAtMs: checkup.createdAt.getTime(),
       expectedAmount: CHECKUP_PRICE_CLP,
       alreadyPaid: checkup.payment?.status === "paid",
     };
@@ -144,6 +155,7 @@ async function resolveOrderTarget(orderId: string): Promise<ResolvedOrderTarget>
     select: {
       id: true,
       userId: true,
+      createdAt: true,
       rec: true,
       payment: { select: { status: true } },
     },
@@ -157,6 +169,7 @@ async function resolveOrderTarget(orderId: string): Promise<ResolvedOrderTarget>
       requestType: "chronic_control",
       requestId: chronic.id,
       userId: chronic.userId,
+      createdAtMs: chronic.createdAt.getTime(),
       expectedAmount: dynamicAmount,
       alreadyPaid: chronic.payment?.status === "paid",
     };
@@ -166,7 +179,7 @@ async function resolveOrderTarget(orderId: string): Promise<ResolvedOrderTarget>
 }
 
 async function ensurePendingRequestPayment(
-  target: ResolvedOrderTarget,
+  target: Pick<ResolvedOrderTarget, "requestType" | "requestId">,
   token: string,
   amount: number,
 ) {
@@ -194,9 +207,6 @@ async function syncApprovedBusinessPayment(
     {
       requestType: payment.requestType,
       requestId: payment.requestId,
-      userId: null,
-      expectedAmount: payment.amount,
-      alreadyPaid: false,
     },
     payment.token,
     payment.amount,
@@ -366,12 +376,30 @@ export function validateCommitPayload(payload: unknown):
 
 export async function createTransbankPayment(
   input: CreateTransbankPaymentInput,
-  actorUserId?: string,
+  actor?: {
+    userId?: string;
+    requestAccessCookie?: string;
+  },
 ) {
   const target = await resolveOrderTarget(input.orderId);
 
-  if (target.userId && actorUserId !== target.userId) {
-    throw new Error("No tienes acceso a esta solicitud.");
+  if (target.userId) {
+    if (actor?.userId !== target.userId) {
+      throw new Error("No tienes acceso a esta solicitud.");
+    }
+  } else {
+    const providedAccessToken = getRequestAccessTokenFromCookie(actor?.requestAccessCookie, {
+      requestType: target.requestType,
+      requestId: target.requestId,
+    });
+    const hasGuestAccess = isRequestAccessTokenValid(providedAccessToken, {
+      requestType: target.requestType,
+      requestId: target.requestId,
+      createdAtMs: target.createdAtMs,
+    });
+    if (!hasGuestAccess) {
+      throw new Error("No tienes acceso a esta solicitud.");
+    }
   }
 
   if (target.expectedAmount !== input.amount) {

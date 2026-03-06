@@ -8,6 +8,10 @@ import {
   updateChronicControlScreeningPreferences,
 } from "@/lib/server/chronic-control-store";
 import { hasValidInternalAccess } from "@/lib/server/internal-access";
+import {
+  getRequestAccessCookieName,
+  hasValidRequestAccessCookie,
+} from "@/lib/server/request-access";
 
 type RouteContext = {
   params: Promise<{
@@ -27,13 +31,23 @@ export async function GET(_request: Request, context: RouteContext) {
     requestType: "chronic_control",
     requestId: id,
   });
+  const cookieStore = await cookies();
+  const requestAccessCookie = cookieStore.get(getRequestAccessCookieName())?.value;
 
   if (record.userId && !internalAccess) {
-    const cookieStore = await cookies();
     const token = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
     const user = await getUserFromSession(token);
 
     if (!user || user.id !== record.userId) {
+      return NextResponse.json({ error: "No tienes acceso a esta solicitud." }, { status: 403 });
+    }
+  } else if (!record.userId && !internalAccess) {
+    const hasGuestAccess = hasValidRequestAccessCookie(requestAccessCookie, {
+      requestType: "chronic_control",
+      requestId: id,
+      createdAtMs: record.createdAt,
+    });
+    if (!hasGuestAccess) {
       return NextResponse.json({ error: "No tienes acceso a esta solicitud." }, { status: 403 });
     }
   }
@@ -53,13 +67,23 @@ export async function PATCH(request: Request, context: RouteContext) {
     requestType: "chronic_control",
     requestId: id,
   });
+  const cookieStore = await cookies();
+  const requestAccessCookie = cookieStore.get(getRequestAccessCookieName())?.value;
 
   if (current.userId && !internalAccess) {
-    const cookieStore = await cookies();
     const token = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
     const user = await getUserFromSession(token);
 
     if (!user || user.id !== current.userId) {
+      return NextResponse.json({ error: "No tienes acceso a esta solicitud." }, { status: 403 });
+    }
+  } else if (!current.userId && !internalAccess) {
+    const hasGuestAccess = hasValidRequestAccessCookie(requestAccessCookie, {
+      requestType: "chronic_control",
+      requestId: id,
+      createdAtMs: current.createdAt,
+    });
+    if (!hasGuestAccess) {
       return NextResponse.json({ error: "No tienes acceso a esta solicitud." }, { status: 403 });
     }
   }

@@ -57,9 +57,6 @@ export default async function TransbankReturnPage({
     const params = new URLSearchParams();
     params.set("reason", "commit-failed");
     params.set("token_ws", token);
-    if (error instanceof Error) {
-      params.set("detail", error.message.slice(0, 280));
-    }
     redirect(`/payment/error?${params.toString()}`);
   }
 
