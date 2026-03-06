@@ -9,11 +9,14 @@ export default function Services() {
             Servicios
           </p>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-            Un punto de entrada simple para los exámenes que necesitas.
+            El punto de entrada
+            <br />
+            a los exámenes que tú necesitas. 🧭
           </h2>
           <p className="mt-3 text-sm leading-7 text-slate-600">
-            Diseñado para personas que necesitan ordenar un chequeo preventivo de forma clara y
-            con expectativa realista sobre sus alcances.
+            Diseñado para personas que necesitan ordenar un chequeo preventivo, controlar una
+            enfermedad o llegar con exámenes a consultar a su médico por síntomas nuevos. De forma
+            clara y precisa.
           </p>
         </div>
 
@@ -30,10 +33,14 @@ export default function Services() {
                   orden imprimible y preparación sugerida.
                 </p>
               </div>
-              <span className="mt-6 inline-flex w-fit items-center gap-2 rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white">
+              <Link
+                href="/chequeo"
+                className="mt-auto inline-flex w-fit items-center gap-2 rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                aria-label="Ir a solicitar chequeo preventivo"
+              >
                 <span className="text-white/60 line-through">$2.990</span>
                 <span>$1.990</span>
-              </span>
+              </Link>
             </div>
 
             <div className="mt-6 grid flex-1 gap-3 text-sm text-slate-700">
@@ -59,18 +66,20 @@ export default function Services() {
                   Activo hoy
                 </p>
                 <h3 className="mt-2 text-2xl font-semibold text-slate-950">
-                  Exámenes de control por enfermedad/condición crónica
+                  Control de enfermedades
                 </h3>
                 <p className="mt-3 text-sm leading-7 text-slate-600">
-                  Solicita exámenes de control para enfermedades o condiciones crónicas como
-                  hipertensión, diabetes, hipotiroidismo y otras situaciones que requieran
-                  seguimiento periódico, con una orden estructurada según el contexto clínico del
-                  paciente.
+                  Si tienes alguna enfermedad crónica, acá podrás conseguir los exámenes que
+                  requieres para el control crónico con tu médico tratante.
                 </p>
               </div>
-              <span className="mt-6 inline-flex w-fit rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white">
+              <Link
+                href="/control-cronico"
+                className="mt-auto inline-flex w-fit rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                aria-label="Ir a solicitar control crónico"
+              >
                 $3.990
-              </span>
+              </Link>
             </div>
 
             <div className="mt-6 grid flex-1 gap-3 text-sm text-slate-700">
@@ -96,16 +105,20 @@ export default function Services() {
                   Próximamente...
                 </p>
                 <h3 className="mt-2 text-2xl font-semibold text-slate-950">
-                  Evaluación por síntomas
+                  Evaluación de síntomas
                 </h3>
                 <p className="mt-3 text-sm leading-7 text-slate-600">
-                  Si el paciente presenta síntomas, podrá escribirlos libremente. Una IA los
-                  transformará en síntomas estructurados, hará preguntas de seguimiento basadas en
-                  algoritmos internacionales y, según esas respuestas, recomendará un set de
-                  exámenes que luego será validado por un médico en un plazo máximo de 12 horas.
+                  Usamos inteligencia artifical para contrastar lo que sientes con bases de datos
+                  de diagnóstico de última generación. Generamos la orden que necesitas para llevar
+                  los resultados a tu consulta médica. Un médico de nuestro equipo la revisa y
+                  valida en menos de 12 horas.
                 </p>
               </div>
-              <span className="mt-6 inline-flex w-fit rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white">
+              <span
+                className="mt-auto inline-flex w-fit cursor-not-allowed rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-300"
+                aria-disabled="true"
+                title="Disponible pronto"
+              >
                 $5.990
               </span>
             </div>

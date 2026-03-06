@@ -2,6 +2,8 @@ export type Sex = "M" | "F";
 export type Smoking = "never" | "former" | "current";
 export type SexualActivity = "yes" | "no";
 export type Pregnancy = "yes" | "no";
+export type DietaryRestriction = "none" | "special";
+export type DietaryPattern = "vegan" | "vegetarian" | "ketogenic" | "gluten_free";
 export type ReviewStatus = "queued" | "approved" | "rejected";
 
 export type PatientNameFields = {
@@ -33,6 +35,8 @@ export type CheckupInput = {
   sexualActivity: SexualActivity;
   pregnancy: Pregnancy;
   gestationWeeks?: number;
+  dietaryRestriction?: DietaryRestriction;
+  dietaryPatterns?: DietaryPattern[];
 };
 
 export type TestItem = {
@@ -242,6 +246,7 @@ export function recommend(input: CheckupInput): CheckupRecommendation {
   const quitSmokingYearsAgo = input.quitSmokingYearsAgo ?? 0;
   const eligibleFormerSmoker = input.smoking === "former" && quitSmokingYearsAgo <= 15;
   const eligibleCurrentSmoker = input.smoking === "current";
+  const dietaryPatterns = new Set(input.dietaryPatterns ?? []);
 
   addTest(
     "Glucosa en sangre",
@@ -376,6 +381,55 @@ export function recommend(input: CheckupInput): CheckupRecommendation {
     addTest(
       "Antígeno prostático específico (APE)",
       "Lo pedimos a personas de sexo masculino entre 55 y 69 años para tamizaje de cáncer de próstata. En el siguiente paso podrás leer sobre los beneficios y riesgos del tamizaje con APE y las opiniones de las prinicipales sociedades médicas.",
+    );
+  }
+
+  if (dietaryPatterns.has("vegan") || dietaryPatterns.has("vegetarian")) {
+    addTest(
+      "Niveles de vitamina B12",
+      "Se agrega por dieta vegana/vegetaria para evaluar riesgo de déficit de vitamina B12.",
+    );
+    addTest(
+      "Ferritina",
+      "Se agrega por dieta vegana/vegetaria para control de reservas de hierro.",
+    );
+    addTest(
+      "Cinética de fierro",
+      "Se agrega por dieta vegana/vegetaria para evaluar estado de hierro circulante.",
+    );
+    addTest(
+      "Hemograma",
+      "Se agrega por dieta vegana/vegetaria para evaluar parámetros hematológicos asociados.",
+    );
+    addTest(
+      "Niveles de vitamina D",
+      "Se agrega por dieta vegana/vegetaria para evaluar estado de vitamina D.",
+    );
+  }
+
+  if (dietaryPatterns.has("ketogenic")) {
+    addTest(
+      "Ácido úrico",
+      "Se agrega por dieta cetogénica para control metabólico complementario.",
+    );
+  }
+
+  if (dietaryPatterns.has("gluten_free")) {
+    addTest(
+      "Ferritina",
+      "Se agrega por dieta libre de gluten para control de reservas de hierro.",
+    );
+    addTest(
+      "Cinética de fierro",
+      "Se agrega por dieta libre de gluten para evaluar estado de hierro circulante.",
+    );
+    addTest(
+      "Hemograma",
+      "Se agrega por dieta libre de gluten para evaluación hematológica complementaria.",
+    );
+    addTest(
+      "Folato sérico",
+      "Se agrega por dieta libre de gluten para evaluar estado de folato.",
     );
   }
 

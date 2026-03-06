@@ -229,7 +229,7 @@ export default function SummaryPage() {
     {
       name: "Perfil bioquímico",
       description:
-        "Es un panel general que revisa parámetros metabólicos y orgánicos básicos, útil como complemento amplio del chequeo.",
+        'Panel de exámenes que evalúa distintas funciones del cuerpo de forma muy general (metabolismo, hígado, renal, entre otras). Sirve como una visión rápida "de todo un poco".',
     },
     {
       name: "Niveles de vitamina D",
@@ -239,6 +239,9 @@ export default function SummaryPage() {
   ] as const;
   const selectedOptionalAdditionalTests = optionalAdditionalTests.filter((test) =>
     data.rec.tests.some((item) => item.name === test.name),
+  );
+  const optionalAdditionalTestsToShow = optionalAdditionalTests.filter(
+    (test) => !(test.name === "Hemograma" && displayedTests.some((item) => item.name === "Hemograma")),
   );
 
   async function handlePreferenceChange(
@@ -386,7 +389,7 @@ export default function SummaryPage() {
               Resumen del chequeo
             </p>
             <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950">
-              Tu ficha de orden está lista para revisión.
+              Tu orden está lista para revisión.
             </h1>
             <p className="mt-3 text-base leading-7 text-slate-600">{data.rec.summary}</p>
           </div>
@@ -673,7 +676,7 @@ export default function SummaryPage() {
                   <TooltipInfo text="Los siguientes exámenes no están recomendados en base a evidencia como parte del tamizaje de personas sanas, pero muchos médicos los piden en su práctica clínica de todas formas. En Veramed creemos que su solicitud es de bajo riesgo de cascadas diagnósticas/sobrediagnóstico, por lo que si deseas puedes añadir los siguientes." />
                 </div>
                 <div className="mt-4 grid gap-3">
-                  {optionalAdditionalTests.map((test) => {
+                  {optionalAdditionalTestsToShow.map((test) => {
                     const checked = selectedOptionalAdditionalTests.some(
                       (selected) => selected.name === test.name,
                     );
@@ -704,9 +707,12 @@ export default function SummaryPage() {
                 </div>
               </div>
 
-              <p className="mt-6 text-sm font-semibold text-slate-900">
-                Exámenes incluidos (edítalos según tus preferencias)
-              </p>
+              <div className="mt-6 flex items-start gap-2">
+                <p className="text-sm font-semibold text-slate-900">
+                  Exámenes incluidos (edítalos según tus preferencias)
+                </p>
+                <TooltipInfo text="Te damos la opción de editar porque, si te hiciste alguno de estos exámenes en los últimos 12 meses y esto corresponde a un chequeo, en general no es necesario volver a controlarlos. También puede que prefieras no realizar algún procedimiento ahora. En definitiva, la elección es tuya." />
+              </div>
               <div className="mt-4 grid gap-3">
                 {displayedTests.map((t) => (
                   <div key={t.name} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
@@ -770,7 +776,7 @@ export default function SummaryPage() {
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
                 Resumen final de tu solicitud
               </p>
-              <h2 className="mt-2 text-xl font-semibold text-slate-950">
+              <h2 className="mt-2 text-2xl font-semibold text-slate-950">
                 Los exámenes que te llevas ⬇️
               </h2>
               <div className="mt-6 grid gap-4">

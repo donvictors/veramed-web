@@ -13,6 +13,8 @@ import {
   isValidRut,
   normalizeRut,
   type CheckupInput,
+  type DietaryPattern,
+  type DietaryRestriction,
   joinPatientFullName,
   type PatientDetails,
   type PatientNameFields,
@@ -44,6 +46,8 @@ export default function CheckupPage() {
   const [cigarettesPerDay, setCigarettesPerDay] = useState(0);
   const [smokingYears, setSmokingYears] = useState(0);
   const [quitSmokingYearsAgo, setQuitSmokingYearsAgo] = useState(0);
+  const [dietaryRestriction, setDietaryRestriction] = useState<DietaryRestriction>("none");
+  const [dietaryPatterns, setDietaryPatterns] = useState<DietaryPattern[]>([]);
   const [sexualActivity, setSexualActivity] = useState<SexualActivity>("no");
   const [pregnancy, setPregnancy] = useState<Pregnancy>("no");
   const [gestationWeeks, setGestationWeeks] = useState(0);
@@ -85,6 +89,8 @@ export default function CheckupPage() {
       smokingYears: smoking === "never" ? 0 : smokingYears,
       packYearIndex: smoking === "never" ? 0 : packYearIndex,
       quitSmokingYearsAgo: smoking === "former" ? quitSmokingYearsAgo : 0,
+      dietaryRestriction,
+      dietaryPatterns: dietaryRestriction === "special" ? dietaryPatterns : [],
       sexualActivity,
       pregnancy,
       gestationWeeks: pregnancy === "yes" ? gestationWeeks : 0,
@@ -98,6 +104,8 @@ export default function CheckupPage() {
       pregnancy,
       gestationWeeks,
       quitSmokingYearsAgo,
+      dietaryRestriction,
+      dietaryPatterns,
       sex,
       sexualActivity,
       smoking,
@@ -147,6 +155,12 @@ export default function CheckupPage() {
       setGestationWeeks(0);
     }
   }, [pregnancy]);
+
+  useEffect(() => {
+    if (dietaryRestriction === "none") {
+      setDietaryPatterns([]);
+    }
+  }, [dietaryRestriction]);
 
   useEffect(() => {
     if (
@@ -214,6 +228,7 @@ export default function CheckupPage() {
   }
 
   const showsSmokingIntensity = smoking === "former" || smoking === "current";
+  const showsDietaryOptions = dietaryRestriction === "special";
   const showsPregnancyWeeks = pregnancy === "yes";
   const gestationWarning = gestationWeeks >= 42;
   const underageWarning = Boolean(birthDate) && age < 15;
@@ -271,6 +286,14 @@ export default function CheckupPage() {
     }
 
     return `${year.slice(-4)}-${month}-${day}`;
+  }
+
+  function toggleDietaryPattern(pattern: DietaryPattern) {
+    setDietaryPatterns((current) =>
+      current.includes(pattern)
+        ? current.filter((item) => item !== pattern)
+        : [...current, pattern],
+    );
   }
 
   return (
@@ -487,6 +510,65 @@ export default function CheckupPage() {
                     </select>
                   </Field>
 
+                  <Field label="¿Sigues alguna dieta especial o tienes alguna restricción alimentaria?">
+                    <select
+                      className={inputCls}
+                      value={dietaryRestriction}
+                      onChange={(e) => setDietaryRestriction(e.target.value as DietaryRestriction)}
+                    >
+                      <option value="none">Ninguna</option>
+                      <option value="special">Sí</option>
+                    </select>
+                  </Field>
+
+                  {showsDietaryOptions && (
+                    <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+                      <p className="text-sm font-medium text-slate-900">Selecciona una o más opciones</p>
+
+                      <div className="grid gap-2 md:grid-cols-2">
+                        <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400"
+                            checked={dietaryPatterns.includes("vegan")}
+                            onChange={() => toggleDietaryPattern("vegan")}
+                          />
+                          Vegana
+                        </label>
+
+                        <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400"
+                            checked={dietaryPatterns.includes("vegetarian")}
+                            onChange={() => toggleDietaryPattern("vegetarian")}
+                          />
+                          Vegetaria
+                        </label>
+
+                        <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400"
+                            checked={dietaryPatterns.includes("ketogenic")}
+                            onChange={() => toggleDietaryPattern("ketogenic")}
+                          />
+                          Cetogénica
+                        </label>
+
+                        <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400"
+                            checked={dietaryPatterns.includes("gluten_free")}
+                            onChange={() => toggleDietaryPattern("gluten_free")}
+                          />
+                          Libre de gluten
+                        </label>
+                      </div>
+                    </div>
+                  )}
+
                   {showsSmokingIntensity && (
                     <>
                       {smoking === "former" && (
@@ -684,7 +766,7 @@ export default function CheckupPage() {
               disabled={isSubmitting}
               className="mt-6 w-full rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
             >
-              {isSubmitting ? "Creando solicitud..." : "Continuar a la ficha de la orden"}
+              {isSubmitting ? "Creando solicitud..." : "Continuar al resumen de la orden"}
             </button>
 
             {hasMissingRequiredFields && (
@@ -697,7 +779,8 @@ export default function CheckupPage() {
             {submitError && <p className="mt-3 text-xs leading-5 text-rose-600">{submitError}</p>}
 
             <p className="mt-3 text-xs leading-5 text-slate-500">
-              La orden se emite después del pago y de la validación clínica correspondiente.
+              En la siguiente página podrás modificar y personalizar la orden. Se emite después del
+              pago y validación médica.
             </p>
           </aside>
         </div>

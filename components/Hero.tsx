@@ -18,7 +18,8 @@ export default function Hero() {
           </p>
 
           <h1 className="mt-6 max-w-3xl text-4xl font-semibold tracking-tight text-slate-950 md:text-6xl">
-            Órdenes médicas basadas en evidencia.
+            <span className="block">Órdenes médicas</span>
+            <span className="hero-title-reveal block">basadas en evidencia.</span>
           </h1>
 
           <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
@@ -53,7 +54,7 @@ export default function Hero() {
           </div>
 
           <div className="mt-8 max-w-2xl rounded-3xl border border-rose-200 bg-rose-50 p-5">
-            <p className="text-sm font-semibold text-rose-900">No usar en caso de urgencia</p>
+            <p className="text-sm font-semibold text-rose-900">Recuerda no usar en casos de urgencia</p>
             <p className="mt-2 text-sm leading-6 text-rose-800">
               Si presentas{" "}
               <Link href="#faq-sintomas-alarma" className="font-semibold underline">
@@ -70,20 +71,20 @@ export default function Hero() {
               Evaluación inicial
             </p>
             <h2 className="mt-3 text-2xl font-semibold text-slate-950">
-              Tu orden se prepara en tres etapas.
+              Tu orden se prepara en tres simples pasos.
             </h2>
             <div className="mt-5 space-y-4">
               <ClinicalPoint
-                title="1. Datos clínicos esenciales"
-                description="Edad, sexo biológico y antecedentes básicos para orientar el panel."
+                title="1. Llena tus datos."
+                description="Te preguntamos datos personales y antecedentes médicos para personalizar tu orden."
               />
               <ClinicalPoint
-                title="2. Recomendación explicada"
-                description="Verás qué exámenes se sugieren, por qué y cómo prepararte."
+                title="2. Personaliza tu orden"
+                description="Te damos los exámenes recomendados por nuestro equipo médico según tu perfil. Tu puedes elegir que te quieres llevar y que no."
               />
               <ClinicalPoint
-                title="3. Validación médica"
-                description="La emisión final queda sujeta a revisión clínica antes del uso formal."
+                title="3. Completa el pago y recibe tu orden"
+                description="Recibirás tus órdenes médicas en PDF y en tu correo. Luego, sólo dirígete a tu laboratorio más cercano y ya te podrás hacer tus exámenes."
               />
             </div>
           </div>
@@ -91,9 +92,11 @@ export default function Hero() {
           <div className="mt-5 rounded-3xl border border-slate-200 p-5">
             <p className="text-sm font-semibold text-slate-900">Importante</p>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Veramed entrega orientación para órdenes de laboratorio. No diagnostica, no reemplaza
-              una consulta médica y no debe usarse como única base para decidir conductas ante
-              síntomas o urgencias.
+              Veramed entrega orientación médica respecto a exámenes de laboratorio para distintas
+              necesidades. No diagnostica y no reemplaza una consulta médica, la que es necesaria
+              para poder interpretar estos resultados y conseguir otra información clave del proceso
+              diagnóstico. En ningún caso debe usarse para intentar enfrentar síntomas que puedan
+              ser una urgencia.
             </p>
           </div>
         </div>

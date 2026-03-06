@@ -21,3 +21,30 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
 }
+
+.hero-title-reveal {
+  display: inline-block;
+  white-space: nowrap;
+  opacity: 0;
+  clip-path: inset(0 100% 0 0);
+  animation: hero-title-reveal 0.3s ease-out 0.5s forwards;
+}
+
+@keyframes hero-title-reveal {
+  from {
+    opacity: 0;
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-title-reveal {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+    animation: none;
+  }
+}
