@@ -19,6 +19,17 @@ enum PaymentStatusDb {
   paid
 }
 
+enum TransbankTransactionStatusDb {
+  created
+  paid
+  rejected
+}
+
+enum TransbankRequestTypeDb {
+  checkup
+  chronic_control
+}
+
 model Healthcheck {
   id        String   @id @default(cuid())
   key       String   @unique
@@ -145,4 +156,31 @@ model ChronicControlPayment {
   paidAt      DateTime?
   updatedAt   DateTime             @updatedAt
   request     ChronicControlRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+}
+
+model TransbankPaymentTransaction {
+  id                 String                       @id @default(cuid())
+  orderId            String                       @unique
+  sessionId          String
+  requestType        TransbankRequestTypeDb
+  requestId          String
+  amount             Int
+  token              String                       @unique
+  webpayUrl          String
+  status             TransbankTransactionStatusDb @default(created)
+  authorizationCode  String?
+  buyOrder           String?
+  responseCode       Int?
+  paymentTypeCode    String?
+  cardLast4          String?
+  transactionDate    DateTime?
+  transbankResponse  Json?
+  errorReason        String?
+  committedAt        DateTime?
+  paidAt             DateTime?
+  createdAt          DateTime                     @default(now())
+  updatedAt          DateTime                     @updatedAt
+
+  @@index([requestType, requestId])
+  @@index([status, createdAt])
 }

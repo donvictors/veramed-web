@@ -41,10 +41,10 @@ export default function PrivacyPage() {
               <p>
                 Correo:{" "}
                 <a
-                  href="mailto:contacto@veramed.cl"
+                  href="mailto:contacto@mail.veramed.cl"
                   className="font-semibold text-slate-950 underline"
                 >
-                  contacto@veramed.cl
+                  contacto@mail.veramed.cl
                 </a>
               </p>
               <p>Dirección: Santiago, Chile</p>
@@ -317,10 +317,10 @@ export default function PrivacyPage() {
             <p className="mt-3">
               Si tienes preguntas o inquietudes sobre esta Política de Privacidad:{" "}
               <a
-                href="mailto:contacto@veramed.cl"
+                href="mailto:contacto@mail.veramed.cl"
                 className="font-semibold text-slate-950 underline"
               >
-                contacto@veramed.cl
+                contacto@mail.veramed.cl
               </a>
             </p>
           </section>

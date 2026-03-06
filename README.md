@@ -110,6 +110,87 @@ await fetch("/api/send-email", {
 });
 ```
 
+## Transbank Webpay Plus (API REST)
+
+Se integró Webpay Plus usando `transbank-sdk` con App Router y rutas backend:
+
+- `POST /api/payments/transbank/create`
+- `POST /api/payments/transbank/commit`
+- `GET|POST /api/payments/transbank/return` (retorno intermedio desde Webpay)
+- `GET /payments/transbank/return` (página que confirma y redirige)
+- `GET /payment/success`
+- `GET /payment/error`
+
+### Variables de entorno requeridas
+
+```bash
+APP_URL="http://localhost:3000"
+TRANSBANK_ENV="INTEGRACION" # o PRODUCCION
+
+# Solo PRODUCCION:
+TRANSBANK_COMMERCE_CODE="5970..."
+TRANSBANK_API_KEY_SECRET="..."
+```
+
+Reglas de ambiente:
+
+- `INTEGRACION`: usa `Environment.Integration` + credenciales de integración del SDK.
+- `PRODUCCION`: usa `Environment.Production` y toma credenciales desde variables de entorno.
+
+### Flujo end-to-end (integración)
+
+1. Crear transacción:
+
+```bash
+curl -X POST http://localhost:3000/api/payments/transbank/create \
+  -H "Content-Type: application/json" \
+  -d '{
+    "orderId": "orden_001",
+    "sessionId": "sesion_001",
+    "amount": 1990
+  }'
+```
+
+Respuesta esperada:
+
+```json
+{
+  "token": "...",
+  "url": "https://webpay3gint.transbank.cl/webpayserver/initTransaction",
+  "redirectUrl": "https://webpay3gint.transbank.cl/webpayserver/initTransaction?token_ws=..."
+}
+```
+
+2. Redirigir al usuario a `redirectUrl`.
+3. Webpay vuelve al `return_url` configurado (`/api/payments/transbank/return`), que redirige a `/payments/transbank/return?token_ws=...`.
+4. La página `/payments/transbank/return` llama `POST /api/payments/transbank/commit`.
+5. Según resultado:
+   - Aprobado → `/payment/success?orderId=...`
+   - Rechazado/error → `/payment/error?...`
+
+### Persistencia e idempotencia
+
+El estado de pago se guarda en Prisma en el modelo:
+
+- `TransbankPaymentTransaction`
+
+Esto permite:
+
+- idempotencia por `orderId` y `token` (índices únicos)
+- reintentos seguros de `commit` y callback repetido
+- trazabilidad de respuesta cruda (`transbankResponse`) y códigos de autorización
+
+En `commit`, si falla la confirmación por error transitorio, se intenta conciliación con `Transaction.status(token)` antes de marcar rechazo.
+
+### Nota de producción
+
+Para producción debes usar credenciales reales de Transbank:
+
+- `Tbk-Api-Key-Id` (código de comercio)
+- `Tbk-Api-Key-Secret` (llave secreta)
+
+Estas se obtienen tras el proceso de habilitación/validación de Transbank.
+
 ## Getting Started
 
 First, run the development server:

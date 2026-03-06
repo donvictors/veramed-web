@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Stepper from "@/components/checkup/Stepper";
 import { fetchCheckupRequest } from "@/lib/checkup-api";
 import { type ReviewStatus } from "@/lib/checkup";
+import { useRequestId } from "@/lib/use-request-id";
 
 const REVIEW_DELAY_MS = 8000;
 
@@ -13,10 +14,13 @@ export default function StatusPage() {
   const router = useRouter();
   const [status, setStatus] = useState<ReviewStatus>("queued");
   const [secondsLeft, setSecondsLeft] = useState<number>(8);
-  const requestId =
-    typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("id");
+  const { requestId, resolved } = useRequestId();
 
   useEffect(() => {
+    if (!resolved) {
+      return;
+    }
+
     if (!requestId) {
       router.replace("/mi-cuenta");
       return;
@@ -56,7 +60,7 @@ export default function StatusPage() {
       isMounted = false;
       clearInterval(interval);
     };
-  }, [requestId, router]);
+  }, [requestId, resolved, router]);
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">

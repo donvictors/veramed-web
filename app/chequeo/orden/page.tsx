@@ -7,6 +7,7 @@ import BrandLogo from "@/components/BrandLogo";
 import { fetchCheckupRequest, type CheckupApiRecord } from "@/lib/checkup-api";
 import { sendOrderReadyEmail } from "@/lib/email-api";
 import {
+  calculateAgeFromBirthDate,
   createVerificationCode,
   formatBirthDate,
   formatSex,
@@ -14,6 +15,7 @@ import {
   formatSmoking,
   inferOrderDetails,
 } from "@/lib/checkup";
+import { useRequestId } from "@/lib/use-request-id";
 
 export default function OrderPage() {
   const router = useRouter();
@@ -23,12 +25,15 @@ export default function OrderPage() {
   const [selectedCategory, setSelectedCategory] = useState<OrderCategory>("laboratory");
   const [issuedAt, setIssuedAt] = useState("");
   const [issuedAtTimestamp, setIssuedAtTimestamp] = useState(0);
-  const requestId =
-    typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("id");
+  const { requestId, resolved } = useRequestId();
 
   useEffect(() => {
+    if (!resolved) {
+      return;
+    }
+
     if (!requestId) {
-      router.replace("/chequeo");
+      router.replace("/mi-cuenta");
       return;
     }
 
@@ -52,7 +57,7 @@ export default function OrderPage() {
       .catch(() => {
         router.replace("/mi-cuenta");
       });
-  }, [requestId, router]);
+  }, [requestId, resolved, router]);
 
   useEffect(() => {
     if (!data || !requestId || !approved || !paid) {
@@ -605,10 +610,8 @@ function PrintOrderPage({
   return (
     <article className="veramed-order-page">
       <OrderHeader
-        category={category}
         categoryMeta={categoryMeta}
         patient={patient}
-        orderDetails={orderDetails}
         issuedAt={issuedAt}
       />
       <BodyExams
@@ -628,18 +631,15 @@ function PrintOrderPage({
 }
 
 function OrderHeader({
-  category,
   categoryMeta,
   patient,
-  orderDetails,
   issuedAt,
 }: {
-  category: OrderCategory;
   categoryMeta: ReturnType<typeof getOrderCategoryMeta>;
   patient: CheckupApiRecord["patient"];
-  orderDetails: ReturnType<typeof inferOrderDetails>;
   issuedAt: string;
 }) {
+  const age = calculateAgeFromBirthDate(patient?.birthDate || "");
   return (
     <header className="veramed-order-header">
       <div className="flex items-start justify-between gap-6">
@@ -657,25 +657,14 @@ function OrderHeader({
       <div className="mt-3 border-y border-slate-300 py-2 text-[12px] leading-5">
         <div className="flex items-start justify-between gap-8">
           <div className="w-[48%] space-y-0.5">
-            <PrintRow label="Atención" value={issuedAt.split(",")[0] ?? issuedAt} />
             <PrintRow label="Paciente" value={patient?.fullName || "Paciente Veramed"} />
             <PrintRow label="RUT" value={patient?.rut || "No informado"} />
             <PrintRow label="Dirección" value={patient?.address || "No informada"} />
           </div>
           <div className="w-[48%] space-y-0.5">
-            <PrintRow label="Nacimiento" value={formatBirthDate(patient?.birthDate || "")} />
+            <PrintRow label="Edad" value={age > 0 ? `${age} años` : "No informada"} />
             <PrintRow label="Correo" value={patient?.email || "No informado"} />
             <PrintRow label="Teléfono" value={patient?.phone || "No informado"} />
-            <PrintRow
-              label="Muestra"
-              value={
-                category === "laboratory"
-                  ? orderDetails.sampleTypeLabel
-                  : category === "procedure"
-                    ? "Según procedimiento"
-                    : "No aplica"
-              }
-            />
           </div>
         </div>
       </div>

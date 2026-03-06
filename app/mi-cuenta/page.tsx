@@ -233,8 +233,8 @@ export default function AccountPage() {
               <div className="text-right text-xs text-slate-500">
                 <p>
                   <span className="font-semibold text-slate-700">Soporte:</span>{" "}
-                  <a className="underline" href="mailto:contacto@veramed.cl">
-                    contacto@veramed.cl
+                  <a className="underline" href="mailto:contacto@mail.veramed.cl">
+                    contacto@mail.veramed.cl
                   </a>
                 </p>
               </div>
@@ -280,7 +280,7 @@ export default function AccountPage() {
                 {filteredHistory.map((item) => {
                   const uiStatus = toUiStatus(item);
                   const primaryAction = getPrimaryAction(item, uiStatus);
-                  const detailHref = getReviewHref(item);
+                  const detailHref = getOrderHref(item);
                   const orderHref = getOrderHref(item);
 
                   return (
@@ -336,7 +336,7 @@ export default function AccountPage() {
                               Descargar / Ver orden
                             </Link>
                             <a
-                              href="mailto:contacto@veramed.cl?subject=Soporte%20Veramed"
+                              href="mailto:contacto@mail.veramed.cl?subject=Soporte%20Veramed"
                               className="block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
                             >
                               Soporte

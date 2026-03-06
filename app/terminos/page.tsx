@@ -288,10 +288,10 @@ export default function TermsPage() {
               Si tienes dudas, quejas o necesitas aclaraciones sobre estos Términos, puedes
               contactarnos a través del correo electrónico{" "}
               <a
-                href="mailto:contacto@veramed.cl"
+                href="mailto:contacto@mail.veramed.cl"
                 className="font-semibold text-slate-950 underline"
               >
-                contacto@veramed.cl
+                contacto@mail.veramed.cl
               </a>
               .
             </p>

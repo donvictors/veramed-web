@@ -10,9 +10,11 @@ import {
   type ChronicControlApiRecord,
 } from "@/lib/chronic-control-api";
 import {
+  calculateAgeFromBirthDate,
   createVerificationCode,
   formatBirthDate,
 } from "@/lib/checkup";
+import { useRequestId } from "@/lib/use-request-id";
 import {
   conditionLabel,
   medicationLabel,
@@ -25,12 +27,15 @@ export default function ChronicControlOrderPage() {
   const [paid, setPaid] = useState(false);
   const [issuedAt, setIssuedAt] = useState("");
   const [issuedAtTimestamp, setIssuedAtTimestamp] = useState(0);
-  const requestId =
-    typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("id");
+  const { requestId, resolved } = useRequestId();
 
   useEffect(() => {
+    if (!resolved) {
+      return;
+    }
+
     if (!requestId) {
-      router.replace("/control-cronico");
+      router.replace("/mi-cuenta");
       return;
     }
 
@@ -54,7 +59,7 @@ export default function ChronicControlOrderPage() {
       .catch(() => {
         router.replace("/mi-cuenta");
       });
-  }, [requestId, router]);
+  }, [requestId, resolved, router]);
 
   useEffect(() => {
     if (!data || !requestId || !approved || !paid) {
@@ -134,6 +139,7 @@ export default function ChronicControlOrderPage() {
   }
 
   const patient = data.patient;
+  const patientAge = calculateAgeFromBirthDate(patient?.birthDate || "");
   const verificationCode = issuedAtTimestamp
     ? createVerificationCode(patient?.rut, issuedAtTimestamp)
     : "";
@@ -272,13 +278,12 @@ export default function ChronicControlOrderPage() {
             <div className="mt-6 border-y border-slate-300 py-3 text-[13px] leading-7">
               <div className="flex items-start justify-between gap-10">
                 <div className="w-[48%]">
-                  <PrintRow label="Atención" value={issuedAt.split(",")[0] ?? issuedAt} />
                   <PrintRow label="Paciente" value={patient?.fullName || "Paciente Veramed"} />
                   <PrintRow label="RUT" value={patient?.rut || "No informado"} />
                   <PrintRow label="Dirección" value={patient?.address || "No informada"} />
                 </div>
                 <div className="w-[48%]">
-                  <PrintRow label="Nacimiento" value={formatBirthDate(patient?.birthDate || "")} />
+                  <PrintRow label="Edad" value={patientAge > 0 ? `${patientAge} años` : "No informada"} />
                   <PrintRow label="Correo" value={patient?.email || "No informado"} />
                   <PrintRow label="Teléfono" value={patient?.phone || "No informado"} />
                   <PrintRow

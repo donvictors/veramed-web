@@ -582,7 +582,10 @@ export async function updateCheckupScreeningPreferences(
   return fromRow(updated);
 }
 
-export async function confirmPendingPayment(id: string) {
+export async function confirmPendingPayment(
+  id: string,
+  overrides?: Partial<Pick<StoredPayment, "paymentId" | "cardLast4" | "cardholder">>,
+) {
   const current = await prisma.checkupRequest.findUnique({
     where: { id },
     include: { payment: true },
@@ -597,9 +600,9 @@ export async function confirmPendingPayment(id: string) {
   const confirmed: StoredPayment = {
     amount: pending.amount,
     currency: pending.currency as "CLP",
-    paymentId: pending.paymentId,
-    cardLast4: pending.cardLast4,
-    cardholder: pending.cardholder,
+    paymentId: overrides?.paymentId ?? pending.paymentId,
+    cardLast4: overrides?.cardLast4 ?? pending.cardLast4,
+    cardholder: overrides?.cardholder ?? pending.cardholder,
     paid: true,
     paidAt,
   };

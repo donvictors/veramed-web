@@ -1,5 +1,5 @@
 import { PDFDocument, StandardFonts } from "pdf-lib";
-import { createVerificationCode } from "@/lib/checkup";
+import { calculateAgeFromBirthDate, createVerificationCode } from "@/lib/checkup";
 
 type PatientPayload = {
   fullName: string;
@@ -89,7 +89,13 @@ function drawHeader(args: {
     ["Dirección", patient.address || "No informada"],
   ] as const;
   const patientLinesRight = [
-    ["Nacimiento", patient.birthDate || "No informado"],
+    [
+      "Edad",
+      (() => {
+        const age = calculateAgeFromBirthDate(patient.birthDate || "");
+        return age > 0 ? `${age} años` : "No informado";
+      })(),
+    ],
     ["Correo", patient.email || "No informado"],
     ["Teléfono", patient.phone || "No informado"],
   ] as const;

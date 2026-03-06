@@ -14,8 +14,8 @@ export default function ContactPage() {
           <p>
             Para consultas generales, soporte del flujo o aclaraciones sobre el alcance del
             servicio, puedes escribir a{" "}
-            <Link href="mailto:contacto@veramed.cl" className="font-semibold text-slate-950 underline">
-              contacto@veramed.cl
+            <Link href="mailto:contacto@mail.veramed.cl" className="font-semibold text-slate-950 underline">
+              contacto@mail.veramed.cl
             </Link>
             .
           </p>

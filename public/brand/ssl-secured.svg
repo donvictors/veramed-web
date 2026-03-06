@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="120" viewBox="0 0 320 120" role="img" aria-labelledby="title desc">
+  <title id="title">SSL Secured</title>
+  <desc id="desc">Sello visual de conexión segura SSL</desc>
+  <defs>
+    <linearGradient id="ssl-blue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1da1f2" />
+      <stop offset="100%" stop-color="#1085cf" />
+    </linearGradient>
+  </defs>
+  <g fill="none" fill-rule="evenodd">
+    <path
+      d="M30 16l46-10 46 10v39c0 26-18 48-46 60-28-12-46-34-46-60V16z"
+      stroke="url(#ssl-blue)"
+      stroke-width="6"
+      stroke-linejoin="round"
+    />
+    <rect x="55" y="44" width="42" height="30" rx="6" stroke="url(#ssl-blue)" stroke-width="5" />
+    <path d="M64 44v-8c0-7 5-13 12-13s12 6 12 13v8" stroke="url(#ssl-blue)" stroke-width="5" />
+    <path d="M66 58l6 6 14-14" stroke="url(#ssl-blue)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
+    <text x="145" y="55" font-family="Arial, Helvetica, sans-serif" font-size="42" font-weight="700" fill="url(#ssl-blue)">
+      SSL
+    </text>
+    <text x="145" y="90" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="url(#ssl-blue)">
+      SECURED
+    </text>
+  </g>
+</svg>

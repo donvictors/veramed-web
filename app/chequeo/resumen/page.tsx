@@ -4,7 +4,6 @@ import Link from "next/link";
 import { startTransition, useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Stepper from "@/components/checkup/Stepper";
-import WhatToExpect from "@/components/checkup/WhatToExpect";
 import {
   fetchCheckupRequest,
   type CheckupApiRecord,
@@ -804,8 +803,6 @@ export default function SummaryPage() {
                 </ul>
               </div>
             </section>
-
-            <WhatToExpect />
 
             <section className="rounded-[2rem] border border-slate-200 bg-white p-6">
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">

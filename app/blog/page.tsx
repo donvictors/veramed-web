@@ -37,7 +37,7 @@ export default function BlogPage() {
         <section className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-[0_22px_70px_-48px_rgba(15,23,42,0.45)]">
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Blog</p>
           <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950">
-            Educación en salud, en lenguaje claro.
+            Educación en salud, en lenguaje claro. 📚
           </h1>
           <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-600">
             Este espacio reúne contenidos educativos para ayudarte a entender mejor los exámenes de
