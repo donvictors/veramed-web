@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 const trustChips = [
   "Guías clínicas vigentes",
@@ -10,7 +11,7 @@ const trustChips = [
 export default function Hero() {
   return (
     <section className="mx-auto max-w-6xl px-6 py-16 md:py-24">
-      <div className="grid items-start gap-10 lg:grid-cols-[1.25fr_0.75fr]">
+      <div className="relative grid items-start gap-10 lg:grid-cols-[1.25fr_0.75fr]">
         <div>
           <p className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-800">
             <span className="inline-block h-2 w-2 rounded-full bg-emerald-600" />
@@ -99,6 +100,17 @@ export default function Hero() {
               ser una urgencia.
             </p>
           </div>
+        </div>
+
+        <div className="pointer-events-none absolute bottom-3 left-0 hidden lg:block">
+          <Image
+            src="/brand/veramed-landing-image.png"
+            alt="Decoración clínica Veramed"
+            width={340}
+            height={340}
+            className="h-auto w-[340px] opacity-70"
+            priority
+          />
         </div>
       </div>
     </section>
