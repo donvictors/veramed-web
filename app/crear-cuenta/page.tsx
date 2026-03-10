@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState } from "react";
 import { registerWithEmail } from "@/lib/auth-api";
 
@@ -48,6 +49,16 @@ export default function CreateAccountPage() {
     <main className="min-h-screen bg-slate-50 text-slate-900">
       <div className="mx-auto max-w-xl px-6 py-12">
         <div className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-[0_22px_70px_-48px_rgba(15,23,42,0.45)]">
+          <div className="mb-2 flex justify-end">
+            <Image
+              src="/brand/veramed-icon.png"
+              alt="Veramed"
+              width={44}
+              height={44}
+              className="h-11 w-11"
+              priority
+            />
+          </div>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
             Cuenta Veramed
           </p>

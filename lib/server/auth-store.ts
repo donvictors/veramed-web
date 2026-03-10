@@ -23,7 +23,20 @@ type SessionRecord = {
   expiresAt: Date;
 };
 
-const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
+const DEFAULT_SESSION_TTL_MS = 1000 * 60 * 60;
+const SESSION_TTL_MS = (() => {
+  const raw = process.env.AUTH_SESSION_TTL_MS;
+  if (!raw) {
+    return DEFAULT_SESSION_TTL_MS;
+  }
+
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return DEFAULT_SESSION_TTL_MS;
+  }
+
+  return Math.floor(parsed);
+})();
 const SEEDED_TEST_EMAIL = "test@veramed.cl";
 const SEEDED_TEST_PASSWORD = "test123";
 const ENABLE_AUTO_SEEDED_TEST_USER = process.env.ENABLE_AUTO_SEEDED_TEST_USER === "1";
@@ -313,6 +326,54 @@ export async function logoutSession(token: string | undefined) {
   await prisma.session.deleteMany({
     where: { token },
   });
+}
+
+export async function findUserForPasswordReset(emailRaw: string) {
+  const email = normalizeEmail(emailRaw);
+  if (!email) return null;
+  return prisma.user.findUnique({
+    where: { email },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      passwordHash: true,
+    },
+  });
+}
+
+export async function findUserForPasswordResetById(userId: string) {
+  if (!userId?.trim()) return null;
+  return prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      passwordHash: true,
+    },
+  });
+}
+
+export async function resetPasswordByUserId(userId: string, nextPassword: string) {
+  const { hash, salt } = hashPassword(nextPassword);
+
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      passwordHash: hash,
+      passwordSalt: salt,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  await prisma.session.deleteMany({
+    where: {
+      userId: updated.id,
+    },
+  });
+
+  return updated.id;
 }
 
 export async function syncUserProfileFromPatient(userId: string, patient: PatientDetails) {

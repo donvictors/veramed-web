@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { AUTH_SESSION_COOKIE } from "@/lib/auth";
 import { createChronicControlRecord, serializeChronicControlRecord } from "@/lib/server/chronic-control-store";
-import { getUserFromSession, syncUserProfileFromPatient } from "@/lib/server/auth-store";
+import { getUserFromSession } from "@/lib/server/auth-store";
 import { type CheckupInput, type PatientDetails } from "@/lib/checkup";
 import { type AntiepilepticOption, type ChronicCondition, type MedicationOption } from "@/lib/chronic-control";
 import {
@@ -81,10 +81,6 @@ export async function POST(request: Request) {
         path: "/",
         maxAge: 60 * 60 * 24 * 30,
       });
-    }
-
-    if (user?.id) {
-      await syncUserProfileFromPatient(user.id, patient);
     }
 
     return NextResponse.json({ request: serializeChronicControlRecord(record) }, { status: 201 });

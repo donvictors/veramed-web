@@ -119,3 +119,27 @@ export async function updateAccountProfile(payload: UpdateAccountProfilePayload)
   const data = await readJson<AuthResponse>(response);
   return data.user;
 }
+
+export async function requestPasswordReset(email: string) {
+  const response = await fetch("/api/auth/password/forgot", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email }),
+  });
+
+  return readJson<{ ok: boolean; message: string }>(response);
+}
+
+export async function confirmPasswordReset(token: string, password: string) {
+  const response = await fetch("/api/auth/password/reset", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ token, password }),
+  });
+
+  return readJson<{ ok: boolean }>(response);
+}

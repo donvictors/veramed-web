@@ -2,13 +2,13 @@ import Link from "next/link";
 
 const posts = [
   {
-    title: "¿Qué exámenes de chequeo preventivo vale la pena hacerse?",
+    title: "Chequeo preventivo: qué exámenes hacerte según tú edad",
     summary:
       "Una guía simple para entender qué se solicita por edad, sexo y factores de riesgo, y por qué no existe un panel único para todas las personas.",
     category: "Prevención",
     date: "04 marzo 2026",
     readTime: "6 min",
-    href: "/blog/que-examenes-de-chequeo-preventivo",
+    href: "/blog/examenes-chequeo-preventivo",
   },
   {
     title: "Cascadas diagnósticas y sobrediagnóstico: cuándo más exámenes no es mejor",

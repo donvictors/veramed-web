@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { AUTH_SESSION_COOKIE } from "@/lib/auth";
 import { createCheckupRecord, serializeCheckupRecord } from "@/lib/server/checkup-store";
-import { getUserFromSession, syncUserProfileFromPatient } from "@/lib/server/auth-store";
+import { getUserFromSession } from "@/lib/server/auth-store";
 import { type CheckupInput, type PatientDetails } from "@/lib/checkup";
 import {
   getRequestAccessCookieName,
@@ -61,10 +61,6 @@ export async function POST(request: Request) {
         path: "/",
         maxAge: 60 * 60 * 24 * 30,
       });
-    }
-
-    if (user?.id) {
-      await syncUserProfileFromPatient(user.id, patient);
     }
 
     return NextResponse.json({ checkup: serializeCheckupRecord(record) }, { status: 201 });

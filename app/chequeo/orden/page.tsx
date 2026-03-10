@@ -14,6 +14,7 @@ import {
   formatSmoking,
   inferOrderDetails,
 } from "@/lib/checkup";
+import { getFonasaCodeByExamName } from "@/lib/fonasa-codes";
 import { useRequestId } from "@/lib/use-request-id";
 
 export default function OrderPage() {
@@ -693,7 +694,7 @@ function BodyExams({
                   Observaciones: {getPreparationNote(test.name, needsFasting, category)}
                 </p>
                 <p className="text-slate-700">Fecha: {issuedAt.split(",")[0] ?? issuedAt}</p>
-                <p className="text-slate-700">Código interno: {buildInternalCode(test.name)}</p>
+                <p className="text-slate-700">Códigos FONASA: {getFonasaCodeByExamName(test.name)}</p>
               </div>
             </div>
           </div>
@@ -809,14 +810,4 @@ function getPreparationNote(testName: string, needsFasting: boolean, category: O
     return "Requiere ayuno de 8 horas.";
   }
   return "No requiere preparación especial.";
-}
-
-function buildInternalCode(testName: string) {
-  const base = testName
-    .toUpperCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^A-Z0-9]/g, "")
-    .slice(0, 6);
-  return `VM-${base.padEnd(6, "0")}`;
 }

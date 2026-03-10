@@ -96,8 +96,7 @@ export default function Hero() {
               Veramed entrega orientación médica respecto a exámenes de laboratorio para distintas
               necesidades. No diagnostica y no reemplaza una consulta médica, la que es necesaria
               para poder interpretar estos resultados y conseguir otra información clave del proceso
-              diagnóstico. En ningún caso debe usarse para intentar enfrentar síntomas que puedan
-              ser una urgencia.
+              diagnóstico.
             </p>
           </div>
         </div>

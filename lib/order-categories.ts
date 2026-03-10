@@ -6,6 +6,7 @@ const IMAGE_TESTS = new Set([
   "Ecografía mamaria",
   "TC de tórax de baja dosis",
   "Densitometría ósea",
+  "Radiografía de tórax",
 ]);
 
 const PROCEDURE_TESTS = new Set([
@@ -85,4 +86,3 @@ export function getOrderCategoryMeta(category: OrderCategory) {
     emailLabel: "Orden de laboratorio 💉",
   };
 }
-

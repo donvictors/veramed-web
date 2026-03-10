@@ -8,10 +8,40 @@ export default function MedicosLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    router.push("/portal-medicos");
+    setError("");
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch("/api/medicos-auth/login", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
+
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (!response.ok) {
+        setError(data.error ?? "No fue posible iniciar sesión.");
+        return;
+      }
+
+      router.push("/portal-medicos");
+      router.refresh();
+    } catch {
+      setError("No fue posible iniciar sesión en este momento.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -19,14 +49,13 @@ export default function MedicosLoginPage() {
       <div className="mx-auto grid min-h-screen w-full max-w-6xl items-center gap-8 px-6 py-12 lg:grid-cols-[1fr_0.9fr]">
         <section className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-[0_24px_80px_-50px_rgba(15,23,42,0.5)]">
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
-            Portal médico
+            Portal médico Veramed
           </p>
           <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950">
-            Acceso de médicos Veramed
+            Acceso médicos
           </h1>
           <p className="mt-3 max-w-xl text-sm leading-7 text-slate-600">
-            Ingresa con tus credenciales para revisar solicitudes de pacientes en espera de
-            validación clínica.
+            Ingresa con tus credenciales para revisar o gestionar solicitudes pendientes.
           </p>
 
           <form onSubmit={handleSubmit} className="mt-8 grid gap-5">
@@ -56,10 +85,13 @@ export default function MedicosLoginPage() {
 
             <button
               type="submit"
+              disabled={isSubmitting}
               className="mt-2 inline-flex w-full items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              Ingresar al portal
+              {isSubmitting ? "Ingresando..." : "Ingresar al portal"}
             </button>
+
+            {error ? <p className="text-sm font-medium text-rose-600">{error}</p> : null}
           </form>
         </section>
 
@@ -76,14 +108,15 @@ export default function MedicosLoginPage() {
           </div>
 
           <p className="mt-6 text-sm font-semibold uppercase tracking-[0.18em] text-slate-300">
-            Validación clínica
+            ¿Quieres ser Veramed?
           </p>
-          <h2 className="mt-2 text-2xl font-semibold leading-tight">
-            Consola de revisión para órdenes por síntomas
-          </h2>
           <p className="mt-3 text-sm leading-7 text-slate-200">
-            Interfaz de acceso para médicos del equipo Veramed. Desde aquí podrás entrar a la
-            consola de solicitudes pendientes.
+            Si eres médico y quieres acceder al portal o usar prestaciones de emisión online de
+            recetas, órdenes de exámenes y certificados por solo $4.990 mensual, escríbenos a{" "}
+            <a href="mailto:contacto@mail.veramed.cl" className="font-semibold text-white underline">
+              contacto@mail.veramed.cl
+            </a>
+            .
           </p>
         </aside>
       </div>

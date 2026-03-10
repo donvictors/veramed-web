@@ -1,4 +1,19 @@
-export default function PortalMedicosPage() {
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import {
+  MEDICAL_PORTAL_SESSION_COOKIE,
+  verifyMedicalPortalSessionToken,
+} from "@/lib/server/medical-portal-auth";
+
+export default async function PortalMedicosPage() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(MEDICAL_PORTAL_SESSION_COOKIE)?.value;
+  const session = verifyMedicalPortalSessionToken(token);
+
+  if (!session) {
+    redirect("/medicos-login");
+  }
+
   const pendingOrders = [
     {
       id: "sym_260306_0012",
@@ -37,6 +52,7 @@ export default function PortalMedicosPage() {
             Solicitudes generadas en <span className="font-semibold text-slate-900">/sintomas</span>{" "}
             que están en espera de validación médica.
           </p>
+          <p className="mt-1 text-xs text-slate-500">Sesión activa: {session.email}</p>
 
           <div className="mt-8 overflow-hidden rounded-2xl border border-slate-200">
             <div className="grid grid-cols-[1.1fr_1fr_2fr_0.9fr] gap-3 bg-slate-100 px-4 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">
