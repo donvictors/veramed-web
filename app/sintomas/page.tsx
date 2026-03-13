@@ -3,7 +3,15 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useMemo, useRef, useState } from "react";
+import { FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import {
+  calculateAgeFromBirthDate,
+  formatRut,
+  isValidRut,
+  joinPatientFullName,
+  normalizeRut,
+  type PatientNameFields,
+} from "@/lib/checkup";
 import type { SymptomsInterpretation } from "@/lib/symptoms-intake";
 
 type ProcessingState = "idle" | "antecedents" | "processing" | "ready";
@@ -12,7 +20,13 @@ type AntecedentKey =
   | "medicalHistory"
   | "surgicalHistory"
   | "chronicMedication"
-  | "allergies";
+  | "allergies"
+  | "smoking"
+  | "alcoholUse"
+  | "drugUse"
+  | "sexualActivity"
+  | "firstDegreeFamilyHistory"
+  | "occupation";
 
 type AntecedentAnswerMap = Record<AntecedentKey, string>;
 
@@ -32,6 +46,14 @@ type InterpretationPayload = {
   };
 };
 
+type SexSelection = "female" | "male" | "";
+
+function formatSexLabel(value: SexSelection) {
+  if (value === "female") return "Femenino";
+  if (value === "male") return "Masculino";
+  return "No reportado";
+}
+
 const STORAGE_KEY = "veramed_symptoms_intake_v1";
 const MIN_TEXT_LENGTH = 12;
 const PROCESSING_MESSAGES = [
@@ -46,11 +68,11 @@ const PROCESSING_BASE_DELAYS_MS = [1200, 1450, 1300, 1550, 1200];
 const ANTECEDENT_QUESTIONS: Array<{ key: AntecedentKey; prompt: string }> = [
   {
     key: "medicalHistory",
-    prompt: "¿Tienes alguna enfermedad crónica?",
+    prompt: "¿Tienes alguna enfermedad?",
   },
   {
     key: "surgicalHistory",
-    prompt: "¿Te han operado de algo?",
+    prompt: "¿Te han operado de algo? ¿De qué?",
   },
   {
     key: "chronicMedication",
@@ -60,7 +82,35 @@ const ANTECEDENT_QUESTIONS: Array<{ key: AntecedentKey; prompt: string }> = [
     key: "allergies",
     prompt: "¿Tienes alguna alergia importante?",
   },
+  {
+    key: "smoking",
+    prompt: "¿Fumas? Si tu respuesta es si, di más o menos cuánto",
+  },
+  {
+    key: "alcoholUse",
+    prompt: "¿Consumes alcohol? Si tu respuesta es si, di más o menos cuánto",
+  },
+  {
+    key: "drugUse",
+    prompt: "¿Consumes alguna droga? Si tu respuesta es si, di cuales y cada cuanto",
+  },
+  {
+    key: "sexualActivity",
+    prompt: "¿Eres activ@ sexualmente?",
+  },
+  {
+    key: "firstDegreeFamilyHistory",
+    prompt: "¿Alguna enfermedad importante en tu familia de primer grado? (padres, hermanos, hijos)",
+  },
+  {
+    key: "occupation",
+    prompt: "¿A que te dedicas?",
+  },
 ];
+const ANTECEDENT_INTRO_MESSAGE =
+  "Antes de continuar, te haré unas preguntas para conocer tus antecedentes médicos.";
+const ANTECEDENT_INTRO_FIRST_DELAY_MS = 360;
+const ANTECEDENT_INTRO_SECOND_DELAY_MS = 1150;
 
 function sleep(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -71,9 +121,36 @@ function withJitter(baseMs: number) {
   return Math.max(850, baseMs + jitter);
 }
 
+function normalizeBirthDateInput(nextValue: string) {
+  const parts = nextValue.split("-");
+  if (parts.length !== 3) {
+    return nextValue;
+  }
+
+  const [year, month, day] = parts;
+  if (year.length <= 4) {
+    return nextValue;
+  }
+
+  return `${year.slice(-4)}-${month}-${day}`;
+}
+
 export default function SintomasPage() {
   const router = useRouter();
   const [symptomsText, setSymptomsText] = useState("");
+  const [nameFields, setNameFields] = useState<PatientNameFields>({
+    firstName: "",
+    paternalSurname: "",
+    maternalSurname: "",
+  });
+  const [rut, setRut] = useState("");
+  const [rutNormalized, setRutNormalized] = useState("");
+  const [rutTouched, setRutTouched] = useState(false);
+  const [sex, setSex] = useState<SexSelection>("");
+  const [birthDate, setBirthDate] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
   const [status, setStatus] = useState<ProcessingState>("idle");
   const [progress, setProgress] = useState(0);
   const [messageIndex, setMessageIndex] = useState(0);
@@ -85,16 +162,112 @@ export default function SintomasPage() {
     surgicalHistory: "",
     chronicMedication: "",
     allergies: "",
+    smoking: "",
+    alcoholUse: "",
+    drugUse: "",
+    sexualActivity: "",
+    firstDegreeFamilyHistory: "",
+    occupation: "",
   });
   const [antecedentInput, setAntecedentInput] = useState("");
   const [antecedentQuestionIndex, setAntecedentQuestionIndex] = useState(0);
   const [isAntecedentBotTyping, setIsAntecedentBotTyping] = useState(false);
   const typingTimeoutRef = useRef<number | null>(null);
+  const introTimeoutsRef = useRef<number[]>([]);
+  const antecedentChatViewportRef = useRef<HTMLDivElement | null>(null);
+  const antecedentChatEndRef = useRef<HTMLDivElement | null>(null);
+  const rutInputRef = useRef<HTMLInputElement | null>(null);
+
+  const hasEnoughRutInput = rutNormalized.length >= 8;
+  const rutIsValid = rutNormalized ? isValidRut(rutNormalized) : false;
+  const showRutInvalid = Boolean(rutNormalized) && (rutTouched || hasEnoughRutInput) && !rutIsValid;
+  const missingRequiredFields = useMemo(() => {
+    const missing: string[] = [];
+    if (!nameFields.firstName.trim()) missing.push("Nombre");
+    if (!nameFields.paternalSurname.trim()) missing.push("Apellido paterno");
+    if (!nameFields.maternalSurname.trim()) missing.push("Apellido materno");
+    if (!rut.trim()) missing.push("RUT");
+    if (!sex) missing.push("Sexo");
+    if (!birthDate) missing.push("Fecha de nacimiento");
+    return missing;
+  }, [birthDate, nameFields, rut, sex]);
 
   const canSubmit = useMemo(
-    () => symptomsText.trim().length >= MIN_TEXT_LENGTH && status !== "processing",
-    [symptomsText, status],
+    () =>
+      symptomsText.trim().length >= MIN_TEXT_LENGTH &&
+      status !== "processing" &&
+      missingRequiredFields.length === 0 &&
+      rutIsValid,
+    [symptomsText, status, missingRequiredFields.length, rutIsValid],
   );
+  const patientAge = useMemo(() => calculateAgeFromBirthDate(birthDate), [birthDate]);
+
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        window.clearTimeout(typingTimeoutRef.current);
+      }
+      introTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
+      introTimeoutsRef.current = [];
+    };
+  }, []);
+
+  useEffect(() => {
+    if (status !== "antecedents") {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      const viewport = antecedentChatViewportRef.current;
+      if (viewport) {
+        viewport.scrollTo({
+          top: viewport.scrollHeight,
+          behavior: "smooth",
+        });
+        return;
+      }
+
+      antecedentChatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    });
+  }, [status, antecedentMessages, isAntecedentBotTyping]);
+
+  function clearIntroTimeouts() {
+    introTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
+    introTimeoutsRef.current = [];
+  }
+
+  function calculateCaretPosition(formattedValue: string, normalizedLengthBeforeCaret: number) {
+    if (normalizedLengthBeforeCaret <= 0) return 0;
+    let seen = 0;
+    for (let i = 0; i < formattedValue.length; i += 1) {
+      if (/[\dK]/.test(formattedValue[i])) {
+        seen += 1;
+      }
+      if (seen >= normalizedLengthBeforeCaret) {
+        return i + 1;
+      }
+    }
+    return formattedValue.length;
+  }
+
+  function handleRutChange(nextRawValue: string, caretPos: number | null) {
+    const normalized = normalizeRut(nextRawValue);
+    const formatted = formatRut(normalized);
+
+    let nextCaretPosition = formatted.length;
+    if (caretPos !== null) {
+      const normalizedBeforeCaret = normalizeRut(nextRawValue.slice(0, caretPos));
+      nextCaretPosition = calculateCaretPosition(formatted, normalizedBeforeCaret.length);
+    }
+
+    setRut(formatted);
+    setRutNormalized(normalized);
+
+    window.requestAnimationFrame(() => {
+      if (!rutInputRef.current) return;
+      rutInputRef.current.setSelectionRange(nextCaretPosition, nextCaretPosition);
+    });
+  }
 
   async function runInterpretation() {
     setStatus("processing");
@@ -111,6 +284,11 @@ export default function SintomasPage() {
         },
         body: JSON.stringify({
           symptomsText: symptomsText.trim(),
+          antecedents: antecedentAnswers,
+          patientContext: {
+            sex,
+            age: patientAge,
+          },
         }),
       });
 
@@ -142,6 +320,14 @@ export default function SintomasPage() {
         finalizedPayload.nextStep?.storageKey ?? STORAGE_KEY,
         JSON.stringify({
           input: symptomsText.trim(),
+          patient: {
+            fullName: joinPatientFullName(nameFields),
+            rut,
+            birthDate,
+            email,
+            phone,
+            address,
+          },
           antecedents: antecedentAnswers,
           output: finalizedPayload.interpretation,
           engineVersion: finalizedPayload.engineVersion,
@@ -164,6 +350,11 @@ export default function SintomasPage() {
   }
 
   function startAntecedentChat() {
+    if (typingTimeoutRef.current) {
+      window.clearTimeout(typingTimeoutRef.current);
+    }
+    clearIntroTimeouts();
+
     setError("");
     setResult(null);
     setAntecedentInput("");
@@ -173,24 +364,54 @@ export default function SintomasPage() {
       surgicalHistory: "",
       chronicMedication: "",
       allergies: "",
+      smoking: "",
+      alcoholUse: "",
+      drugUse: "",
+      sexualActivity: "",
+      firstDegreeFamilyHistory: "",
+      occupation: "",
     });
-    setAntecedentMessages([
-      {
-        id: "ant-intro",
-        role: "assistant",
-        text: "Antes de continuar, te haré 4 preguntas breves de antecedentes.",
-      },
-      {
-        id: `ant-q-${ANTECEDENT_QUESTIONS[0].key}`,
-        role: "assistant",
-        text: ANTECEDENT_QUESTIONS[0].prompt,
-      },
-    ]);
+    setAntecedentMessages([]);
+    setIsAntecedentBotTyping(true);
     setStatus("antecedents");
+
+    const introTimeout = window.setTimeout(() => {
+      setAntecedentMessages((current) => [
+        ...current,
+        {
+          id: "ant-intro",
+          role: "assistant",
+          text: ANTECEDENT_INTRO_MESSAGE,
+        },
+      ]);
+    }, ANTECEDENT_INTRO_FIRST_DELAY_MS);
+    introTimeoutsRef.current.push(introTimeout);
+
+    const firstQuestionTimeout = window.setTimeout(() => {
+      setAntecedentMessages((current) => [
+        ...current,
+        {
+          id: `ant-q-${ANTECEDENT_QUESTIONS[0].key}`,
+          role: "assistant",
+          text: ANTECEDENT_QUESTIONS[0].prompt,
+        },
+      ]);
+      setIsAntecedentBotTyping(false);
+    }, ANTECEDENT_INTRO_SECOND_DELAY_MS);
+    introTimeoutsRef.current.push(firstQuestionTimeout);
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (missingRequiredFields.length > 0) {
+      setError(`Completa los campos obligatorios: ${missingRequiredFields.join(", ")}.`);
+      return;
+    }
+    if (!rutIsValid) {
+      setRutTouched(true);
+      setError("Ingresa un RUT válido para continuar.");
+      return;
+    }
     if (!canSubmit) {
       return;
     }
@@ -257,6 +478,11 @@ export default function SintomasPage() {
   }
 
   function handleReset() {
+    if (typingTimeoutRef.current) {
+      window.clearTimeout(typingTimeoutRef.current);
+    }
+    clearIntroTimeouts();
+
     setStatus("idle");
     setProgress(0);
     setMessageIndex(0);
@@ -271,6 +497,12 @@ export default function SintomasPage() {
       surgicalHistory: "",
       chronicMedication: "",
       allergies: "",
+      smoking: "",
+      alcoholUse: "",
+      drugUse: "",
+      sexualActivity: "",
+      firstDegreeFamilyHistory: "",
+      occupation: "",
     });
   }
 
@@ -288,18 +520,21 @@ export default function SintomasPage() {
           Evaluación de síntomas
         </div>
 
-        <h1 className="mt-6 text-balance text-center text-4xl font-semibold tracking-tight text-slate-950 md:text-5xl">
-          Escribe tus síntomas acá
-        </h1>
-        <p className="mx-auto mt-4 max-w-2xl text-balance text-center text-base leading-8 text-slate-600">
-          Puedes escribir en texto libre lo que sientes. Usaremos IA para ordenar la información y
-          guiarte hacia una evaluación clínica precisa.
-        </p>
+        {(status === "idle" || status === "antecedents") && (
+          <>
+            <h1 className="mt-6 text-balance text-center text-4xl font-semibold tracking-tight text-slate-950 md:text-5xl">
+              Escribe tus síntomas acá
+            </h1>
+            <p className="mx-auto mt-4 max-w-2xl whitespace-pre-line text-balance text-center text-base leading-8 text-slate-600">
+              {"Puedes escribir lo que sientes de la forma que quieras.\nUsamos IA para clasificar tus síntomas y guiarte hacia una evaluación clínica precisa."}
+            </p>
+          </>
+        )}
 
         <section className="mt-2 rounded-[2rem] border border-slate-200 bg-white p-5 shadow-[0_24px_70px_-52px_rgba(15,23,42,0.55)] md:p-8">
           {status === "idle" ? (
             <form onSubmit={handleSubmit}>
-              <label htmlFor="symptoms-text" className="text-sm font-semibold text-slate-700">
+              <label htmlFor="symptoms-text" className="block text-sm font-semibold text-slate-700">
                 Cuéntanos qué estás sintiendo 🤖
               </label>
               <div className="relative mt-3">
@@ -314,8 +549,113 @@ export default function SintomasPage() {
               </div>
 
               <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
-                <span>Texto libre, en tus palabras. No necesitas términos médicos.</span>
+                <span>Tus síntomas, en tus palabras. No necesitas usar términos médicos.</span>
                 <span>{symptomsText.trim().length} caracteres</span>
+              </div>
+
+              <div className="mt-6 rounded-3xl bg-slate-50 p-5">
+                <p className="text-sm font-semibold text-slate-900">
+                  Y rellena tus datos para poder emitir tu receta
+                </p>
+
+                <div className="mt-5 grid gap-5">
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <Field label="Nombre *">
+                      <input
+                        className={inputCls}
+                        value={nameFields.firstName}
+                        onChange={(event) =>
+                          setNameFields((current) => ({ ...current, firstName: event.target.value }))
+                        }
+                      />
+                    </Field>
+                    <Field label="Apellido paterno *">
+                      <input
+                        className={inputCls}
+                        value={nameFields.paternalSurname}
+                        onChange={(event) =>
+                          setNameFields((current) => ({
+                            ...current,
+                            paternalSurname: event.target.value,
+                          }))
+                        }
+                      />
+                    </Field>
+                    <Field label="Apellido materno *">
+                      <input
+                        className={inputCls}
+                        value={nameFields.maternalSurname}
+                        onChange={(event) =>
+                          setNameFields((current) => ({
+                            ...current,
+                            maternalSurname: event.target.value,
+                          }))
+                        }
+                      />
+                    </Field>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <Field label="RUT *">
+                      <input
+                        ref={rutInputRef}
+                        className={showRutInvalid ? errorInputCls : inputCls}
+                        value={rut}
+                        onChange={(event) => handleRutChange(event.target.value, event.target.selectionStart)}
+                        onBlur={() => setRutTouched(true)}
+                        inputMode="text"
+                        autoComplete="off"
+                        placeholder="12.345.678-5"
+                      />
+                      {showRutInvalid ? <p className="text-xs text-rose-600">RUT inválido.</p> : null}
+                    </Field>
+                    <Field label="Sexo *">
+                      <select
+                        className={inputCls}
+                        value={sex}
+                        onChange={(event) => setSex(event.target.value as SexSelection)}
+                      >
+                        <option value="">Seleccionar</option>
+                        <option value="female">Femenino</option>
+                        <option value="male">Masculino</option>
+                      </select>
+                    </Field>
+                    <Field label="Fecha de nacimiento *">
+                      <input
+                        className={inputCls}
+                        type="date"
+                        value={birthDate}
+                        onChange={(event) => setBirthDate(normalizeBirthDateInput(event.target.value))}
+                      />
+                    </Field>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Field label="Correo electrónico">
+                      <input
+                        className={inputCls}
+                        type="email"
+                        value={email}
+                        onChange={(event) => setEmail(event.target.value)}
+                      />
+                    </Field>
+                    <Field label="Teléfono">
+                      <input
+                        className={inputCls}
+                        value={phone}
+                        onChange={(event) => setPhone(event.target.value)}
+                      />
+                    </Field>
+                  </div>
+
+                  <Field label="Dirección">
+                    <input
+                      className={inputCls}
+                      value={address}
+                      onChange={(event) => setAddress(event.target.value)}
+                    />
+                  </Field>
+                </div>
               </div>
 
               <button
@@ -323,7 +663,7 @@ export default function SintomasPage() {
                 disabled={!canSubmit}
                 className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
               >
-                Contar mis síntomas
+                Continuar con evaluación
               </button>
 
               {error ? (
@@ -336,7 +676,10 @@ export default function SintomasPage() {
             <div>
               <p className="text-sm font-semibold text-slate-700">Antecedentes clínicos</p>
               <div className="mt-4 rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                <div className="max-h-[40vh] space-y-3 overflow-y-auto pr-1">
+                <div
+                  ref={antecedentChatViewportRef}
+                  className="max-h-[40vh] space-y-3 overflow-y-auto pr-1"
+                >
                   {antecedentMessages.map((message) => (
                     <div
                       key={message.id}
@@ -372,6 +715,7 @@ export default function SintomasPage() {
                       </div>
                     </div>
                   ) : null}
+                  <div ref={antecedentChatEndRef} />
                 </div>
               </div>
 
@@ -430,13 +774,23 @@ export default function SintomasPage() {
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
                   Tu relato
                 </p>
-                <p className="mt-2">
-                  Antecedentes médicos: {antecedentAnswers.medicalHistory || "No reportado"}
-                </p>
+                <p className="mt-2">Sexo: {formatSexLabel(sex)}</p>
+                <p>Edad: {patientAge > 0 ? `${patientAge} años` : "No reportada"}</p>
+                <p>Síntomas del paciente: {symptomsText.trim() || "No reportado"}</p>
+                <p className="mt-2 font-semibold text-slate-800">Antecedentes:</p>
+                <p>Antecedentes médicos: {antecedentAnswers.medicalHistory || "No reportado"}</p>
                 <p>Antecedentes quirúrgicos: {antecedentAnswers.surgicalHistory || "No reportado"}</p>
                 <p>Fármacos: {antecedentAnswers.chronicMedication || "No reportado"}</p>
                 <p>Alergias: {antecedentAnswers.allergies || "No reportado"}</p>
-                <p className="mt-2">Síntomas del paciente: {symptomsText.trim() || "No reportado"}</p>
+                <p>Tabaco: {antecedentAnswers.smoking || "No reportado"}</p>
+                <p>Alcohol: {antecedentAnswers.alcoholUse || "No reportado"}</p>
+                <p>Drogas: {antecedentAnswers.drugUse || "No reportado"}</p>
+                <p>Actividad sexual: {antecedentAnswers.sexualActivity || "No reportado"}</p>
+                <p>
+                  Antecedentes familiares (1er grado):{" "}
+                  {antecedentAnswers.firstDegreeFamilyHistory || "No reportado"}
+                </p>
+                <p>Ocupación: {antecedentAnswers.occupation || "No reportado"}</p>
               </div>
               <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
                 Entendimos tu consulta como…
@@ -545,3 +899,17 @@ function InfoPill({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+function Field({ label, children }: { label: ReactNode; children: ReactNode }) {
+  return (
+    <label className="grid gap-2">
+      <span className="text-sm font-medium">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+const inputCls =
+  "w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200";
+const errorInputCls =
+  "w-full rounded-xl border border-rose-400 bg-white px-3 py-2 text-sm outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-200";

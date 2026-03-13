@@ -1,3 +1,5 @@
+import { getExamMetadataByName, getExamSampleTypeByName } from "@/lib/exam-master-catalog";
+
 export type Sex = "M" | "F";
 export type Smoking = "never" | "former" | "current";
 export type SexualActivity = "yes" | "no";
@@ -47,6 +49,7 @@ export type TestItem = {
 export type TestSampleType =
   | "Sangre"
   | "Orina"
+  | "Deposiciones"
   | "Hisopado endocervical"
   | "Orina 2da micción muestra aislada"
   | "Secreción endocervical / orina de primer chorro / secreción vaginal";
@@ -83,20 +86,6 @@ export type StoredPayment = {
 };
 
 export const CHECKUP_PRICE_CLP = 1990;
-
-const TEST_SAMPLE_TYPE_MAP: Record<string, string> = {
-  "Orina completa": "Orina",
-  Urocultivo: "Orina",
-  "PCR de virus papiloma humano (VPH)": "Hisopado endocervical",
-  "PCR Chlamydia trachomatis y Neisseria gonorrhoeae":
-    "Secreción endocervical / orina de primer chorro / secreción vaginal",
-  "Razón albuminuria / creatininuria (RAC)": "Orina 2da micción muestra aislada",
-  "Razón albuminuria / creatininuria (RAC) en orina aislada": "Orina 2da micción muestra aislada",
-  "Razón proteinuria / creatininuria (IPC)": "Orina",
-  "Cuantificación de complemento C3": "Sangre",
-  "Cuantificación de complemento C4": "Sangre",
-  "Anticuerpos anti-DNA por ELISA": "Sangre",
-};
 
 export function splitPatientFullName(fullName: string): PatientNameFields {
   const parts = fullName
@@ -493,7 +482,7 @@ export function createPaymentId(timestamp = Date.now()) {
 }
 
 export function getTestSampleType(testName: string) {
-  return TEST_SAMPLE_TYPE_MAP[testName] ?? "Sangre";
+  return getExamSampleTypeByName(testName);
 }
 
 export function formatBirthDate(value: string) {
@@ -507,18 +496,12 @@ export function inferOrderDetails(tests: TestItem[]) {
   const sampleTypeSet = new Set(tests.map((test) => getTestSampleType(test.name)));
   const includesUrine =
     sampleTypeSet.has("Orina") || sampleTypeSet.has("Orina 2da micción muestra aislada");
-  const lowerTests = tests.map((test) => test.name.toLowerCase());
-  const needsFasting = lowerTests.some(
-    (name) =>
-      name.includes("glicemia") ||
-      name.includes("glucosa") ||
-      name.includes("perfil lip") ||
-      name.includes("hba1c") ||
-      name.includes("ptgo"),
-  );
+  const includesStool = sampleTypeSet.has("Deposiciones");
+  const needsFasting = tests.some((test) => Boolean(getExamMetadataByName(test.name)?.requiresFasting));
   const sampleTypes: string[] = [];
   if (sampleTypeSet.has("Sangre")) sampleTypes.push("Sangre");
   if (sampleTypeSet.has("Orina")) sampleTypes.push("Orina");
+  if (sampleTypeSet.has("Deposiciones")) sampleTypes.push("Deposiciones");
   if (sampleTypeSet.has("Hisopado endocervical")) sampleTypes.push("Hisopado endocervical");
   if (
     sampleTypeSet.has("Secreción endocervical / orina de primer chorro / secreción vaginal")
@@ -542,6 +525,11 @@ export function inferOrderDetails(tests: TestItem[]) {
   if (includesUrine) {
     preparation.push(
       "Para orina completa, idealmente usar la primera muestra de la mañana o retener al menos 3 horas.",
+    );
+  }
+  if (includesStool) {
+    preparation.push(
+      "Para exámenes en deposiciones, sigue las indicaciones del laboratorio para toma y conservación de muestra.",
     );
   }
   preparation.push("Mantén hidratación habitual y evita ejercicio intenso el día previo.");

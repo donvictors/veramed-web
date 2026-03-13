@@ -10,6 +10,7 @@ import {
   updateCheckupScreeningPreferences,
 } from "@/lib/checkup-api";
 import { inferOrderDetails } from "@/lib/checkup";
+import { getOrderCategoryByTestName } from "@/lib/order-categories";
 
 export default function SummaryPage() {
   const router = useRouter();
@@ -183,33 +184,12 @@ export default function SummaryPage() {
     return true;
   });
   const removedTests = data.rec.removedTests ?? [];
-  const imageExamNames = new Set([
-    "Mamografía bilateral",
-    "Ecografía mamaria",
-    "Ecografía abdominal",
-    "TC de tórax de baja dosis",
-    "Densitometría ósea",
-  ]);
-  const procedureNames = new Set([
-    "Holter de presión arterial (MAPA)",
-    "Tamizaje de cáncer cervicouterino",
-    "Papanicolau (PAP)",
-    "PCR de virus papiloma humano (VPH)",
-    "Cotesting (PAP+VPH)",
-    "Tamizaje de cáncer colorrectal",
-    "Colonoscopía total",
-    "Electrocardiograma (ECG)",
-    "Espirometría basal y post broncodilatador",
-  ]);
   const summaryCounts = displayedTests.reduce(
     (acc, test) => {
-      if (imageExamNames.has(test.name)) {
-        acc.image += 1;
-      } else if (procedureNames.has(test.name)) {
-        acc.procedure += 1;
-      } else {
-        acc.laboratory += 1;
-      }
+      const category = getOrderCategoryByTestName(test.name);
+      if (category === "image") acc.image += 1;
+      else if (category === "procedure") acc.procedure += 1;
+      else acc.laboratory += 1;
 
       return acc;
     },

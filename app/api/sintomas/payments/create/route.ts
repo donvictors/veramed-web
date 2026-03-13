@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { buildTransbankTransaction, getAppUrl } from "@/lib/server/transbank/config";
 import { parseCreateResponse } from "@/lib/server/transbank/normalize";
+import {
+  calculateDiscountedAmount,
+  getDiscountByCode,
+  normalizeDiscountCode,
+} from "@/lib/discount-codes";
 
 export const runtime = "nodejs";
 
@@ -12,6 +17,7 @@ const MAX_SESSION_ID_LENGTH = 61;
 type Payload = {
   orderId?: string;
   sessionId?: string;
+  discountCode?: string;
 };
 
 function clean(value: unknown) {
@@ -21,6 +27,7 @@ function clean(value: unknown) {
 function validatePayload(payload: Payload) {
   const orderId = clean(payload.orderId);
   const sessionId = clean(payload.sessionId);
+  const discountCode = normalizeDiscountCode(clean(payload.discountCode));
 
   if (!orderId) {
     return { ok: false, error: "orderId es obligatorio." } as const;
@@ -47,6 +54,7 @@ function validatePayload(payload: Payload) {
     value: {
       orderId,
       sessionId,
+      discountCode,
     },
   } as const;
 }
@@ -66,12 +74,23 @@ export async function POST(request: Request) {
   }
 
   try {
+    if (
+      validation.value.discountCode &&
+      !getDiscountByCode(validation.value.discountCode)
+    ) {
+      return NextResponse.json({ error: "Código de descuento inválido." }, { status: 400 });
+    }
+
+    const pricing = calculateDiscountedAmount(
+      SYMPTOMS_PRICE_CLP,
+      validation.value.discountCode,
+    );
     const returnUrl = `${getAppUrl()}/api/sintomas/payments/return`;
     const transaction = buildTransbankTransaction();
     const raw = await transaction.create(
       validation.value.orderId,
       validation.value.sessionId,
-      SYMPTOMS_PRICE_CLP,
+      pricing.finalAmount,
       returnUrl,
     );
     const parsed = parseCreateResponse(raw);
@@ -83,7 +102,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       token: parsed.token,
       url: parsed.url,
-      amount: SYMPTOMS_PRICE_CLP,
+      amount: pricing.finalAmount,
       redirectUrl: `${parsed.url}?token_ws=${encodeURIComponent(parsed.token)}`,
     });
   } catch (error) {

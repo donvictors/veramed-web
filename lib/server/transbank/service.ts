@@ -29,6 +29,11 @@ import {
   parseCreateResponse,
   toNormalizedStatus,
 } from "@/lib/server/transbank/normalize";
+import {
+  calculateDiscountedAmount,
+  getDiscountByCode,
+  normalizeDiscountCode,
+} from "@/lib/discount-codes";
 
 const BUY_ORDER_PATTERN = /^[A-Za-z0-9_-]+$/;
 const MAX_BUY_ORDER_LENGTH = 26;
@@ -38,6 +43,7 @@ export type CreateTransbankPaymentInput = {
   orderId: string;
   sessionId: string;
   amount: number;
+  discountCode?: string;
 };
 
 export type NormalizedCommitResult = {
@@ -309,6 +315,7 @@ export function validateCreatePayload(
   const orderId = cleanText(data.orderId);
   const sessionId = cleanText(data.sessionId);
   const amount = data.amount;
+  const discountCode = normalizeDiscountCode(cleanText(data.discountCode));
 
   if (!orderId) {
     return { ok: false, error: "orderId es obligatorio." };
@@ -349,6 +356,7 @@ export function validateCreatePayload(
       orderId,
       sessionId,
       amount,
+      discountCode,
     },
   };
 }
@@ -382,6 +390,9 @@ export async function createTransbankPayment(
   },
 ) {
   const target = await resolveOrderTarget(input.orderId);
+  const normalizedDiscountCode = normalizeDiscountCode(input.discountCode);
+  const appliedDiscount = getDiscountByCode(normalizedDiscountCode);
+  const pricing = calculateDiscountedAmount(target.expectedAmount, normalizedDiscountCode);
 
   if (target.userId) {
     if (actor?.userId !== target.userId) {
@@ -402,7 +413,11 @@ export async function createTransbankPayment(
     }
   }
 
-  if (target.expectedAmount !== input.amount) {
+  if (normalizedDiscountCode && !appliedDiscount) {
+    throw new Error("Código de descuento inválido.");
+  }
+
+  if (pricing.finalAmount !== input.amount) {
     throw new Error("El monto no coincide con el valor de la solicitud.");
   }
 
@@ -419,7 +434,12 @@ export async function createTransbankPayment(
 
   const returnUrl = `${getAppUrl()}/api/payments/transbank/return`;
   const transaction = buildTransbankTransaction();
-  const createRaw = await transaction.create(input.orderId, input.sessionId, input.amount, returnUrl);
+  const createRaw = await transaction.create(
+    input.orderId,
+    input.sessionId,
+    pricing.finalAmount,
+    returnUrl,
+  );
   const parsed = parseCreateResponse(createRaw);
 
   if (!parsed) {
@@ -431,7 +451,7 @@ export async function createTransbankPayment(
     sessionId: input.sessionId,
     requestType: target.requestType,
     requestId: target.requestId,
-    amount: input.amount,
+    amount: pricing.finalAmount,
     token: parsed.token,
     url: parsed.url,
   });

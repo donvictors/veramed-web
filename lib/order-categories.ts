@@ -1,34 +1,9 @@
+import { getExamCategoryByName } from "@/lib/exam-master-catalog";
+
 export type OrderCategory = "laboratory" | "image" | "procedure" | "interconsultation";
 
-const IMAGE_TESTS = new Set([
-  "Ecografía abdominal",
-  "Mamografía bilateral",
-  "Ecografía mamaria",
-  "TC de tórax de baja dosis",
-  "Densitometría ósea",
-  "Radiografía de tórax",
-]);
-
-const PROCEDURE_TESTS = new Set([
-  "Holter de presión arterial (MAPA)",
-  "Tamizaje de cáncer cervicouterino",
-  "Papanicolau (PAP)",
-  "Cotesting (PAP+VPH)",
-  "Tamizaje de cáncer colorrectal",
-  "Colonoscopía total",
-  "Electrocardiograma (ECG)",
-  "Espirometría basal y post broncodilatador",
-  "Estudio de capacidad de difusion (DLCO)",
-  "Test de caminata en 6 minutos",
-]);
-
-const INTERCONSULTATION_TESTS = new Set(["Fondo de ojo"]);
-
 export function getOrderCategoryByTestName(testName: string): OrderCategory {
-  if (INTERCONSULTATION_TESTS.has(testName)) return "interconsultation";
-  if (IMAGE_TESTS.has(testName)) return "image";
-  if (PROCEDURE_TESTS.has(testName)) return "procedure";
-  return "laboratory";
+  return getExamCategoryByName(testName);
 }
 
 export function parseOrderCategory(value: string | null): OrderCategory | null {

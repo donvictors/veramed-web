@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useEffect, useRef, useState } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -14,6 +14,7 @@ import {
   getChronicControlTotalPrice,
   medicationLabel,
 } from "@/lib/chronic-control";
+import { calculateDiscountedAmount, getDiscountByCode } from "@/lib/discount-codes";
 import { useRequestId } from "@/lib/use-request-id";
 
 export default function ChronicControlPaymentPage() {
@@ -21,6 +22,9 @@ export default function ChronicControlPaymentPage() {
   const [data, setData] = useState<ChronicControlApiRecord | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [discountCode, setDiscountCode] = useState("");
+  const [discountError, setDiscountError] = useState("");
+  const [appliedDiscountCode, setAppliedDiscountCode] = useState("");
   const createRequestLockRef = useRef(false);
   const { requestId, resolved } = useRequestId();
 
@@ -46,6 +50,10 @@ export default function ChronicControlPaymentPage() {
   }, [requestId, resolved, router]);
 
   const totalAmount = data ? getChronicControlTotalPrice(data.rec) : 0;
+  const pricing = useMemo(
+    () => calculateDiscountedAmount(totalAmount, appliedDiscountCode),
+    [totalAmount, appliedDiscountCode],
+  );
 
   async function handlePayment() {
     if (createRequestLockRef.current || isSubmitting) {
@@ -69,7 +77,8 @@ export default function ChronicControlPaymentPage() {
         body: JSON.stringify({
           orderId: requestId,
           sessionId: `chronic-${requestId}`,
-          amount: totalAmount,
+          amount: pricing.finalAmount,
+          discountCode: appliedDiscountCode || undefined,
         }),
       });
 
@@ -91,6 +100,25 @@ export default function ChronicControlPaymentPage() {
   }
 
   if (!data) return null;
+
+  function handleApplyDiscount() {
+    const normalized = discountCode.trim().toUpperCase();
+    if (!normalized) {
+      setAppliedDiscountCode("");
+      setDiscountError("");
+      return;
+    }
+
+    const discount = getDiscountByCode(normalized);
+    if (!discount) {
+      setAppliedDiscountCode("");
+      setDiscountError("Código no válido");
+      return;
+    }
+
+    setAppliedDiscountCode(discount.code);
+    setDiscountError("");
+  }
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
@@ -124,9 +152,16 @@ export default function ChronicControlPaymentPage() {
                     {data.conditions.map(conditionLabel).join(", ")}
                   </p>
                 </div>
-                <p className="text-2xl font-semibold text-slate-950">
-                  ${totalAmount.toLocaleString("es-CL")}
-                </p>
+                <div className="text-right">
+                  {pricing.discount ? (
+                    <p className="text-sm font-medium text-slate-500 line-through">
+                      ${pricing.baseAmount.toLocaleString("es-CL")}
+                    </p>
+                  ) : null}
+                  <p className="text-2xl font-semibold text-slate-950">
+                    ${pricing.finalAmount.toLocaleString("es-CL")}
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -142,6 +177,12 @@ export default function ChronicControlPaymentPage() {
                 }
               />
               <SummaryRow label="Cobro" value="Pago único por emisión clínica" />
+              {pricing.discount ? (
+                <SummaryRow
+                  label="Descuento aplicado"
+                  value={`${pricing.discount.label} (-$${pricing.discountAmount.toLocaleString("es-CL")})`}
+                />
+              ) : null}
             </div>
 
             <Link
@@ -162,6 +203,41 @@ export default function ChronicControlPaymentPage() {
             <p className="mt-3 text-sm leading-6 text-slate-600">
               Serás redirigido a Webpay Plus para pagar de forma segura.
             </p>
+
+            <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                Código de descuento
+              </p>
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                <input
+                  value={discountCode}
+                  onChange={(event) => {
+                    setDiscountCode(event.target.value.toUpperCase());
+                    setDiscountError("");
+                    if (appliedDiscountCode) {
+                      setAppliedDiscountCode("");
+                    }
+                  }}
+                  placeholder="Ingresa tu código"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+                />
+                <button
+                  type="button"
+                  onClick={handleApplyDiscount}
+                  className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
+                >
+                  Aplicar
+                </button>
+              </div>
+              {discountError ? (
+                <p className="mt-2 text-xs font-medium text-rose-600">{discountError}</p>
+              ) : null}
+              {pricing.discount ? (
+                <p className="mt-2 text-xs font-medium text-emerald-700">
+                  Código aplicado. Nuevo total: ${pricing.finalAmount.toLocaleString("es-CL")}
+                </p>
+              ) : null}
+            </div>
 
             <button
               onClick={handlePayment}

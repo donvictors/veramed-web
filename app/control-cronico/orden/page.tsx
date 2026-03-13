@@ -14,6 +14,7 @@ import {
   formatBirthDate,
   inferOrderDetails,
 } from "@/lib/checkup";
+import { getExamObservationForOrder } from "@/lib/exam-master-catalog";
 import {
   conditionLabel,
   hasGeneralCheckupAddon,
@@ -787,29 +788,5 @@ function OrderFooter({
 }
 
 function getPreparationNote(testName: string, needsFasting: boolean, category: OrderCategory) {
-  if (category === "image") {
-    return "Verifica con el centro si requiere preparación específica antes del examen.";
-  }
-
-  if (category === "procedure") {
-    return "Requiere coordinación e indicaciones específicas según el procedimiento.";
-  }
-
-  if (category === "interconsultation") {
-    return "Corresponde a orden de derivación para evaluación por especialista.";
-  }
-
-  const lowerName = testName.toLowerCase();
-  if (lowerName.includes("orina")) {
-    return "Idealmente usar muestra de la mañana.";
-  }
-  if (
-    needsFasting &&
-    (lowerName.includes("glicemia") ||
-      lowerName.includes("perfil lip") ||
-      lowerName.includes("hba1c"))
-  ) {
-    return "Requiere ayuno de 8 horas.";
-  }
-  return "No requiere preparación especial.";
+  return getExamObservationForOrder(testName, { needsFasting, category });
 }

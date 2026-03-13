@@ -1,4 +1,5 @@
 export type SymptomsInterpretation = {
+  flowId?: string;
   primarySymptom: string;
   probableContext: string;
   consultationFrame: string;
@@ -15,13 +16,16 @@ export type SymptomsInterpretationResult = {
 
 const RULES: Array<{
   id: string;
+  flowId: string;
   matchers: RegExp[];
   interpretation: Omit<SymptomsInterpretation, "urgencyWarning">;
 }> = [
   {
     id: "urinary-lower-tract",
+    flowId: "dysuria_lower_uti",
     matchers: [/ardor/i, /orina/i, /orinar/i, /disuria/i, /urinaria/i, /bañ[oó]/i],
     interpretation: {
+      flowId: "dysuria_lower_uti",
       primarySymptom: "Disuria / molestias urinarias",
       probableContext: "Síntomas urinarios bajos",
       consultationFrame: "Relato compatible con molestias urinarias de inicio ambulatorio",
@@ -32,8 +36,10 @@ const RULES: Array<{
   },
   {
     id: "headache",
+    flowId: "headache",
     matchers: [/dolor de cabeza/i, /cefalea/i, /migra/i, /n[áa]usea/i, /fotofobia/i],
     interpretation: {
+      flowId: "headache",
       primarySymptom: "Cefalea",
       probableContext: "Síntomas neurológicos no focales",
       consultationFrame: "Relato compatible con cuadro de cefalea a precisar",
@@ -44,8 +50,10 @@ const RULES: Array<{
   },
   {
     id: "respiratory",
+    flowId: "acute_cough",
     matchers: [/tos/i, /falta de aire/i, /disnea/i, /respirar/i, /pecho/i, /escaleras/i],
     interpretation: {
+      flowId: "acute_cough",
       primarySymptom: "Síntomas respiratorios",
       probableContext: "Cuadro respiratorio subagudo",
       consultationFrame: "Relato compatible con síntomas respiratorios en evaluación ambulatoria",
@@ -56,8 +64,10 @@ const RULES: Array<{
   },
   {
     id: "digestive",
+    flowId: "acute_abdominal_pain",
     matchers: [/abdomen/i, /guata/i, /v[óo]mito/i, /diarrea/i, /n[áa]usea/i, /digest/i],
     interpretation: {
+      flowId: "acute_abdominal_pain",
       primarySymptom: "Síntomas gastrointestinales",
       probableContext: "Molestias digestivas en evaluación ambulatoria",
       consultationFrame: "Relato compatible con cuadro digestivo inespecífico",
@@ -98,6 +108,7 @@ export function interpretSymptomsText(rawText: string): SymptomsInterpretation {
   }
 
   return {
+    flowId: "fatigue_weight_loss_general_symptoms",
     primarySymptom: "Síntomas generales",
     probableContext: "Motivo de consulta ambulatorio inespecífico",
     consultationFrame: "Relato clínico inicial en clasificación",

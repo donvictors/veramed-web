@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { calculateDiscountedAmount, getDiscountByCode } from "@/lib/discount-codes";
+import type { StoredSymptomsIntakeDraft } from "@/lib/symptoms-order";
 
 const SYMPTOMS_PRICE_CLP = 5990;
 const SYMPTOMS_STORAGE_KEY = "veramed_symptoms_intake_v1";
@@ -17,21 +19,46 @@ function buildClientOrderId() {
   return `symp_${now}${rand}`.slice(0, 26);
 }
 
+function readSymptomsDraft() {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(SYMPTOMS_STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as StoredSymptomsIntakeDraft;
+  } catch {
+    return null;
+  }
+}
+
 function SymptomsPaymentContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const requestLockRef = useRef(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
-  const requestLockRef = useRef(false);
+  const [discountCode, setDiscountCode] = useState("");
+  const [discountError, setDiscountError] = useState("");
+  const [appliedDiscountCode, setAppliedDiscountCode] = useState("");
+  const [draft, setDraft] = useState<StoredSymptomsIntakeDraft | null>(() => readSymptomsDraft());
 
   const orderId = useMemo(() => buildClientOrderId(), []);
+  const pricing = useMemo(
+    () => calculateDiscountedAmount(SYMPTOMS_PRICE_CLP, appliedDiscountCode),
+    [appliedDiscountCode],
+  );
   const paymentError = searchParams.get("error");
 
   useEffect(() => {
-    const draft = window.sessionStorage.getItem(SYMPTOMS_STORAGE_KEY);
-    if (!draft) {
+    const storedDraft = readSymptomsDraft();
+    if (!storedDraft) {
       router.replace("/sintomas");
+      return;
     }
+    if (!storedDraft.patient?.fullName || !storedDraft.patient?.rut || !storedDraft.patient?.birthDate) {
+      router.replace("/sintomas");
+      return;
+    }
+    setDraft(storedDraft);
   }, [router]);
 
   useEffect(() => {
@@ -57,6 +84,11 @@ function SymptomsPaymentContent() {
       return;
     }
 
+    if (!draft?.patient?.fullName || !draft?.patient?.rut || !draft?.patient?.birthDate) {
+      setSubmitError("No encontramos los datos del paciente. Vuelve a /sintomas para continuar.");
+      return;
+    }
+
     try {
       requestLockRef.current = true;
       setIsSubmitting(true);
@@ -70,6 +102,7 @@ function SymptomsPaymentContent() {
         body: JSON.stringify({
           orderId,
           sessionId: `symptoms-${orderId}`,
+          discountCode: appliedDiscountCode || undefined,
         }),
       });
 
@@ -90,6 +123,28 @@ function SymptomsPaymentContent() {
     }
   }
 
+  if (!draft) {
+    return null;
+  }
+
+  function handleApplyDiscount() {
+    const normalized = discountCode.trim();
+    if (!normalized) {
+      setAppliedDiscountCode("");
+      setDiscountError("");
+      return;
+    }
+    const discount = getDiscountByCode(normalized);
+    if (!discount) {
+      setAppliedDiscountCode("");
+      setDiscountError("Código no válido");
+      return;
+    }
+
+    setAppliedDiscountCode(discount.code);
+    setDiscountError("");
+  }
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
       <div className="mx-auto max-w-5xl px-6 py-10 md:py-12">
@@ -103,66 +158,52 @@ function SymptomsPaymentContent() {
             y continúa con la evaluación de tus síntomas.
           </h1>
           <p className="mt-3 text-base leading-7 text-slate-600">
-            Al validar el pago, te llevaremos al flujo clínico guiado para continuar con tu orden.
+            Revisa los datos de tu solicitud y serás redirigido a Webpay Plus para completar el pago.
           </p>
           <p className="mt-2 text-sm font-medium text-slate-700">
             Monto a cobrar:{" "}
-            <span className="font-semibold text-slate-900">${SYMPTOMS_PRICE_CLP.toLocaleString("es-CL")}</span>
+            <span className="font-semibold text-slate-900">${pricing.finalAmount.toLocaleString("es-CL")}</span>
             .
           </p>
+          {pricing.discount ? (
+            <p className="mt-1 text-sm text-slate-500">
+              Precio base: <span className="line-through">${pricing.baseAmount.toLocaleString("es-CL")}</span>
+            </p>
+          ) : null}
         </div>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
           <section className="rounded-[2rem] border border-slate-200 bg-white p-6">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
-              Resumen de cobro
+              Resumen de solicitud
             </p>
             <div className="mt-5 rounded-3xl bg-slate-50 p-5">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">Evaluación de síntomas Veramed</p>
-                  <p className="mt-1 text-sm text-slate-600">
-                    Incluye interpretación inicial, flujo guiado y emisión de orden sujeta a revisión
-                    médica.
-                  </p>
-                </div>
-                <p className="text-2xl font-semibold text-slate-950">
-                  ${SYMPTOMS_PRICE_CLP.toLocaleString("es-CL")}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-5 grid gap-3">
-              <SummaryRow label="Cobro" value="Pago único por evaluación clínica guiada" />
-              <SummaryRow label="Monto" value={`$${SYMPTOMS_PRICE_CLP.toLocaleString("es-CL")}`} />
-              <SummaryRow label="Pasarela" value="Webpay Plus (Transbank)" />
-            </div>
-
-            <div className="mt-5 rounded-3xl border border-slate-200 bg-white p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                Incluye
+              <p className="text-sm font-semibold text-slate-900">Paciente</p>
+              <p className="mt-1 text-sm text-slate-700">{draft.patient?.fullName}</p>
+              <p className="text-sm text-slate-600">{draft.patient?.rut}</p>
+              <p className="mt-3 text-sm font-semibold text-slate-900">Síntoma a evaluar</p>
+              <p className="mt-1 text-sm leading-6 text-slate-700">
+                {draft.output?.primarySymptom || draft.input}
               </p>
-              <div className="mt-3 grid gap-2 text-sm text-slate-700">
-                <div className="flex items-start gap-2">
-                  <span className="mt-0.5 text-emerald-600">✓</span>
-                  <span>Evaluación guiada de síntomas</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="mt-0.5 text-emerald-600">✓</span>
-                  <span>Sugerencia de exámenes para tu consulta</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="mt-0.5 text-emerald-600">✓</span>
-                  <span>Revisión médica</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="mt-0.5 text-emerald-600">✓</span>
-                  <span>Orden firmada si corresponde</span>
-                </div>
-              </div>
-              <div className="mt-4 inline-flex items-center rounded-full border border-slate-300 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700">
-                ⏱ Entrega dentro de 12 horas
-              </div>
+            </div>
+
+            <div className="mt-6 rounded-3xl bg-slate-50 p-5">
+              <p className="text-sm font-semibold text-slate-900">Esto incluye</p>
+              <ul className="mt-3 grid gap-2 text-sm text-slate-700">
+                <li className="flex items-start gap-2">
+                  <span className="mt-1 inline-block h-2 w-2 rounded-full bg-emerald-500" />
+                  <span>Refinamiento de tu motivo de consulta.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="mt-1 inline-block h-2 w-2 rounded-full bg-emerald-500" />
+                  <span>Sugerencia de exámenes para tu problema con IA.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="mt-1 inline-block h-2 w-2 rounded-full bg-emerald-500" />
+                  <span>Revisión médica y orden firmada a tu correo.</span>
+                </li>
+              </ul>
+              <p className="mt-4 text-sm font-medium text-slate-700">Entrega dentro de 12 horas.</p>
             </div>
 
             <Link
@@ -183,6 +224,43 @@ function SymptomsPaymentContent() {
             <p className="mt-3 text-sm leading-6 text-slate-600">
               Serás redirigido a Webpay Plus para pagar de forma segura.
             </p>
+
+            <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                ¿Tienes un código de descuento?
+              </p>
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                <input
+                  value={discountCode}
+                  onChange={(event) => {
+                    setDiscountCode(event.target.value.toUpperCase());
+                    if (discountError) {
+                      setDiscountError("");
+                    }
+                    if (appliedDiscountCode) {
+                      setAppliedDiscountCode("");
+                    }
+                  }}
+                  placeholder="Ingresa tu código"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+                />
+                <button
+                  type="button"
+                  onClick={handleApplyDiscount}
+                  className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
+                >
+                  Aplicar
+                </button>
+              </div>
+              {discountError ? (
+                <p className="mt-2 text-xs font-medium text-rose-600">{discountError}</p>
+              ) : null}
+              {pricing.discount ? (
+                <p className="mt-2 text-xs font-medium text-emerald-700">
+                  Código aplicado. Nuevo total: ${pricing.finalAmount.toLocaleString("es-CL")}
+                </p>
+              ) : null}
+            </div>
 
             <button
               onClick={handlePayment}
@@ -227,14 +305,5 @@ export default function SymptomsPaymentPage() {
     <Suspense fallback={null}>
       <SymptomsPaymentContent />
     </Suspense>
-  );
-}
-
-function SummaryRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm">
-      <span className="text-slate-500">{label}</span>
-      <span className="text-right font-semibold text-slate-900">{value}</span>
-    </div>
   );
 }

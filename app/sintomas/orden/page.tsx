@@ -1,265 +1,271 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useState } from "react";
 import Link from "next/link";
 import BrandLogo from "@/components/BrandLogo";
+import {
+  calculateAgeFromBirthDate,
+  formatBirthDate,
+  inferOrderDetails,
+  type TestItem,
+} from "@/lib/checkup";
+import { getExamObservationForOrder } from "@/lib/exam-master-catalog";
 import { getFonasaCodeByExamName } from "@/lib/fonasa-codes";
-import { getOrderCategoryByTestName, type OrderCategory } from "@/lib/order-categories";
-
-type TestItem = {
-  name: string;
-  why: string;
-};
-
-type SymptomsOrderDraft = {
-  id: string;
-  issuedAtMs: number;
-  verificationCode: string;
-  summary: string;
-  symptomsText: string;
-  interpretation: {
-    primarySymptom: string;
-    probableContext: string;
-    consultationFrame: string;
-    tags: string[];
-  };
-  answers: {
-    evolution?: string;
-    intensity?: string;
-    associated?: string;
-    background?: string;
-  };
-  tests: TestItem[];
-  notes: string[];
-};
-
-type AuthMeResponse = {
-  authenticated: boolean;
-  user: {
-    name: string;
-    profile?: {
-      email?: string;
-    };
-    email?: string;
-  } | null;
-};
+import {
+  getOrderCategoryByTestName,
+  getOrderCategoryMeta,
+  parseOrderCategory,
+  type OrderCategory,
+} from "@/lib/order-categories";
+import type { SymptomsOrderDraft } from "@/lib/symptoms-order";
 
 const STORAGE_KEY = "veramed_symptoms_order_v1";
-const ORDER_CATEGORIES: OrderCategory[] = ["laboratory", "image", "procedure", "interconsultation"];
+const ORDER_CATEGORIES: OrderCategory[] = [
+  "laboratory",
+  "image",
+  "procedure",
+  "interconsultation",
+];
+const LETTER_PRINT_CONFIG = {
+  cssSize: "letter portrait",
+  contentHeightMm: 257.4,
+  bodyHeightMm: 164,
+};
 
-function getCategoryLabel(category: OrderCategory) {
-  if (category === "image") return "Imágenes";
-  if (category === "procedure") return "Procedimientos";
-  if (category === "interconsultation") return "Interconsulta";
-  return "Laboratorio";
-}
-
-function getPreparationNote(testName: string, category: OrderCategory) {
-  if (category === "image") {
-    return "Verifica con el centro si requiere preparación específica.";
+function readOrderFromStorage() {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as SymptomsOrderDraft;
+  } catch {
+    return null;
   }
-  if (category === "procedure") {
-    return "Requiere coordinación previa con el centro de atención.";
-  }
-  if (category === "interconsultation") {
-    return "Corresponde a evaluación por especialista.";
-  }
-  const lower = testName.toLowerCase();
-  if (lower.includes("orina")) return "Idealmente usar muestra de la mañana.";
-  if (lower.includes("perfil lip") || lower.includes("glucosa")) return "Ayuno de 8 horas recomendado.";
-  return "No requiere preparación especial.";
 }
 
 export default function SymptomsOrderPage() {
-  const [order, setOrder] = useState<SymptomsOrderDraft | null>(null);
-  const [email, setEmail] = useState("");
-  const [sending, setSending] = useState(false);
-  const [emailFeedback, setEmailFeedback] = useState("");
+  const [order] = useState<SymptomsOrderDraft | null>(() => readOrderFromStorage());
+  const [selectedCategory, setSelectedCategory] = useState<OrderCategory>("laboratory");
 
-  useEffect(() => {
-    try {
-      const raw = window.sessionStorage.getItem(STORAGE_KEY);
-      if (!raw) {
-        setOrder(null);
-        return;
-      }
-      setOrder(JSON.parse(raw) as SymptomsOrderDraft);
-    } catch {
-      setOrder(null);
-    }
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    void fetch("/api/auth/me", { cache: "no-store" })
-      .then((res) => res.json() as Promise<AuthMeResponse>)
-      .then((payload) => {
-        if (!active) return;
-        const nextEmail = payload?.user?.profile?.email || payload?.user?.email || "";
-        if (nextEmail) setEmail(nextEmail);
-      })
-      .catch(() => undefined);
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  const categorized = useMemo(() => {
-    if (!order) {
-      return {
-        laboratory: [] as TestItem[],
-        image: [] as TestItem[],
-        procedure: [] as TestItem[],
-        interconsultation: [] as TestItem[],
-      };
-    }
-    return {
-      laboratory: order.tests.filter((test) => getOrderCategoryByTestName(test.name) === "laboratory"),
-      image: order.tests.filter((test) => getOrderCategoryByTestName(test.name) === "image"),
-      procedure: order.tests.filter((test) => getOrderCategoryByTestName(test.name) === "procedure"),
-      interconsultation: order.tests.filter(
-        (test) => getOrderCategoryByTestName(test.name) === "interconsultation",
-      ),
-    };
-  }, [order]);
-
-  async function handleSendEmail() {
-    if (!order || !email.trim() || sending) return;
-
-    setSending(true);
-    setEmailFeedback("");
-    try {
-      const response = await fetch("/api/sintomas/send-email", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          email: email.trim(),
-          orderId: order.id,
-          verificationCode: order.verificationCode,
-          orderLink: `${window.location.origin}/sintomas/orden`,
-        }),
-      });
-      const payload = (await response.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
-      if (!response.ok || !payload?.ok) {
-        throw new Error(payload?.error || "No pudimos enviar el correo.");
-      }
-      setEmailFeedback("Orden enviada correctamente a tu correo.");
-    } catch (error) {
-      setEmailFeedback(error instanceof Error ? error.message : "No pudimos enviar el correo.");
-    } finally {
-      setSending(false);
-    }
-  }
+  const queryParams =
+    typeof window === "undefined" ? null : new URLSearchParams(window.location.search);
+  const requestedCategory = parseOrderCategory(queryParams?.get("printCategory") || null);
 
   if (!order) {
     return (
       <main className="min-h-screen bg-slate-50 text-slate-900">
-        <div className="mx-auto max-w-3xl px-6 py-14">
-          <section className="rounded-[2rem] border border-slate-200 bg-white p-8">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Orden por síntomas</p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-              No encontramos una orden para mostrar
-            </h1>
-            <p className="mt-3 text-sm leading-7 text-slate-600">
-              Debes completar el flujo de síntomas y generar la orden primero.
-            </p>
-            <Link
-              href="/sintomas"
-              className="mt-6 inline-flex rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white"
-            >
-              Volver a síntomas
-            </Link>
-          </section>
+        <div className="mx-auto max-w-2xl px-6 py-10">
+          <h1 className="text-2xl font-semibold">No hay orden para mostrar</h1>
+          <p className="mt-2 text-slate-600">
+            Vuelve al flujo de síntomas y genera la orden primero.
+          </p>
+          <Link
+            href="/sintomas/flujo"
+            className="mt-6 inline-block rounded-xl bg-slate-900 px-5 py-3 text-sm text-white"
+          >
+            Volver al flujo
+          </Link>
         </div>
       </main>
     );
   }
 
+  const categorizedTests = categorizeSymptomsTests(order.tests);
+  const allTests = order.tests;
+  const laboratoryTests = categorizedTests.laboratory;
+  const availableCategories = ORDER_CATEGORIES.filter(
+    (category) => categorizedTests[category].length > 0,
+  );
+  const printCategory =
+    availableCategories.find((category) => category === (requestedCategory ?? selectedCategory)) ??
+    availableCategories[0] ??
+    "laboratory";
+  const printTests = categorizedTests[printCategory];
+  const displayOrderDetails = inferOrderDetails(
+    laboratoryTests.length > 0 ? laboratoryTests : allTests,
+  );
+  const printOrderDetails = inferOrderDetails(printTests);
+  const printCategoryMeta = getOrderCategoryMeta(printCategory);
+  const printPages = chunkTestsForPrint(printTests, printCategory, LETTER_PRINT_CONFIG);
+  const issuedAt = new Intl.DateTimeFormat("es-CL", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(order.issuedAtMs));
+  const patientAge = calculateAgeFromBirthDate(order.patient.birthDate || "");
+
+  function handlePrint(category: OrderCategory) {
+    setSelectedCategory(category);
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        window.print();
+      });
+    });
+  }
+
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900 print:bg-white">
+    <main className="veramed-order-root min-h-screen bg-slate-50 text-slate-900 print:bg-white">
       <div className="mx-auto max-w-5xl px-6 py-10 print:max-w-none print:px-0 print:py-0">
-        <section className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-[0_22px_70px_-48px_rgba(15,23,42,0.45)] print:rounded-none print:border-0 print:p-0 print:shadow-none">
-          <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-6 print:hidden">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
-                Orden por síntomas
-              </p>
-              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-                Resumen de orden de exámenes
-              </h1>
-              <p className="mt-2 text-sm leading-6 text-slate-600">{order.summary}</p>
-              <p className="mt-2 text-xs text-slate-500">ID referencia: {order.verificationCode}</p>
-            </div>
-            <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white"
+        <div className="mb-6 flex items-center justify-between gap-4 print:hidden">
+          <div className="rounded-2xl border border-slate-300 bg-slate-100 px-5 py-4 shadow-sm">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Orden clínica imprimible
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
+              Tus órdenes de exámenes ➡️
+            </h1>
+            <p className="mt-1 text-base text-slate-600">
+              Te enviamos las órdenes a tu correo (recuerda revisar tu bandeja de spam).
+              <br />
+              <span className="font-semibold">Haz clic</span> en los recuadros de la derecha si
+              deseas imprimirlas ahora. 😉
+            </p>
+            <p className="mt-1 text-right text-[11px] text-slate-600">
+              ID de referencia: {order.verificationCode}
+            </p>
+          </div>
+
+          <div className="print:hidden">
+            <p className="-mt-1 mb-3 text-right text-xs text-slate-500">
+              <span className="underline">Haz clic</span> en estos recuadros para guardar o
+              imprimir tu orden.
+              <br />
+              Recuerda intentar cuidar el planeta. 🌱
+            </p>
+            <div className="flex flex-wrap justify-end gap-2">
+              {ORDER_CATEGORIES.map((category) => {
+                const count = categorizedTests[category].length;
+                const meta = getOrderCategoryMeta(category);
+                const isActive = printCategory === category;
+
+                return (
+                  <button
+                    key={category}
+                    onClick={() => handlePrint(category)}
+                    disabled={count === 0}
+                    className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+                      isActive
+                        ? "bg-slate-900 text-white hover:bg-slate-800"
+                        : "border border-slate-300 bg-white text-slate-900 hover:bg-slate-50"
+                    } disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400`}
+                  >
+                    {meta.shortLabel} ({count})
+                  </button>
+                );
+              })}
+              <Link
+                href="/sintomas/flujo"
+                className="rounded-xl border px-4 py-2 text-sm font-medium text-slate-900 hover:bg-slate-50"
               >
-                Descargar PDF
-              </button>
-              <Link href="/sintomas/flujo" className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold">
-                Volver al flujo
+                Volver
               </Link>
             </div>
           </div>
+        </div>
 
-          <div className="print:px-8 print:pt-8">
-            <BrandLogo className="h-20 w-auto" />
-            <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-950">Orden médica de exámenes</h2>
-            <p className="mt-2 text-sm text-slate-600">
-              Documento generado mediante tecnología de evaluación de síntomas de Veramed © y validación técnica por médico firmante.
-            </p>
+        <section className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-[0_22px_70px_-48px_rgba(15,23,42,0.45)] print:hidden">
+          <div className="flex flex-wrap items-start justify-between gap-6 border-b border-slate-200 pb-6">
+            <div>
+              <BrandLogo className="h-28 w-auto" />
+              <p className="mt-4 text-3xl font-bold tracking-tight text-slate-950">
+                Orden médica de exámenes
+              </p>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+                Documento generado mediante tecnología de flujo de síntomas de Veramed © y
+                validación técnica por médico firmante.
+              </p>
+            </div>
 
-            <div className="mt-6 grid gap-3 text-sm md:grid-cols-2">
-              <Info label="Motivo clínico orientador" value={order.interpretation.probableContext} />
-              <Info label="Síntoma principal" value={order.interpretation.primarySymptom} />
-              <Info label="Código de verificación" value={order.verificationCode} />
-              <Info
-                label="Fecha y hora"
-                value={new Intl.DateTimeFormat("es-CL", { dateStyle: "medium", timeStyle: "short" }).format(
-                  new Date(order.issuedAtMs),
-                )}
+            <div className="grid gap-3 text-sm sm:min-w-72 sm:grid-cols-2">
+              <MetaRow label="ID" value={order.verificationCode} />
+              <MetaRow label="Fecha y hora" value={issuedAt} />
+              <MetaRow label="Estado" value="Aprobada" />
+              <MetaRow label="Ciudad de referencia" value="Santiago, Chile" />
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-3 text-sm md:grid-cols-2">
+            <Info label="Nombre" value={order.patient.fullName || "No informado"} />
+            <Info label="RUT" value={order.patient.rut || "No informado"} />
+            <Info label="Fecha de nacimiento" value={formatBirthDate(order.patient.birthDate || "")} />
+            <Info label="Correo" value={order.patient.email || "No informado"} />
+            <Info label="Teléfono" value={order.patient.phone || "No informado"} />
+            <Info label="Dirección" value={order.patient.address || "No informada"} />
+            <Info label="Edad" value={patientAge > 0 ? `${patientAge}` : "No informada"} />
+            <Info label="Sexo" value="No informado" />
+            <Info label="Peso" value="No informado" />
+            <Info label="Talla" value="No informado" />
+            <Info label="Tabaco" value="No informado" />
+            <Info label="Actividad sexual" value="No informada" />
+          </div>
+
+          <div className="mt-8 rounded-3xl bg-slate-50 p-5">
+            <div className="grid gap-4 md:grid-cols-4">
+              <SummaryCell label="Exámenes" value={`${allTests.length}`} />
+              <SummaryCell
+                label="Ayuno"
+                value={
+                  laboratoryTests.length > 0 ? (displayOrderDetails.needsFasting ? "Sí" : "No") : "No aplica"
+                }
               />
+              <SummaryCell
+                label="Muestra"
+                value={laboratoryTests.length > 0 ? displayOrderDetails.sampleTypeLabel : "No aplica"}
+              />
+              <SummaryCell label="Vigencia sugerida" value="60 días" />
             </div>
+          </div>
 
-            <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Tu relato</p>
-              <p className="mt-2 text-sm leading-7 text-slate-700">Antecedentes médicos: {order.answers.evolution || "No informado"}</p>
-              <p className="text-sm leading-7 text-slate-700">Antecedentes quirúrgicos: {order.answers.intensity || "No informado"}</p>
-              <p className="text-sm leading-7 text-slate-700">Fármacos: {order.answers.associated || "No informado"}</p>
-              <p className="text-sm leading-7 text-slate-700">Alergias: {order.answers.background || "No informado"}</p>
-              <p className="mt-2 text-sm leading-7 text-slate-700">Síntomas del paciente: {order.symptomsText}</p>
-            </div>
+          <div className="mt-8">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Indicación clínica
+            </p>
+            <p className="mt-2 text-sm leading-7 text-slate-700">
+              Se identificaron {allTests.length} exámenes según la evaluación clínica guiada por
+              síntomas.
+            </p>
+          </div>
 
-            <div className="mt-6 overflow-hidden rounded-3xl border border-slate-200">
+          <div className="mt-8">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Tabla de exámenes
+            </p>
+            <div className="mt-4 overflow-hidden rounded-3xl border border-slate-200">
               <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
                 <thead className="bg-slate-50">
                   <tr>
-                    <th className="px-4 py-3 font-semibold text-slate-700">Examen</th>
-                    <th className="px-4 py-3 font-semibold text-slate-700">Observaciones</th>
-                    <th className="px-4 py-3 font-semibold text-slate-700">Códigos FONASA</th>
+                    <th className="px-4 py-3 font-semibold text-slate-700">
+                      Examen / procedimiento
+                    </th>
+                    <th className="px-4 py-3 font-semibold text-slate-700">
+                      Justificación clínica
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 bg-white">
                   {ORDER_CATEGORIES.map((category) => {
-                    const tests = categorized[category];
-                    if (tests.length === 0) return null;
+                    const tests = categorizedTests[category];
+                    if (tests.length === 0) {
+                      return null;
+                    }
+
+                    const groupLabel = getOrderCategoryMeta(category).shortLabel;
+
                     return (
                       <Fragment key={`group-${category}`}>
                         <tr className="bg-slate-100">
-                          <td colSpan={3} className="px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">
-                            {getCategoryLabel(category)}
+                          <td
+                            colSpan={2}
+                            className="px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-600"
+                          >
+                            {groupLabel}
                           </td>
                         </tr>
                         {tests.map((test) => (
                           <tr key={`${category}-${test.name}`}>
-                            <td className="px-4 py-3 font-semibold text-slate-900">{test.name}</td>
-                            <td className="px-4 py-3 text-slate-600">
-                              {getPreparationNote(test.name, category)}
+                            <td className="px-4 py-4 align-top font-semibold text-slate-900">
+                              {test.name}
                             </td>
-                            <td className="px-4 py-3 text-slate-600">{getFonasaCodeByExamName(test.name)}</td>
+                            <td className="px-4 py-4 align-top text-slate-600">{test.why}</td>
                           </tr>
                         ))}
                       </Fragment>
@@ -268,41 +274,123 @@ export default function SymptomsOrderPage() {
                 </tbody>
               </table>
             </div>
+          </div>
 
-            <div className="mt-6 grid gap-6 border-t border-slate-200 pt-6 md:grid-cols-2 print:hidden">
-              <div className="rounded-3xl bg-slate-50 p-5">
-                <p className="text-sm font-semibold text-slate-900">Enviar orden por correo</p>
-                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    placeholder="correo@paciente.cl"
-                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleSendEmail}
-                    disabled={!email.trim() || sending}
-                    className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-                  >
-                    {sending ? "Enviando..." : "Enviar"}
-                  </button>
-                </div>
-                {emailFeedback ? <p className="mt-2 text-xs text-slate-600">{emailFeedback}</p> : null}
-              </div>
+          <div className="mt-8">
+            <div className="rounded-3xl border border-slate-200 p-5">
+              <p className="text-sm font-semibold text-slate-900">Preparación</p>
+              <ul className="mt-3 grid gap-2 text-sm text-slate-700">
+                {(laboratoryTests.length > 0
+                  ? displayOrderDetails.preparation
+                  : ["Confirma con el centro si requiere preparación específica antes de asistir."]).map(
+                  (item) => (
+                    <li key={item} className="flex gap-2">
+                      <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" />
+                      <span>{item}</span>
+                    </li>
+                  ),
+                )}
+              </ul>
+            </div>
+          </div>
 
-              <div className="rounded-3xl bg-slate-950 p-5 text-white">
-                <p className="text-sm font-semibold">Advertencia de uso</p>
-                <p className="mt-2 text-sm leading-6 text-slate-200">
-                  Los resultados deben interpretarse en contexto clínico y no sustituyen evaluación
-                  médica presencial ante síntomas de urgencia.
-                </p>
-              </div>
+          {order.notes.length > 0 && (
+            <div className="mt-8 rounded-3xl bg-slate-50 p-5">
+              <p className="text-sm font-semibold text-slate-900">Observaciones adicionales</p>
+              <ul className="mt-3 grid gap-2 text-sm text-slate-700">
+                {order.notes.map((note, idx) => (
+                  <li key={idx} className="flex gap-2">
+                    <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" />
+                    <span>{note}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="mt-8 grid gap-6 border-t border-slate-200 pt-6 md:grid-cols-2">
+            <div className="rounded-3xl bg-slate-50 p-5">
+              <p className="text-sm font-semibold text-slate-900">Médico validador</p>
+              <p className="mt-2 text-sm font-medium text-slate-700">Dr. Víctor Rebolledo M.</p>
+              <p className="mt-2 text-xs leading-5 text-slate-500">
+                RUT 18.856.820-3 / RCM 46129-6 / SIS N°611341
+                <br />
+                Médico staff de Veramed.
+              </p>
+            </div>
+
+            <div className="rounded-3xl bg-slate-950 p-5 text-white">
+              <p className="text-sm font-semibold">Advertencia de uso</p>
+              <p className="mt-2 text-sm leading-6 text-slate-200">
+                Los resultados de estos exámenes deben interpretarse dentro del contexto clínico
+                del paciente y no está pensado para ser usado para resolver cuadros agudos o lidiar
+                con emergencias médicas.
+              </p>
             </div>
           </div>
         </section>
+
+        <p className="mt-6 text-xs text-slate-500 print:hidden">
+          Cada botón imprime o guarda un PDF independiente según la categoría seleccionada.
+        </p>
+
+        <section className="veramed-print-shell hidden print:block">
+          {printPages.map((pageTests, pageIndex) => (
+            <PrintOrderPage
+              key={`${printCategory}-${pageIndex}`}
+              category={printCategory}
+              categoryMeta={printCategoryMeta}
+              patient={order.patient}
+              orderDetails={printOrderDetails}
+              pageTests={pageTests}
+              issuedAt={issuedAt}
+              verificationCode={order.verificationCode}
+              pageIndex={pageIndex}
+              totalPages={printPages.length}
+            />
+          ))}
+        </section>
       </div>
+
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: auto;
+            margin: 10mm 10mm 12mm 10mm;
+          }
+
+          .veramed-order-root {
+            min-height: auto !important;
+            background: #ffffff !important;
+          }
+
+          .veramed-order-page {
+            box-sizing: border-box;
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            height: ${LETTER_PRINT_CONFIG.contentHeightMm}mm;
+            break-inside: avoid;
+            page-break-inside: avoid;
+            break-after: page;
+            page-break-after: always;
+          }
+
+          .veramed-order-page:last-child {
+            break-after: auto;
+            page-break-after: auto;
+          }
+
+          .veramed-order-item {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+
+          .veramed-order-footer {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+        }
+      `}</style>
     </main>
   );
 }
@@ -311,7 +399,270 @@ function Info({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
       <p className="text-xs text-slate-500">{label}</p>
-      <p className="mt-1 text-sm font-medium text-slate-900">{value}</p>
+      <p className="text-sm font-medium">{value}</p>
     </div>
   );
+}
+
+function MetaRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-slate-50 px-4 py-3">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-slate-900">{value}</p>
+    </div>
+  );
+}
+
+function SummaryCell({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
+      <p className="mt-2 text-sm font-semibold text-slate-900">{value}</p>
+    </div>
+  );
+}
+
+function categorizeSymptomsTests(tests: TestItem[]) {
+  return {
+    laboratory: tests.filter((test) => getOrderCategoryByTestName(test.name) === "laboratory"),
+    image: tests.filter((test) => getOrderCategoryByTestName(test.name) === "image"),
+    procedure: tests.filter((test) => getOrderCategoryByTestName(test.name) === "procedure"),
+    interconsultation: tests.filter(
+      (test) => getOrderCategoryByTestName(test.name) === "interconsultation",
+    ),
+  };
+}
+
+function PrintRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start gap-4">
+      <span className="inline-block min-w-24 text-slate-700">{label}:</span>
+      <span className="font-semibold text-slate-900">{value}</span>
+    </div>
+  );
+}
+
+function PrintOrderPage({
+  category,
+  categoryMeta,
+  patient,
+  orderDetails,
+  pageTests,
+  issuedAt,
+  verificationCode,
+  pageIndex,
+  totalPages,
+}: {
+  category: OrderCategory;
+  categoryMeta: ReturnType<typeof getOrderCategoryMeta>;
+  patient: SymptomsOrderDraft["patient"];
+  orderDetails: ReturnType<typeof inferOrderDetails>;
+  pageTests: TestItem[];
+  issuedAt: string;
+  verificationCode: string;
+  pageIndex: number;
+  totalPages: number;
+}) {
+  return (
+    <article className="veramed-order-page">
+      <OrderHeader categoryMeta={categoryMeta} patient={patient} issuedAt={issuedAt} />
+      <BodyExams
+        pageTests={pageTests}
+        category={category}
+        needsFasting={orderDetails.needsFasting}
+        issuedAt={issuedAt}
+      />
+      <OrderFooter
+        verificationCode={verificationCode}
+        issuedAt={issuedAt}
+        pageIndex={pageIndex}
+        totalPages={totalPages}
+      />
+    </article>
+  );
+}
+
+function OrderHeader({
+  categoryMeta,
+  patient,
+  issuedAt,
+}: {
+  categoryMeta: ReturnType<typeof getOrderCategoryMeta>;
+  patient: SymptomsOrderDraft["patient"];
+  issuedAt: string;
+}) {
+  const age = calculateAgeFromBirthDate(patient?.birthDate || "");
+  return (
+    <header className="veramed-order-header">
+      <div className="flex items-start justify-between gap-6">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/brand/veramed-logo.png"
+          alt="Veramed"
+          loading="eager"
+          decoding="sync"
+          fetchPriority="high"
+          className="veramed-print-logo h-20 w-auto object-contain"
+        />
+        <div className="text-right text-[12px] leading-5">
+          <p className="font-semibold text-slate-900">ORDEN MÉDICA DIGITAL</p>
+          <p>{issuedAt}</p>
+        </div>
+      </div>
+
+      <h2 className="mt-3 text-center text-[22px] font-semibold tracking-tight text-slate-900">
+        {categoryMeta.printTitle}
+      </h2>
+
+      <div className="mt-3 border-y border-slate-300 py-2 text-[12px] leading-5">
+        <div className="flex items-start justify-between gap-8">
+          <div className="w-[48%] space-y-0.5">
+            <PrintRow label="Paciente" value={patient?.fullName || "Paciente Veramed"} />
+            <PrintRow label="RUT" value={patient?.rut || "No informado"} />
+            <PrintRow label="Dirección" value={patient?.address || "No informada"} />
+          </div>
+          <div className="w-[48%] space-y-0.5">
+            <PrintRow label="Edad" value={age > 0 ? `${age} años` : "No informada"} />
+            <PrintRow label="Correo" value={patient?.email || "No informado"} />
+            <PrintRow label="Teléfono" value={patient?.phone || "No informado"} />
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function BodyExams({
+  pageTests,
+  category,
+  needsFasting,
+  issuedAt,
+}: {
+  pageTests: TestItem[];
+  category: OrderCategory;
+  needsFasting: boolean;
+  issuedAt: string;
+}) {
+  return (
+    <main className="veramed-order-body pt-3 text-[12px] leading-5">
+      <div className="space-y-3">
+        {category === "interconsultation" && (
+          <div className="veramed-order-item rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+            <p className="text-[12px] font-semibold text-slate-900">
+              Se solicita derivación a: Oftalmólogo/a
+            </p>
+          </div>
+        )}
+
+        {pageTests.map((test) => (
+          <div key={test.name} className="veramed-order-item">
+            <div className="flex gap-3">
+              <span className="mt-0.5 text-sm">•</span>
+              <div>
+                <p className="text-[12px] font-semibold uppercase tracking-[0.01em] text-slate-900">
+                  {test.name}
+                </p>
+                <p className="text-slate-700">
+                  Observaciones: {getPreparationNote(test.name, needsFasting, category)}
+                </p>
+                <p className="text-slate-700">Fecha: {issuedAt.split(",")[0] ?? issuedAt}</p>
+                <p className="text-slate-700">
+                  Códigos FONASA: {getFonasaCodeByExamName(test.name)}
+                </p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </main>
+  );
+}
+
+function chunkTestsForPrint(
+  tests: TestItem[],
+  category: OrderCategory,
+  paperConfig: { bodyHeightMm: number },
+) {
+  const pages: TestItem[][] = [];
+  let currentPage: TestItem[] = [];
+  let usedHeight = 0;
+
+  tests.forEach((test) => {
+    const itemHeight = estimatePrintItemHeightMm(test, category);
+    if (currentPage.length > 0 && usedHeight + itemHeight > paperConfig.bodyHeightMm) {
+      pages.push(currentPage);
+      currentPage = [];
+      usedHeight = 0;
+    }
+
+    currentPage.push(test);
+    usedHeight += itemHeight;
+  });
+
+  if (currentPage.length === 0) {
+    return [[]];
+  }
+
+  pages.push(currentPage);
+  return pages;
+}
+
+function estimatePrintItemHeightMm(test: TestItem, category: OrderCategory) {
+  const note = getPreparationNote(test.name, false, category);
+  const titleLines = Math.max(1, Math.ceil(test.name.length / 40));
+  const noteLines = Math.max(1, Math.ceil(`Observaciones: ${note}`.length / 60));
+  return 8 + titleLines * 4.5 + noteLines * 4 + 8;
+}
+
+function OrderFooter({
+  verificationCode,
+  issuedAt,
+  pageIndex,
+  totalPages,
+}: {
+  verificationCode: string;
+  issuedAt: string;
+  pageIndex: number;
+  totalPages: number;
+}) {
+  return (
+    <footer className="veramed-order-footer border-t border-slate-300 pt-3 text-[11px] text-slate-600">
+      <div className="grid grid-cols-[1fr_0.9fr_1.15fr] items-end gap-x-5">
+        <div className="self-center">
+          <p className="font-semibold text-slate-800">Código de verificación</p>
+          <p>{verificationCode}</p>
+          <p className="mt-1 font-semibold text-slate-800">Fecha de emisión</p>
+          <p>{issuedAt}</p>
+        </div>
+
+        <div className="self-center text-center">
+          <p className="font-semibold text-slate-800">veramed.cl</p>
+          <p>
+            Página {pageIndex + 1} de {totalPages}
+          </p>
+        </div>
+
+        <div className="justify-self-end text-right">
+          <div className="ml-auto flex h-14 w-52 items-end justify-end border-b border-slate-500">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/firmas/firma-VRM.png"
+              alt="Firma Dr. Víctor Rebolledo"
+              loading="eager"
+              decoding="sync"
+              fetchPriority="high"
+              className="veramed-print-signature h-12 w-36 object-contain"
+            />
+          </div>
+          <p className="mt-1 text-[12px] text-slate-700">Dr. Víctor Rebolledo M.</p>
+          <p className="text-[12px] text-slate-700">RUT 18.856.820-3</p>
+          <p className="text-[12px] text-slate-700">Registro SIS N°611341</p>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+function getPreparationNote(testName: string, needsFasting: boolean, category: OrderCategory) {
+  return getExamObservationForOrder(testName, { needsFasting, category });
 }

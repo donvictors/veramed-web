@@ -102,7 +102,7 @@ export default function Services() {
             <div className="flex min-h-[16rem] flex-col">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  Próximamente...
+                  Activo hoy
                 </p>
                 <h3 className="mt-2 text-2xl font-semibold text-slate-950">
                   Evaluación de síntomas
@@ -112,13 +112,13 @@ export default function Services() {
                   de diagnóstico de última generación.
                 </p>
               </div>
-              <span
-                className="mt-auto inline-flex w-fit cursor-not-allowed rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-300"
-                aria-disabled="true"
-                title="Disponible pronto"
+              <Link
+                href="/sintomas"
+                className="mt-auto inline-flex w-fit rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                aria-label="Ir a evaluación de síntomas"
               >
                 $5.990
-              </span>
+              </Link>
             </div>
 
             <div className="mt-6 grid flex-1 gap-3 text-sm text-slate-700">
@@ -128,9 +128,12 @@ export default function Services() {
             </div>
 
             <div className="mt-8">
-              <span className="mt-4 inline-flex rounded-2xl border border-slate-300 bg-slate-50 px-5 py-3 text-sm font-semibold text-slate-600">
-                Disponible pronto...
-              </span>
+              <Link
+                href="/sintomas"
+                className="mt-4 inline-flex rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+              >
+                Solicitar evaluación
+              </Link>
             </div>
           </article>
         </div>

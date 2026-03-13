@@ -14,7 +14,9 @@ import {
   formatSmoking,
   inferOrderDetails,
 } from "@/lib/checkup";
+import { getExamObservationForOrder } from "@/lib/exam-master-catalog";
 import { getFonasaCodeByExamName } from "@/lib/fonasa-codes";
+import { getOrderCategoryByTestName } from "@/lib/order-categories";
 import { useRequestId } from "@/lib/use-request-id";
 
 export default function OrderPage() {
@@ -534,35 +536,8 @@ function getOrderCategoryMeta(category: OrderCategory) {
 }
 
 function getTestCategory(testName: string): OrderCategory {
-  const imageTests = new Set([
-    "Ecografía abdominal",
-    "Mamografía bilateral",
-    "Ecografía mamaria",
-    "TC de tórax de baja dosis",
-    "Densitometría ósea",
-  ]);
-  const procedureTests = new Set([
-    "Holter de presión arterial (MAPA)",
-    "Tamizaje de cáncer cervicouterino",
-    "Papanicolau (PAP)",
-    "Cotesting (PAP+VPH)",
-    "Tamizaje de cáncer colorrectal",
-    "Colonoscopía total",
-    "Electrocardiograma (ECG)",
-    "Espirometría basal y post broncodilatador",
-    "Estudio de capacidad de difusion (DLCO)",
-    "Test de caminata en 6 minutos",
-  ]);
-
-  if (imageTests.has(testName)) {
-    return "image";
-  }
-
-  if (procedureTests.has(testName)) {
-    return "procedure";
-  }
-
-  return "laboratory";
+  const category = getOrderCategoryByTestName(testName);
+  return category === "interconsultation" ? "procedure" : category;
 }
 
 function PrintRow({ label, value }: { label: string; value: string }) {
@@ -791,23 +766,5 @@ function OrderFooter({
 }
 
 function getPreparationNote(testName: string, needsFasting: boolean, category: OrderCategory) {
-  if (category === "image") {
-    return "Verifica con el centro si requiere preparación específica antes del examen.";
-  }
-
-  if (category === "procedure") {
-    return "Requiere coordinación e indicaciones específicas según el procedimiento.";
-  }
-
-  const lowerName = testName.toLowerCase();
-  if (lowerName.includes("orina")) {
-    return "Idealmente usar muestra de la mañana.";
-  }
-  if (
-    needsFasting &&
-    (lowerName.includes("glicemia") || lowerName.includes("perfil lip") || lowerName.includes("hba1c"))
-  ) {
-    return "Requiere ayuno de 8 horas.";
-  }
-  return "No requiere preparación especial.";
+  return getExamObservationForOrder(testName, { needsFasting, category });
 }
