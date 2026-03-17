@@ -3,7 +3,6 @@ import { OrderPdfCategoryDb } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { type PatientDetails, type TestItem } from "@/lib/checkup";
 import { getOrderCategoryByTestName, type OrderCategory } from "@/lib/order-categories";
-import { buildOrderPdf } from "@/lib/server/order-pdf";
 import { renderOrderPdfFromOrderPage } from "@/lib/server/order-pdf-browser";
 
 type SymptomsPdfAsset = {
@@ -30,13 +29,6 @@ function isMissingPdfAssetStoreError(error: unknown) {
   }
   const message = (error as { message?: unknown }).message;
   return typeof message === "string" && message.includes("SymptomsOrderPdfAsset");
-}
-
-function getTitleForCategory(category: OrderCategory) {
-  if (category === "interconsultation") return "ORDEN DE DERIVACIÓN";
-  if (category === "image") return "ORDEN DE IMÁGENES";
-  if (category === "procedure") return "ORDEN DE PROCEDIMIENTOS";
-  return "ORDEN DE LABORATORIO";
 }
 
 function getCategoryLabel(category: OrderCategory) {
@@ -95,22 +87,12 @@ export async function ensureSymptomsSignedPdfAssets(input: {
         category: group.category,
       });
     } catch (error) {
-      console.error(
-        "No pudimos renderizar PDF de síntomas con Chromium, usamos fallback pdf-lib",
-        {
-          requestId: input.requestId,
-          category: group.category,
-          error,
-        },
-      );
-      buffer = await buildOrderPdf({
-        title: getTitleForCategory(group.category),
-        patient: input.patient,
-        tests: group.tests,
-        issuedAtMs: input.issuedAtMs,
-        referralTo: group.category === "interconsultation" ? "Oftalmólogo/a" : undefined,
-        includeSignature: true,
+      console.error("No pudimos renderizar PDF firmado de síntomas con motor visual", {
+        requestId: input.requestId,
+        category: group.category,
+        error,
       });
+      throw error;
     }
 
     const blob = await put(blobPath, buffer, {

@@ -37,6 +37,35 @@ function fallbackNotesFromRecord() {
   return ["Orden sugerida por motor clínico con respaldo determinista y revisión médica pendiente."];
 }
 
+function buildDeterministicFallback(requestRecord: {
+  symptomsText: string;
+  patient: {
+    fullName: string;
+    rut: string;
+    birthDate: string;
+    email: string;
+    phone: string;
+    address: string;
+  };
+  interpretation: Parameters<typeof buildSymptomsOrderFromEngine>[0]["interpretation"];
+  antecedents: Parameters<typeof buildSymptomsOrderFromEngine>[0]["antecedents"];
+}, followUpAnswers: SymptomsFlowAnswerMap) {
+  return buildSymptomsOrderFromEngine({
+    symptomsText: requestRecord.symptomsText,
+    patient: {
+      fullName: requestRecord.patient.fullName,
+      rut: requestRecord.patient.rut,
+      birthDate: requestRecord.patient.birthDate,
+      email: requestRecord.patient.email,
+      phone: requestRecord.patient.phone,
+      address: requestRecord.patient.address,
+    },
+    interpretation: requestRecord.interpretation,
+    antecedents: requestRecord.antecedents,
+    answers: followUpAnswers,
+  });
+}
+
 export async function POST(request: Request) {
   let body: unknown;
 
@@ -75,36 +104,46 @@ export async function POST(request: Request) {
     let suggestedTests: TestItem[] = [];
     let notes: string[] = [];
     let oneLinerSummary = requestRecord.oneLinerSummary;
+    let usedOpenAI = false;
 
     if (process.env.OPENAI_API_KEY?.trim()) {
-      const openAI = await suggestSymptomsExamsWithOpenAI({
-        cachedInput: requestRecord.cachedInput,
-        oneLinerSummary: requestRecord.oneLinerSummary,
-        primarySymptom: requestRecord.primarySymptom,
-        secondarySymptoms: requestRecord.secondarySymptoms,
-        followUpQA,
-      });
-      suggestedTests = normalizeSuggestedTests(openAI.suggestedExamNames, openAI.rationale);
-      oneLinerSummary = openAI.oneLinerSummary;
-      notes = [
-        "Orden sugerida por análisis de IA sobre historia clínica y preguntas de seguimiento.",
-        openAI.rationale,
-      ];
-    } else {
-      const deterministic = buildSymptomsOrderFromEngine({
-        symptomsText: requestRecord.symptomsText,
-        patient: {
-          fullName: requestRecord.patient.fullName,
-          rut: requestRecord.patient.rut,
-          birthDate: requestRecord.patient.birthDate,
-          email: requestRecord.patient.email,
-          phone: requestRecord.patient.phone,
-          address: requestRecord.patient.address,
+      try {
+        const openAI = await suggestSymptomsExamsWithOpenAI({
+          cachedInput: requestRecord.cachedInput,
+          oneLinerSummary: requestRecord.oneLinerSummary,
+          primarySymptom: requestRecord.primarySymptom,
+          secondarySymptoms: requestRecord.secondarySymptoms,
+          followUpQA,
+        });
+        suggestedTests = normalizeSuggestedTests(openAI.suggestedExamNames, openAI.rationale);
+        oneLinerSummary = openAI.oneLinerSummary;
+        notes = [
+          "Orden sugerida por análisis de IA sobre historia clínica y preguntas de seguimiento.",
+          openAI.rationale,
+        ];
+        usedOpenAI = true;
+      } catch (openAIError) {
+        console.error("OpenAI suggestions fallback to deterministic engine:", openAIError);
+      }
+    }
+
+    if (!usedOpenAI) {
+      const deterministic = buildDeterministicFallback(
+        {
+          symptomsText: requestRecord.symptomsText,
+          patient: {
+            fullName: requestRecord.patient.fullName,
+            rut: requestRecord.patient.rut,
+            birthDate: requestRecord.patient.birthDate,
+            email: requestRecord.patient.email,
+            phone: requestRecord.patient.phone,
+            address: requestRecord.patient.address,
+          },
+          interpretation: requestRecord.interpretation,
+          antecedents: requestRecord.antecedents,
         },
-        interpretation: requestRecord.interpretation,
-        antecedents: requestRecord.antecedents,
-        answers: followUpAnswers,
-      });
+        followUpAnswers,
+      );
       suggestedTests = deterministic.order.tests;
       notes = fallbackNotesFromRecord();
       oneLinerSummary = deterministic.order.interpretation.oneLinerSummary;
@@ -136,4 +175,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 409 });
   }
 }
-

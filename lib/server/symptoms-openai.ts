@@ -10,9 +10,14 @@ const REQUEST_TIMEOUT_MS = 20000;
 
 const FLOW_IDS = CLINICAL_FLOWS.map((flow) => flow.flowId);
 const FLOW_LABELS = CLINICAL_FLOWS.map((flow) => `- ${flow.flowId}: ${flow.label}`).join("\n");
-const LAB_EXAMS = EXAM_MASTER_CATALOG.filter((exam) => exam.category === "laboratory");
-const LAB_EXAM_NAMES = LAB_EXAMS.map((exam) => exam.name);
-const LAB_EXAM_ENUM = [...LAB_EXAM_NAMES] as [string, ...string[]];
+const SUGGESTION_EXAMS = EXAM_MASTER_CATALOG.filter(
+  (exam) =>
+    exam.category === "laboratory" ||
+    exam.category === "image" ||
+    exam.category === "procedure",
+);
+const SUGGESTION_EXAM_NAMES = SUGGESTION_EXAMS.map((exam) => exam.name);
+const SUGGESTION_EXAM_ENUM = [...SUGGESTION_EXAM_NAMES] as [string, ...string[]];
 
 const openAIInterpretationSchema = z.object({
   flowId: z.string().refine((value) => FLOW_IDS.includes(value), {
@@ -31,8 +36,8 @@ const openAIInterpretationSchema = z.object({
 
 const openAISuggestedExamsSchema = z.object({
   oneLinerSummary: z.string().min(5).max(220),
-  suggestedExamNames: z.array(z.enum(LAB_EXAM_ENUM)).max(15),
-  rationale: z.string().min(5).max(360),
+  suggestedExamNames: z.array(z.enum(SUGGESTION_EXAM_ENUM)).max(20),
+  rationale: z.string().min(5).max(2000),
 });
 
 type OpenAIInterpretation = z.infer<typeof openAIInterpretationSchema>;
@@ -109,19 +114,21 @@ function buildInterpretUserPrompt(
 }
 
 function buildSuggestExamsSystemPrompt() {
-  const catalogLines = LAB_EXAMS.map((exam) => {
+  const catalogLines = SUGGESTION_EXAMS.map((exam) => {
     const prep = exam.orderObservation?.trim() || "Sin preparación especial.";
-    return `- ${exam.name} | Código FONASA: ${exam.fonasaCode} | Preparación: ${prep}`;
+    return `- ${exam.name} | Tipo: ${exam.category} | Código FONASA: ${exam.fonasaCode} | Preparación: ${prep}`;
   }).join("\n");
 
   return [
     "Eres un asistente clínico para pre-órdenes ambulatorias de adultos.",
     "No diagnostiques ni des tratamiento.",
     "Tu tarea es sugerir exámenes SOLO desde el catálogo entregado.",
-    "Sé conservador: sugiere pocos exámenes, solo si aportan a orientar la consulta.",
-    "Si el cuadro no requiere laboratorio inicial, suggestedExamNames puede ser [].",
+    "Objetivo clínico: ser sensible y no restrictivo en la evaluación inicial.",
+    "Prioriza sensibilidad sobre especificidad: ante duda clínica razonable, prefiere incluir examen pertinente en vez de omitirlo.",
+    "Incluye lo necesario para una evaluación amplia inicial, manteniendo coherencia clínica con el caso.",
+    "Si tras una evaluación amplia no se requieren estudios iniciales, suggestedExamNames puede ser [].",
     "Responde SOLO JSON válido.",
-    "Catálogo de exámenes de laboratorio disponibles:",
+    "Catálogo de exámenes disponibles (laboratorio, imagen y procedimiento):",
     catalogLines,
   ].join("\n");
 }
@@ -152,6 +159,7 @@ function buildSuggestExamsUserPrompt(input: {
     "Devuelve JSON con claves exactas:",
     "oneLinerSummary, suggestedExamNames, rationale",
     "suggestedExamNames debe usar nombres EXACTOS del catálogo.",
+    "Prioriza una estrategia sensible (amplia) y no restrictiva para la evaluación inicial.",
   ].join("\n");
 }
 
@@ -329,21 +337,22 @@ export async function suggestSymptomsExamsWithOpenAI(input: {
         oneLinerSummary: { type: "string" },
         suggestedExamNames: {
           type: "array",
-          items: { type: "string", enum: LAB_EXAM_NAMES },
-          maxItems: 15,
+          items: { type: "string", enum: SUGGESTION_EXAM_NAMES },
+          maxItems: 20,
         },
-        rationale: { type: "string" },
+        rationale: { type: "string", maxLength: 2000 },
       },
     },
   });
 
   const parsed = openAISuggestedExamsSchema.parse(parsedJson);
   const deduped = Array.from(new Set(parsed.suggestedExamNames));
+  const normalizedRationale = parsed.rationale.trim().slice(0, 1200);
 
   return {
     suggestedExamNames: deduped,
     oneLinerSummary: parsed.oneLinerSummary,
-    rationale: parsed.rationale,
+    rationale: normalizedRationale || "Sugerencia de exámenes basada en la evaluación clínica guiada.",
     model,
   };
 }
