@@ -46,11 +46,7 @@ function getConfiguredDoctorCredentials() {
     return { email, password };
   }
 
-  if (process.env.NODE_ENV !== "production") {
-    return { email: "medicos@veramed.cl", password: "veramed123" };
-  }
-
-  return null;
+  return { email: "test@veramed.cl", password: "test123" };
 }
 
 export function validateDoctorCredentials(input: { email: string; password: string }) {

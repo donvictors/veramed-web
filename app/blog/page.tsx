@@ -17,7 +17,7 @@ const posts = [
     category: "Decisiones clínicas",
     date: "13 marzo 2026",
     readTime: "6 min",
-    href: "",
+    href: "/blog/cascadas-diagnosticas-sobrediagnostico",
   },
   {
     title: "Interpretar resultados sin ansiedad: qué mirar y cuándo consultar",

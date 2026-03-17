@@ -1,20 +1,27 @@
 import { z } from "zod";
 import { CLINICAL_FLOWS } from "@/lib/clinical/flows";
+import { EXAM_MASTER_CATALOG } from "@/lib/exam-master-catalog";
 import type { SymptomsInterpretation } from "@/lib/symptoms-intake";
 import type { SymptomsAntecedents } from "@/lib/symptoms-order";
 
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 const DEFAULT_MODEL = "gpt-4o-mini";
-const REQUEST_TIMEOUT_MS = 15000;
+const REQUEST_TIMEOUT_MS = 20000;
 
 const FLOW_IDS = CLINICAL_FLOWS.map((flow) => flow.flowId);
 const FLOW_LABELS = CLINICAL_FLOWS.map((flow) => `- ${flow.flowId}: ${flow.label}`).join("\n");
+const LAB_EXAMS = EXAM_MASTER_CATALOG.filter((exam) => exam.category === "laboratory");
+const LAB_EXAM_NAMES = LAB_EXAMS.map((exam) => exam.name);
+const LAB_EXAM_ENUM = [...LAB_EXAM_NAMES] as [string, ...string[]];
 
 const openAIInterpretationSchema = z.object({
   flowId: z.string().refine((value) => FLOW_IDS.includes(value), {
     message: "flowId fuera de catálogo clínico",
   }),
+  oneLinerSummary: z.string().min(8).max(180),
   primarySymptom: z.string().min(3).max(120),
+  secondarySymptoms: z.array(z.string().min(2).max(80)).max(8).default([]),
+  followUpQuestions: z.array(z.string().min(6).max(220)).min(3).max(10),
   probableContext: z.string().min(5).max(180),
   consultationFrame: z.string().min(5).max(220),
   tags: z.array(z.string().min(2).max(40)).min(1).max(6),
@@ -22,23 +29,33 @@ const openAIInterpretationSchema = z.object({
   guidanceText: z.string().min(10).max(260),
 });
 
-type OpenAIInterpretation = z.infer<typeof openAIInterpretationSchema>;
+const openAISuggestedExamsSchema = z.object({
+  oneLinerSummary: z.string().min(5).max(220),
+  suggestedExamNames: z.array(z.enum(LAB_EXAM_ENUM)).max(15),
+  rationale: z.string().min(5).max(360),
+});
 
-function buildSystemPrompt() {
+type OpenAIInterpretation = z.infer<typeof openAIInterpretationSchema>;
+type OpenAISuggestedExams = z.infer<typeof openAISuggestedExamsSchema>;
+
+function getModelName() {
+  return process.env.OPENAI_SYMPTOMS_MODEL?.trim() || DEFAULT_MODEL;
+}
+
+function buildInterpretSystemPrompt() {
   return [
-    "Eres un clasificador clínico inicial para un sistema ambulatorio de adultos.",
-    "No diagnostiques, no indiques tratamientos, no confirmes enfermedad.",
-    "Tu tarea es interpretar texto libre de síntomas y mapearlo a un flowId de un catálogo fijo.",
+    "Eres un clasificador clínico inicial para atención ambulatoria de adultos.",
+    "No diagnostiques, no indiques tratamientos, no confirmes enfermedades.",
+    "Tu tarea es ordenar el relato clínico y mapearlo a un flowId del catálogo entregado.",
     "Debes responder SOLO JSON válido con la estructura solicitada.",
-    "Si hay signos de posible gravedad, urgencyWarning=true.",
+    "Si hay señales de alarma, urgencyWarning=true.",
     "Selecciona un único flowId entre este catálogo:",
     FLOW_LABELS,
-    "Si hay ambigüedad, usa fatigue_weight_loss_general_symptoms.",
-    "Mantén lenguaje clínico prudente y orientado a evaluación, no diagnóstico.",
+    "Si hay ambigüedad usa fatigue_weight_loss_general_symptoms.",
   ].join("\n");
 }
 
-function buildUserPrompt(
+function buildInterpretUserPrompt(
   symptomsText: string,
   antecedents?: Partial<SymptomsAntecedents>,
   patientContext?: {
@@ -69,31 +86,141 @@ function buildUserPrompt(
       : "No reportada";
 
   return [
-    "Antecedentes relevantes reportados por el paciente:",
-    `- Sexo: ${sex}`,
-    `- Edad: ${age}`,
-    `- Antecedentes médicos: ${medicalHistory}`,
-    `- Antecedentes quirúrgicos: ${surgicalHistory}`,
-    `- Medicación crónica: ${chronicMedication}`,
+    "Entrada clínica inicial:",
+    `Sexo: ${sex}`,
+    `Edad: ${age}`,
+    `Síntomas en texto libre: ${symptomsText}`,
+    "Antecedentes:",
+    `- Médicos: ${medicalHistory}`,
+    `- Quirúrgicos: ${surgicalHistory}`,
+    `- Fármacos crónicos: ${chronicMedication}`,
     `- Alergias: ${allergies}`,
     `- Tabaco: ${smoking}`,
     `- Alcohol: ${alcoholUse}`,
     `- Drogas: ${drugUse}`,
     `- Actividad sexual: ${sexualActivity}`,
-    `- Enfermedades familiares de primer grado: ${firstDegreeFamilyHistory}`,
+    `- Antecedentes familiares 1er grado: ${firstDegreeFamilyHistory}`,
     `- Ocupación: ${occupation}`,
     "",
-    "Relato del paciente (texto libre):",
-    symptomsText,
-    "",
     "Devuelve JSON con estas claves exactas:",
-    "flowId, primarySymptom, probableContext, consultationFrame, tags, urgencyWarning, guidanceText",
-    "No incluyas markdown ni texto adicional.",
+    "flowId, oneLinerSummary, primarySymptom, secondarySymptoms, followUpQuestions, probableContext, consultationFrame, tags, urgencyWarning, guidanceText",
+    "followUpQuestions debe venir en orden lógico y en español.",
   ].join("\n");
 }
 
-function getModelName() {
-  return process.env.OPENAI_SYMPTOMS_MODEL?.trim() || DEFAULT_MODEL;
+function buildSuggestExamsSystemPrompt() {
+  const catalogLines = LAB_EXAMS.map((exam) => {
+    const prep = exam.orderObservation?.trim() || "Sin preparación especial.";
+    return `- ${exam.name} | Código FONASA: ${exam.fonasaCode} | Preparación: ${prep}`;
+  }).join("\n");
+
+  return [
+    "Eres un asistente clínico para pre-órdenes ambulatorias de adultos.",
+    "No diagnostiques ni des tratamiento.",
+    "Tu tarea es sugerir exámenes SOLO desde el catálogo entregado.",
+    "Sé conservador: sugiere pocos exámenes, solo si aportan a orientar la consulta.",
+    "Si el cuadro no requiere laboratorio inicial, suggestedExamNames puede ser [].",
+    "Responde SOLO JSON válido.",
+    "Catálogo de exámenes de laboratorio disponibles:",
+    catalogLines,
+  ].join("\n");
+}
+
+function buildSuggestExamsUserPrompt(input: {
+  cachedInput: string;
+  oneLinerSummary: string;
+  primarySymptom: string;
+  secondarySymptoms: string[];
+  followUpQA: Array<{ question: string; answer: string }>;
+}) {
+  const followUpLines = input.followUpQA
+    .map((item, index) => `${index + 1}. Pregunta: ${item.question}\n   Respuesta: ${item.answer}`)
+    .join("\n");
+
+  return [
+    "Contexto clínico inicial (entrada en caché):",
+    input.cachedInput,
+    "",
+    "Resumen actual:",
+    `- One-liner: ${input.oneLinerSummary}`,
+    `- Síntoma principal: ${input.primarySymptom}`,
+    `- Síntomas secundarios: ${input.secondarySymptoms.join(", ") || "No reportados"}`,
+    "",
+    "Respuestas de seguimiento:",
+    followUpLines || "Sin respuestas",
+    "",
+    "Devuelve JSON con claves exactas:",
+    "oneLinerSummary, suggestedExamNames, rationale",
+    "suggestedExamNames debe usar nombres EXACTOS del catálogo.",
+  ].join("\n");
+}
+
+async function callOpenAIJsonSchema<T>(payload: {
+  model: string;
+  schemaName: string;
+  schema: Record<string, unknown>;
+  systemPrompt: string;
+  userPrompt: string;
+}): Promise<T> {
+  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error("OPENAI_API_KEY no está configurada.");
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(OPENAI_URL, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${apiKey}`,
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: payload.model,
+        temperature: 0.1,
+        messages: [
+          { role: "system", content: payload.systemPrompt },
+          { role: "user", content: payload.userPrompt },
+        ],
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: payload.schemaName,
+            strict: true,
+            schema: payload.schema,
+          },
+        },
+      }),
+    });
+
+    const responsePayload = (await response.json().catch(() => null)) as
+      | {
+          error?: { message?: string };
+          choices?: Array<{
+            message?: {
+              content?: string | null;
+            };
+          }>;
+        }
+      | null;
+
+    if (!response.ok) {
+      const message = responsePayload?.error?.message || `OpenAI HTTP ${response.status}`;
+      throw new Error(message);
+    }
+
+    const rawContent = responsePayload?.choices?.[0]?.message?.content;
+    if (!rawContent || typeof rawContent !== "string") {
+      throw new Error("OpenAI no devolvió contenido JSON.");
+    }
+
+    return JSON.parse(rawContent) as T;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export async function interpretSymptomsWithOpenAI(
@@ -107,113 +234,116 @@ export async function interpretSymptomsWithOpenAI(
   interpretation: SymptomsInterpretation;
   model: string;
 }> {
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
-  if (!apiKey) {
-    throw new Error("OPENAI_API_KEY no está configurada.");
-  }
-
   const model = getModelName();
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(OPENAI_URL, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${apiKey}`,
-      },
-      signal: controller.signal,
-      body: JSON.stringify({
-        model,
-        temperature: 0.1,
-        messages: [
-          {
-            role: "system",
-            content: buildSystemPrompt(),
-          },
-          {
-            role: "user",
-            content: buildUserPrompt(symptomsText, antecedents, patientContext),
-          },
-        ],
-        response_format: {
-          type: "json_schema",
-          json_schema: {
-            name: "symptoms_interpretation_v1",
-            strict: true,
-            schema: {
-              type: "object",
-              additionalProperties: false,
-              required: [
-                "flowId",
-                "primarySymptom",
-                "probableContext",
-                "consultationFrame",
-                "tags",
-                "urgencyWarning",
-                "guidanceText",
-              ],
-              properties: {
-                flowId: {
-                  type: "string",
-                  enum: FLOW_IDS,
-                },
-                primarySymptom: { type: "string" },
-                probableContext: { type: "string" },
-                consultationFrame: { type: "string" },
-                tags: {
-                  type: "array",
-                  items: { type: "string" },
-                  minItems: 1,
-                  maxItems: 6,
-                },
-                urgencyWarning: { type: "boolean" },
-                guidanceText: { type: "string" },
-              },
-            },
-          },
+  const parsedJson = await callOpenAIJsonSchema<OpenAIInterpretation>({
+    model,
+    schemaName: "symptoms_interpretation_v2",
+    systemPrompt: buildInterpretSystemPrompt(),
+    userPrompt: buildInterpretUserPrompt(symptomsText, antecedents, patientContext),
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      required: [
+        "flowId",
+        "oneLinerSummary",
+        "primarySymptom",
+        "secondarySymptoms",
+        "followUpQuestions",
+        "probableContext",
+        "consultationFrame",
+        "tags",
+        "urgencyWarning",
+        "guidanceText",
+      ],
+      properties: {
+        flowId: { type: "string", enum: FLOW_IDS },
+        oneLinerSummary: { type: "string" },
+        primarySymptom: { type: "string" },
+        secondarySymptoms: {
+          type: "array",
+          items: { type: "string" },
+          maxItems: 8,
         },
-      }),
-    });
-
-    const payload = (await response.json().catch(() => null)) as
-      | {
-          error?: { message?: string };
-          choices?: Array<{
-            message?: {
-              content?: string | null;
-            };
-          }>;
-        }
-      | null;
-
-    if (!response.ok) {
-      const message = payload?.error?.message || `OpenAI HTTP ${response.status}`;
-      throw new Error(message);
-    }
-
-    const rawContent = payload?.choices?.[0]?.message?.content;
-    if (!rawContent || typeof rawContent !== "string") {
-      throw new Error("OpenAI no devolvió contenido JSON.");
-    }
-
-    const parsedJson = JSON.parse(rawContent) as OpenAIInterpretation;
-    const parsed = openAIInterpretationSchema.parse(parsedJson);
-
-    return {
-      interpretation: {
-        flowId: parsed.flowId,
-        primarySymptom: parsed.primarySymptom,
-        probableContext: parsed.probableContext,
-        consultationFrame: parsed.consultationFrame,
-        tags: parsed.tags,
-        urgencyWarning: parsed.urgencyWarning,
-        guidanceText: parsed.guidanceText,
+        followUpQuestions: {
+          type: "array",
+          items: { type: "string" },
+          minItems: 3,
+          maxItems: 10,
+        },
+        probableContext: { type: "string" },
+        consultationFrame: { type: "string" },
+        tags: {
+          type: "array",
+          items: { type: "string" },
+          minItems: 1,
+          maxItems: 6,
+        },
+        urgencyWarning: { type: "boolean" },
+        guidanceText: { type: "string" },
       },
-      model,
-    };
-  } finally {
-    clearTimeout(timeout);
-  }
+    },
+  });
+
+  const parsed = openAIInterpretationSchema.parse(parsedJson);
+
+  return {
+    interpretation: {
+      flowId: parsed.flowId,
+      oneLinerSummary: parsed.oneLinerSummary,
+      primarySymptom: parsed.primarySymptom,
+      secondarySymptoms: parsed.secondarySymptoms,
+      followUpQuestions: parsed.followUpQuestions,
+      probableContext: parsed.probableContext,
+      consultationFrame: parsed.consultationFrame,
+      tags: parsed.tags,
+      urgencyWarning: parsed.urgencyWarning,
+      guidanceText: parsed.guidanceText,
+    },
+    model,
+  };
+}
+
+export async function suggestSymptomsExamsWithOpenAI(input: {
+  cachedInput: string;
+  oneLinerSummary: string;
+  primarySymptom: string;
+  secondarySymptoms: string[];
+  followUpQA: Array<{ question: string; answer: string }>;
+}): Promise<{
+  suggestedExamNames: string[];
+  oneLinerSummary: string;
+  rationale: string;
+  model: string;
+}> {
+  const model = getModelName();
+  const parsedJson = await callOpenAIJsonSchema<OpenAISuggestedExams>({
+    model,
+    schemaName: "symptoms_exam_suggestion_v1",
+    systemPrompt: buildSuggestExamsSystemPrompt(),
+    userPrompt: buildSuggestExamsUserPrompt(input),
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["oneLinerSummary", "suggestedExamNames", "rationale"],
+      properties: {
+        oneLinerSummary: { type: "string" },
+        suggestedExamNames: {
+          type: "array",
+          items: { type: "string", enum: LAB_EXAM_NAMES },
+          maxItems: 15,
+        },
+        rationale: { type: "string" },
+      },
+    },
+  });
+
+  const parsed = openAISuggestedExamsSchema.parse(parsedJson);
+  const deduped = Array.from(new Set(parsed.suggestedExamNames));
+
+  return {
+    suggestedExamNames: deduped,
+    oneLinerSummary: parsed.oneLinerSummary,
+    rationale: parsed.rationale,
+    model,
+  };
 }

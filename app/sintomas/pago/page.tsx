@@ -11,12 +11,9 @@ const SYMPTOMS_PRICE_CLP = 5990;
 const SYMPTOMS_STORAGE_KEY = "veramed_symptoms_intake_v1";
 
 function buildClientOrderId() {
-  const now = Date.now().toString(36).toUpperCase();
-  const rand = Math.floor(Math.random() * 46656)
-    .toString(36)
-    .toUpperCase()
-    .padStart(3, "0");
-  return `symp_${now}${rand}`.slice(0, 26);
+  const now = Date.now().toString(36);
+  const rand = Math.random().toString(36).slice(2, 8);
+  return `sym_${now}${rand}`.slice(0, 26);
 }
 
 function readSymptomsDraft() {
@@ -41,7 +38,7 @@ function SymptomsPaymentContent() {
   const [appliedDiscountCode, setAppliedDiscountCode] = useState("");
   const [draft, setDraft] = useState<StoredSymptomsIntakeDraft | null>(() => readSymptomsDraft());
 
-  const orderId = useMemo(() => buildClientOrderId(), []);
+  const orderId = useMemo(() => draft?.requestId?.trim() || buildClientOrderId(), [draft?.requestId]);
   const pricing = useMemo(
     () => calculateDiscountedAmount(SYMPTOMS_PRICE_CLP, appliedDiscountCode),
     [appliedDiscountCode],
@@ -103,6 +100,7 @@ function SymptomsPaymentContent() {
           orderId,
           sessionId: `symptoms-${orderId}`,
           discountCode: appliedDiscountCode || undefined,
+          draft,
         }),
       });
 
@@ -177,6 +175,35 @@ function SymptomsPaymentContent() {
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
               Resumen de solicitud
             </p>
+            <div className="mt-5 rounded-3xl border border-slate-200 bg-slate-50 p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                Total a cobrar
+              </p>
+              <p className="mt-2 text-4xl font-semibold tracking-tight text-slate-950">
+                ${pricing.finalAmount.toLocaleString("es-CL")}
+              </p>
+              {pricing.discount ? (
+                <div className="mt-3 space-y-1 text-sm text-slate-700">
+                  <p>
+                    Descuento aplicado:{" "}
+                    <span className="font-semibold">{pricing.discount.percentOff}%</span>
+                  </p>
+                  <p>
+                    Total con descuento:{" "}
+                    <span className="font-semibold text-emerald-700">
+                      ${pricing.finalAmount.toLocaleString("es-CL")}
+                    </span>
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Precio base:{" "}
+                    <span className="line-through">
+                      ${pricing.baseAmount.toLocaleString("es-CL")}
+                    </span>
+                  </p>
+                </div>
+              ) : null}
+            </div>
+
             <div className="mt-5 rounded-3xl bg-slate-50 p-5">
               <p className="text-sm font-semibold text-slate-900">Paciente</p>
               <p className="mt-1 text-sm text-slate-700">{draft.patient?.fullName}</p>

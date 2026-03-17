@@ -69,7 +69,7 @@ export async function POST(request: Request) {
     engineVersion,
     createdAt: new Date().toISOString(),
     nextStep: {
-      route: "/sintomas/flujo",
+      route: "/sintomas/pago",
       storageKey: "veramed_symptoms_intake_v1",
     },
   });

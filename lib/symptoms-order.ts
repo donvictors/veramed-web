@@ -51,11 +51,21 @@ export type SymptomsOrderDraft = {
   tests: TestItem[];
   notes: string[];
   flow: SymptomsOrderFlowSummary;
+  reviewStatus?: "draft" | "paid" | "in_flow" | "pending_validation" | "validated" | "rejected";
+  validatedByEmail?: string;
+  validatedAt?: number;
+  signedPdfLinks?: Array<{
+    category: "laboratory" | "image" | "procedure" | "interconsultation";
+    url: string;
+    fileName: string;
+  }>;
 };
 
 export type StoredSymptomsIntakeDraft = {
+  requestId: string;
   input: string;
   patient?: PatientDetails;
+  patientSex?: "female" | "male" | "";
   antecedents: SymptomsAntecedents;
   output: SymptomsInterpretation;
   engineVersion: string;

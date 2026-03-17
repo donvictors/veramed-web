@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { startTransition, useEffect, useState, type ReactNode } from "react";
+import { startTransition, useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Stepper from "@/components/checkup/Stepper";
 import {
@@ -12,8 +12,32 @@ import {
 import { inferOrderDetails } from "@/lib/checkup";
 import { getOrderCategoryByTestName } from "@/lib/order-categories";
 
+const OPTIONAL_ADDITIONAL_TESTS = [
+  {
+    name: "Hemograma",
+    description:
+      "Aporta una visión general de glóbulos rojos, glóbulos blancos y plaquetas. Puede ayudar a detectar anemia, infecciones o alteraciones hematológicas básicas.",
+  },
+  {
+    name: "Creatinina en sangre",
+    description:
+      "Se usa para estimar de forma indirecta la función renal y puede orientar sobre cómo están trabajando tus riñones.",
+  },
+  {
+    name: "Perfil bioquímico",
+    description:
+      'Panel de exámenes que evalúa distintas funciones del cuerpo de forma muy general (metabolismo, hígado, renal, entre otras). Sirve como una visión rápida "de todo un poco".',
+  },
+  {
+    name: "Niveles de vitamina D",
+    description:
+      "En Chile el déficit de vitamina D es frecuente en la población. Este examen permite detectarlo de forma temprana.",
+  },
+] as const;
+
 export default function SummaryPage() {
   const router = useRouter();
+  const initializedOptionalTestsRef = useRef(false);
   const [data, setData] = useState<CheckupApiRecord | null>(null);
   const [colorectalMethod, setColorectalMethod] = useState<"fit" | "colonoscopy">("fit");
   const [cervicalMethod, setCervicalMethod] = useState<"pap" | "hpv" | "cotesting">("pap");
@@ -85,6 +109,57 @@ export default function SummaryPage() {
         router.replace("/chequeo");
       });
   }, [requestId, router]);
+
+  useEffect(() => {
+    if (!data || !requestId || initializedOptionalTestsRef.current) {
+      return;
+    }
+
+    initializedOptionalTestsRef.current = true;
+
+    const optionalNames = OPTIONAL_ADDITIONAL_TESTS.map((test) => test.name);
+    const removedNames = new Set((data.rec.removedTests ?? []).map((test) => test.name));
+
+    // Si el usuario ya removió alguno de estos exámenes en una visita previa,
+    // respetamos su preferencia y no reactivamos el auto-seleccionado.
+    const hasUserOptOut = optionalNames.some((name) => removedNames.has(name));
+    if (hasUserOptOut) {
+      return;
+    }
+
+    const missingOptionalTests = optionalNames.filter(
+      (name) => !data.rec.tests.some((test) => test.name === name),
+    );
+    if (missingOptionalTests.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        let updated = data;
+        for (const testName of missingOptionalTests) {
+          updated = await updateCheckupScreeningPreferences(requestId, { addTestName: testName });
+          if (cancelled) return;
+        }
+
+        startTransition(() => {
+          setData(updated);
+        });
+      } catch (error) {
+        if (cancelled) return;
+        setSelectionError(
+          error instanceof Error
+            ? error.message
+            : "No pudimos dejar preseleccionados los exámenes adicionales.",
+        );
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [data, requestId]);
 
   if (!data) return null;
 
@@ -195,45 +270,9 @@ export default function SummaryPage() {
     },
     { laboratory: 0, image: 0, procedure: 0 },
   );
-  const optionalAdditionalTests = [
-    {
-      name: "Hemograma",
-      description:
-        "Aporta una visión general de glóbulos rojos, glóbulos blancos y plaquetas. Puede ayudar a detectar anemia, infecciones o alteraciones hematológicas básicas.",
-    },
-    {
-      name: "Creatinina en sangre",
-      description:
-        "Se usa para estimar de forma indirecta la función renal y puede orientar sobre cómo están trabajando tus riñones.",
-    },
-    {
-      name: "Perfil bioquímico",
-      description:
-        'Panel de exámenes que evalúa distintas funciones del cuerpo de forma muy general (metabolismo, hígado, renal, entre otras). Sirve como una visión rápida "de todo un poco".',
-    },
-    {
-      name: "Niveles de vitamina D",
-      description:
-        "En Chile el déficit de vitamina D es frecuente en la población. Este examen permite detectarlo de forma temprana.",
-    },
-  ] as const;
-  const selectedOptionalAdditionalTests = optionalAdditionalTests.filter((test) =>
+  const selectedOptionalAdditionalTests = OPTIONAL_ADDITIONAL_TESTS.filter((test) =>
     data.rec.tests.some((item) => item.name === test.name),
   );
-  const optionalAdditionalTestsToShow = optionalAdditionalTests.filter((test) => {
-    if (test.name === "Hemograma" && displayedTests.some((item) => item.name === "Hemograma")) {
-      return false;
-    }
-
-    if (
-      test.name === "Niveles de vitamina D" &&
-      displayedTests.some((item) => item.name === "Niveles de vitamina D")
-    ) {
-      return false;
-    }
-
-    return true;
-  });
 
   async function handlePreferenceChange(
     preferences: Parameters<typeof updateCheckupScreeningPreferences>[1],
@@ -667,7 +706,7 @@ export default function SummaryPage() {
                   <TooltipInfo text="Los siguientes exámenes no están recomendados en base a evidencia como parte del tamizaje de personas sanas, pero muchos médicos los piden en su práctica clínica de todas formas. En Veramed creemos que su solicitud es de bajo riesgo de cascadas diagnósticas/sobrediagnóstico, por lo que si deseas puedes añadir los siguientes." />
                 </div>
                 <div className="mt-4 grid gap-3">
-                  {optionalAdditionalTestsToShow.map((test) => {
+                  {OPTIONAL_ADDITIONAL_TESTS.map((test) => {
                     const checked = selectedOptionalAdditionalTests.some(
                       (selected) => selected.name === test.name,
                     );

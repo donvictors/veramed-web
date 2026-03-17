@@ -23,6 +23,7 @@ type BuildOrderPdfInput = {
   tests: TestPayload[];
   issuedAtMs: number;
   referralTo?: string;
+  includeSignature?: boolean;
 };
 
 function formatIssuedAt(issuedAtMs: number) {
@@ -179,8 +180,19 @@ function drawFooter(args: {
   font: import("pdf-lib").PDFFont;
   fontBold: import("pdf-lib").PDFFont;
   signatureImage: import("pdf-lib").PDFImage | null;
+  includeSignature: boolean;
 }) {
-  const { page, pageNumber, totalPages, verificationCode, issuedAtLabel, font, fontBold, signatureImage } = args;
+  const {
+    page,
+    pageNumber,
+    totalPages,
+    verificationCode,
+    issuedAtLabel,
+    font,
+    fontBold,
+    signatureImage,
+    includeSignature,
+  } = args;
   const { width } = page.getSize();
   const marginX = 42;
   const y = 28;
@@ -235,7 +247,7 @@ function drawFooter(args: {
   const signatureLineStartX = signatureRightX - 188;
   const signatureTextX = signatureRightX - 178;
 
-  if (signatureImage) {
+  if (includeSignature && signatureImage) {
     const signatureWidth = 118;
     const signatureHeight = (signatureImage.height / signatureImage.width) * signatureWidth;
     page.drawImage(signatureImage, {
@@ -252,24 +264,33 @@ function drawFooter(args: {
     thickness: 0.8,
   });
 
-  page.drawText("Dr. Víctor Rebolledo M.", {
-    x: signatureTextX,
-    y: y + 42,
-    size: 9,
-    font,
-  });
-  page.drawText("RUT 18.856.820-3", {
-    x: signatureTextX + 10,
-    y: y + 30,
-    size: 9,
-    font,
-  });
-  page.drawText("Registro SIS N°611341", {
-    x: signatureTextX,
-    y: y + 18,
-    size: 9,
-    font,
-  });
+  if (includeSignature) {
+    page.drawText("Dr. Víctor Rebolledo M.", {
+      x: signatureTextX,
+      y: y + 42,
+      size: 9,
+      font,
+    });
+    page.drawText("RUT 18.856.820-3", {
+      x: signatureTextX + 10,
+      y: y + 30,
+      size: 9,
+      font,
+    });
+    page.drawText("Registro SIS N°611341", {
+      x: signatureTextX,
+      y: y + 18,
+      size: 9,
+      font,
+    });
+  } else {
+    page.drawText("Pendiente de firma médica", {
+      x: signatureTextX - 6,
+      y: y + 30,
+      size: 9,
+      font,
+    });
+  }
 }
 
 async function loadSignatureImage(doc: PDFDocument) {
@@ -300,6 +321,7 @@ export async function buildOrderPdf(input: BuildOrderPdfInput) {
   const logoImage = await loadBrandLogoImage(doc);
   const issuedAtLabel = formatIssuedAt(input.issuedAtMs);
   const verificationCode = createVerificationCode(input.patient.rut, input.issuedAtMs);
+  const includeSignature = input.includeSignature !== false;
 
   const topLimit = 210;
   const bottomLimit = 136;
@@ -379,6 +401,7 @@ export async function buildOrderPdf(input: BuildOrderPdfInput) {
       font,
       fontBold,
       signatureImage,
+      includeSignature,
     });
   });
 

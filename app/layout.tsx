@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Footer from "@/components/Footer";
+import Header from "@/components/Header";
 import "./globals.css";
 
 const metadataBaseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
@@ -34,6 +35,7 @@ export default function RootLayout({
   return (
     <html lang="es-CL">
       <body className="antialiased">
+        <Header />
         {children}
         <Footer />
       </body>

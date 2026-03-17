@@ -37,6 +37,15 @@ enum OrderPdfCategoryDb {
   interconsultation
 }
 
+enum SymptomsRequestStatusDb {
+  draft
+  paid
+  in_flow
+  pending_validation
+  validated
+  rejected
+}
+
 model Healthcheck {
   id        String   @id @default(cuid())
   key       String   @unique
@@ -64,6 +73,7 @@ model User {
   sessions               Session[]
   checkups               CheckupRequest[]
   chronicControls        ChronicControlRequest[]
+  symptomsRequests       SymptomsRequest[]
 }
 
 model Session {
@@ -137,6 +147,47 @@ model ChronicControlRequest {
   @@index([userId])
 }
 
+model SymptomsRequest {
+  id                     String                  @id
+  userId                 String?
+  symptomsText           String
+  flowId                 String                  @default("")
+  oneLinerSummary        String                  @default("")
+  primarySymptom         String                  @default("")
+  secondarySymptoms      Json
+  patientFirstName       String
+  patientPaternalSurname String                  @default("")
+  patientMaternalSurname String                  @default("")
+  patientRut             String                  @default("")
+  patientBirthDate       String                  @default("")
+  patientSex             String                  @default("")
+  patientEmail           String                  @default("")
+  patientPhone           String                  @default("")
+  patientAddress         String                  @default("")
+  antecedents            Json
+  interpretation         Json
+  followUpQuestions      Json
+  followUpAnswers        Json
+  suggestedTests         Json
+  selectedTests          Json
+  notes                  Json
+  engineVersion          String                  @default("")
+  cachedInput            String                  @default("")
+  reviewStatus           SymptomsRequestStatusDb @default(draft)
+  validatedByEmail       String?
+  validatedAt            DateTime?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  user                   User?                   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  payment                SymptomsPayment?
+  transactions           SymptomsPaymentTransaction[]
+  pdfAssets              SymptomsOrderPdfAsset[]
+
+  @@index([userId])
+  @@index([reviewStatus, createdAt])
+  @@index([validatedByEmail, validatedAt])
+}
+
 model CheckupPayment {
   requestId   String          @id
   amount      Int
@@ -163,6 +214,20 @@ model ChronicControlPayment {
   paidAt      DateTime?
   updatedAt   DateTime             @updatedAt
   request     ChronicControlRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+}
+
+model SymptomsPayment {
+  requestId   String          @id
+  amount      Int
+  currency    String
+  paymentId   String          @unique
+  cardLast4   String
+  cardholder  String
+  status      PaymentStatusDb @default(pending)
+  createdAt   DateTime        @default(now())
+  paidAt      DateTime?
+  updatedAt   DateTime        @updatedAt
+  request     SymptomsRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
 }
 
 model TransbankPaymentTransaction {
@@ -192,6 +257,33 @@ model TransbankPaymentTransaction {
   @@index([status, createdAt])
 }
 
+model SymptomsPaymentTransaction {
+  id                String                       @id @default(cuid())
+  requestId         String
+  orderId           String                       @unique
+  sessionId         String
+  amount            Int
+  token             String                       @unique
+  webpayUrl         String
+  status            TransbankTransactionStatusDb @default(created)
+  authorizationCode String?
+  buyOrder          String?
+  responseCode      Int?
+  paymentTypeCode   String?
+  cardLast4         String?
+  transactionDate   DateTime?
+  transbankResponse Json?
+  errorReason       String?
+  committedAt       DateTime?
+  paidAt            DateTime?
+  createdAt         DateTime                     @default(now())
+  updatedAt         DateTime                     @updatedAt
+  request           SymptomsRequest              @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId])
+  @@index([status, createdAt])
+}
+
 model OrderPdfAsset {
   id          String                 @id @default(cuid())
   requestType TransbankRequestTypeDb
@@ -206,4 +298,21 @@ model OrderPdfAsset {
 
   @@unique([requestType, requestId, category])
   @@index([requestType, requestId])
+}
+
+model SymptomsOrderPdfAsset {
+  id        String          @id @default(cuid())
+  requestId String
+  category  OrderPdfCategoryDb
+  fileName  String
+  blobUrl   String
+  blobPath  String
+  sizeBytes Int
+  signedAt  DateTime        @default(now())
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  request   SymptomsRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@unique([requestId, category])
+  @@index([requestId])
 }

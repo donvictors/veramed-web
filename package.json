@@ -3,11 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "next dev .",
+    "build": "next build .",
+    "start": "next start .",
     "postinstall": "prisma generate",
-    "lint": "eslint",
+    "lint": "eslint --max-warnings=0",
     "test:checkup-recommend": "node --test tests/checkup-recommend.smoke.test.mjs",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
@@ -26,6 +26,10 @@
     "resend": "^6.9.3",
     "transbank-sdk": "^6.1.1",
     "zod": "^4.3.6"
+  },
+  "overrides": {
+    "undici": "6.24.1",
+    "flatted": "3.4.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

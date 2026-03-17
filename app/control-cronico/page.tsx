@@ -9,7 +9,6 @@ import {
   calculateBodyMassIndex,
   calculatePackYearIndex,
   joinPatientFullName,
-  recommend,
   type CheckupInput,
   type DietaryPattern,
   type DietaryRestriction,

@@ -1,5 +1,4 @@
 import FAQ from "@/components/FAQ";
-import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import HowItWorks from "@/components/HowItWorks";
 import Services from "@/components/Services";
@@ -13,7 +12,6 @@ export default function HomePage() {
         <div className="absolute left-[-10rem] top-40 h-80 w-80 rounded-full bg-emerald-100/70 blur-3xl" />
         <div className="absolute right-[-10rem] top-24 h-96 w-96 rounded-full bg-slate-100 blur-3xl" />
       </div>
-      <Header />
       <Hero />
       <HowItWorks />
       <Services />

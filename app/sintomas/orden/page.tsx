@@ -1,7 +1,8 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import BrandLogo from "@/components/BrandLogo";
 import {
   calculateAgeFromBirthDate,
@@ -43,15 +44,52 @@ function readOrderFromStorage() {
   }
 }
 
-export default function SymptomsOrderPage() {
-  const [order] = useState<SymptomsOrderDraft | null>(() => readOrderFromStorage());
+function SymptomsOrderPageContent() {
+  const searchParams = useSearchParams();
+  const [order, setOrder] = useState<SymptomsOrderDraft | null>(() => readOrderFromStorage());
+  const [loading, setLoading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<OrderCategory>("laboratory");
 
-  const queryParams =
-    typeof window === "undefined" ? null : new URLSearchParams(window.location.search);
-  const requestedCategory = parseOrderCategory(queryParams?.get("printCategory") || null);
+  const requestedCategory = parseOrderCategory(searchParams.get("printCategory") || null);
+  const requestIdFromUrl = searchParams.get("id")?.trim() || "";
 
-  if (!order) {
+  useEffect(() => {
+    if (!requestIdFromUrl) {
+      return;
+    }
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`/api/sintomas/orders/${requestIdFromUrl}`, {
+          cache: "no-store",
+        });
+        const payload = (await response.json().catch(() => null)) as
+          | { order?: SymptomsOrderDraft; error?: string }
+          | null;
+        if (!response.ok || !payload?.order) {
+          throw new Error(payload?.error || "No encontramos la orden solicitada.");
+        }
+
+        if (cancelled) return;
+        setOrder(payload.order);
+        window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(payload.order));
+      } catch {
+        if (cancelled) return;
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [requestIdFromUrl]);
+
+  if (!order && !loading) {
     return (
       <main className="min-h-screen bg-slate-50 text-slate-900">
         <div className="mx-auto max-w-2xl px-6 py-10">
@@ -65,6 +103,16 @@ export default function SymptomsOrderPage() {
           >
             Volver al flujo
           </Link>
+        </div>
+      </main>
+    );
+  }
+
+  if (!order) {
+    return (
+      <main className="min-h-screen bg-slate-50 text-slate-900">
+        <div className="mx-auto max-w-2xl px-6 py-10">
+          <h1 className="text-2xl font-semibold">Cargando orden...</h1>
         </div>
       </main>
     );
@@ -92,6 +140,8 @@ export default function SymptomsOrderPage() {
     timeStyle: "short",
   }).format(new Date(order.issuedAtMs));
   const patientAge = calculateAgeFromBirthDate(order.patient.birthDate || "");
+  const isValidated = order.reviewStatus === "validated";
+  const statusLabel = isValidated ? "Aprobada" : "Pendiente validación";
 
   function handlePrint(category: OrderCategory) {
     setSelectedCategory(category);
@@ -114,10 +164,11 @@ export default function SymptomsOrderPage() {
               Tus órdenes de exámenes ➡️
             </h1>
             <p className="mt-1 text-base text-slate-600">
-              Te enviamos las órdenes a tu correo (recuerda revisar tu bandeja de spam).
+              Te enviaremos las órdenes a tu correo (recuerda revisar tu bandeja de spam) una vez
+              que un médico de nuestro equipo las valide y firme.
               <br />
-              <span className="font-semibold">Haz clic</span> en los recuadros de la derecha si
-              deseas imprimirlas ahora. 😉
+              Por mientras, puedes verlas (sin firmar) haciendo clic en los recuadros de la
+              derecha . 😉
             </p>
             <p className="mt-1 text-right text-[11px] text-slate-600">
               ID de referencia: {order.verificationCode}
@@ -171,14 +222,16 @@ export default function SymptomsOrderPage() {
               </p>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
                 Documento generado mediante tecnología de flujo de síntomas de Veramed © y
-                validación técnica por médico firmante.
+                {isValidated
+                  ? " validación técnica por médico firmante."
+                  : " pendiente de validación y firma médica."}
               </p>
             </div>
 
             <div className="grid gap-3 text-sm sm:min-w-72 sm:grid-cols-2">
               <MetaRow label="ID" value={order.verificationCode} />
               <MetaRow label="Fecha y hora" value={issuedAt} />
-              <MetaRow label="Estado" value="Aprobada" />
+              <MetaRow label="Estado" value={statusLabel} />
               <MetaRow label="Ciudad de referencia" value="Santiago, Chile" />
             </div>
           </div>
@@ -311,12 +364,20 @@ export default function SymptomsOrderPage() {
           <div className="mt-8 grid gap-6 border-t border-slate-200 pt-6 md:grid-cols-2">
             <div className="rounded-3xl bg-slate-50 p-5">
               <p className="text-sm font-semibold text-slate-900">Médico validador</p>
-              <p className="mt-2 text-sm font-medium text-slate-700">Dr. Víctor Rebolledo M.</p>
-              <p className="mt-2 text-xs leading-5 text-slate-500">
-                RUT 18.856.820-3 / RCM 46129-6 / SIS N°611341
-                <br />
-                Médico staff de Veramed.
-              </p>
+              {isValidated ? (
+                <>
+                  <p className="mt-2 text-sm font-medium text-slate-700">Dr. Víctor Rebolledo M.</p>
+                  <p className="mt-2 text-xs leading-5 text-slate-500">
+                    RUT 18.856.820-3 / RCM 46129-6 / SIS N°611341
+                    <br />
+                    Médico staff de Veramed.
+                  </p>
+                </>
+              ) : (
+                <p className="mt-2 text-sm text-slate-700">
+                  Pendiente de validación por médico acreditado.
+                </p>
+              )}
             </div>
 
             <div className="rounded-3xl bg-slate-950 p-5 text-white">
@@ -347,6 +408,7 @@ export default function SymptomsOrderPage() {
               verificationCode={order.verificationCode}
               pageIndex={pageIndex}
               totalPages={printPages.length}
+              showSignature={isValidated}
             />
           ))}
         </section>
@@ -392,6 +454,24 @@ export default function SymptomsOrderPage() {
         }
       `}</style>
     </main>
+  );
+}
+
+function SymptomsOrderLoadingFallback() {
+  return (
+    <main className="min-h-screen bg-slate-50 text-slate-900">
+      <div className="mx-auto max-w-2xl px-6 py-10">
+        <h1 className="text-2xl font-semibold">Cargando orden...</h1>
+      </div>
+    </main>
+  );
+}
+
+export default function SymptomsOrderPage() {
+  return (
+    <Suspense fallback={<SymptomsOrderLoadingFallback />}>
+      <SymptomsOrderPageContent />
+    </Suspense>
   );
 }
 
@@ -452,6 +532,7 @@ function PrintOrderPage({
   verificationCode,
   pageIndex,
   totalPages,
+  showSignature,
 }: {
   category: OrderCategory;
   categoryMeta: ReturnType<typeof getOrderCategoryMeta>;
@@ -462,6 +543,7 @@ function PrintOrderPage({
   verificationCode: string;
   pageIndex: number;
   totalPages: number;
+  showSignature: boolean;
 }) {
   return (
     <article className="veramed-order-page">
@@ -477,6 +559,7 @@ function PrintOrderPage({
         issuedAt={issuedAt}
         pageIndex={pageIndex}
         totalPages={totalPages}
+        showSignature={showSignature}
       />
     </article>
   );
@@ -619,11 +702,13 @@ function OrderFooter({
   issuedAt,
   pageIndex,
   totalPages,
+  showSignature,
 }: {
   verificationCode: string;
   issuedAt: string;
   pageIndex: number;
   totalPages: number;
+  showSignature: boolean;
 }) {
   return (
     <footer className="veramed-order-footer border-t border-slate-300 pt-3 text-[11px] text-slate-600">
@@ -644,19 +729,29 @@ function OrderFooter({
 
         <div className="justify-self-end text-right">
           <div className="ml-auto flex h-14 w-52 items-end justify-end border-b border-slate-500">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/firmas/firma-VRM.png"
-              alt="Firma Dr. Víctor Rebolledo"
-              loading="eager"
-              decoding="sync"
-              fetchPriority="high"
-              className="veramed-print-signature h-12 w-36 object-contain"
-            />
+            {showSignature ? (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/firmas/firma-VRM.png"
+                  alt="Firma Dr. Víctor Rebolledo"
+                  loading="eager"
+                  decoding="sync"
+                  fetchPriority="high"
+                  className="veramed-print-signature h-12 w-36 object-contain"
+                />
+              </>
+            ) : null}
           </div>
-          <p className="mt-1 text-[12px] text-slate-700">Dr. Víctor Rebolledo M.</p>
-          <p className="text-[12px] text-slate-700">RUT 18.856.820-3</p>
-          <p className="text-[12px] text-slate-700">Registro SIS N°611341</p>
+          {showSignature ? (
+            <>
+              <p className="mt-1 text-[12px] text-slate-700">Dr. Víctor Rebolledo M.</p>
+              <p className="text-[12px] text-slate-700">RUT 18.856.820-3</p>
+              <p className="text-[12px] text-slate-700">Registro SIS N°611341</p>
+            </>
+          ) : (
+            <p className="mt-2 text-[12px] text-slate-700">Pendiente de firma médica</p>
+          )}
         </div>
       </div>
     </footer>

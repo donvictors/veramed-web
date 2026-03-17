@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import type { KeyQuestion, QuestionType } from "@/lib/clinical/types";
-import type { StoredSymptomsIntakeDraft, SymptomsFlowAnswerMap, SymptomsOrderDraft } from "@/lib/symptoms-order";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import type { SymptomsOrderDraft, StoredSymptomsIntakeDraft } from "@/lib/symptoms-order";
 
 type ChatMessage = {
   id: string;
@@ -11,11 +11,14 @@ type ChatMessage = {
   text: string;
 };
 
-type ClinicalFlowPayload = {
-  flow: {
-    flowId: string;
-    label: string;
-    keyQuestions: KeyQuestion[];
+type SymptomsRequestPayload = {
+  id: string;
+  oneLinerSummary: string;
+  primarySymptom: string;
+  followUpQuestions: string[];
+  reviewStatus: "draft" | "paid" | "in_flow" | "pending_validation" | "validated" | "rejected";
+  interpretation: {
+    probableContext: string;
   };
 };
 
@@ -32,31 +35,11 @@ const ORDER_LOADING_MESSAGES = [
   "Validando formato final de la orden…",
 ];
 
-const FALLBACK_FLOW_QUESTIONS: KeyQuestion[] = [
-  {
-    id: "evolution",
-    text: "¿Desde cuándo notas estos síntomas?",
-    type: "text",
-    required: false,
-  },
-  {
-    id: "intensity",
-    text: "¿Qué tanto afectan tu rutina diaria?",
-    type: "text",
-    required: false,
-  },
-  {
-    id: "associated",
-    text: "¿Hay síntomas asociados relevantes?",
-    type: "text",
-    required: false,
-  },
-  {
-    id: "background",
-    text: "¿Tienes algún antecedente que debamos considerar?",
-    type: "text",
-    required: false,
-  },
+const FALLBACK_QUESTIONS = [
+  "¿Desde cuándo notas estos síntomas?",
+  "¿Han empeorado, mejorado o se mantienen igual?",
+  "¿Hay algún factor que alivie o empeore los síntomas?",
+  "¿Hay algún antecedente adicional que debamos considerar?",
 ];
 
 function readDraftFromStorage() {
@@ -75,90 +58,42 @@ function readDraftFromStorage() {
   }
 }
 
-function questionTypeHint(type: QuestionType) {
-  if (type === "boolean") return "Responde Sí o No.";
-  if (type === "number") return "Ingresa un número aproximado.";
-  if (type === "duration") return "Indica el tiempo aproximado.";
-  if (type === "multi_select") return "Puedes listar más de una opción.";
-  return null;
-}
-
-function questionPrompt(question: KeyQuestion) {
-  const hint = questionTypeHint(question.type);
-  const parts = [question.text];
-  if (question.helpText) {
-    parts.push(question.helpText);
-  }
-  if (hint) {
-    parts.push(hint);
-  }
-  return parts.join(" ");
-}
-
-function createQuestionMessage(question: KeyQuestion): ChatMessage {
-  return {
-    id: `question-${question.id}`,
-    role: "assistant",
-    text: questionPrompt(question),
-  };
-}
-
 function sleep(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
-function normalizeBooleanFromText(raw: string) {
-  const normalized = raw
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim();
-  if (!normalized) return "No";
-  if (["si", "s", "yes", "y", "true", "1"].some((value) => normalized === value || normalized.startsWith(`${value} `))) {
-    return "Sí";
-  }
-  if (["no", "n", "false", "0"].some((value) => normalized === value || normalized.startsWith(`${value} `))) {
-    return "No";
-  }
-  return "No";
-}
-
-function formatSummaryAnswer(question: KeyQuestion, answer: string) {
-  const clean = answer.trim();
-  if (!clean) return "Sin respuesta";
-  if (question.type === "boolean") {
-    return normalizeBooleanFromText(clean);
-  }
-  return clean;
-}
-
-export default function SintomasFlujoPage() {
+function SintomasFlujoPageContent() {
+  const searchParams = useSearchParams();
   const [draft] = useState<StoredSymptomsIntakeDraft | null>(() => readDraftFromStorage());
-  const [flowQuestions, setFlowQuestions] = useState<KeyQuestion[] | null>(null);
-  const [flowLabel, setFlowLabel] = useState("");
+  const [requestData, setRequestData] = useState<SymptomsRequestPayload | null>(null);
+  const [loadingRequest, setLoadingRequest] = useState(true);
   const [questionIndex, setQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState<SymptomsFlowAnswerMap>({});
+  const [answers, setAnswers] = useState<Record<string, string>>({});
   const [answerInput, setAnswerInput] = useState("");
-  const [isTyping, setIsTyping] = useState(() => Boolean(readDraftFromStorage()));
+  const [isTyping, setIsTyping] = useState(true);
   const [completed, setCompleted] = useState(false);
   const [isGeneratingOrder, setIsGeneratingOrder] = useState(false);
   const [orderProgress, setOrderProgress] = useState(0);
   const [orderMessageIndex, setOrderMessageIndex] = useState(0);
   const [orderError, setOrderError] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [bootstrapError, setBootstrapError] = useState("");
   const timeoutRef = useRef<number | null>(null);
   const introTimeoutsRef = useRef<number[]>([]);
   const chatViewportRef = useRef<HTMLDivElement | null>(null);
+  const answerInputRef = useRef<HTMLInputElement | null>(null);
 
-  const activeQuestions = flowQuestions ?? [];
+  const requestId =
+    searchParams.get("requestId")?.trim() || draft?.requestId?.trim() || "";
+  const activeQuestions = useMemo(() => {
+    const list = requestData?.followUpQuestions ?? [];
+    return list.length > 0 ? list : FALLBACK_QUESTIONS;
+  }, [requestData?.followUpQuestions]);
 
   useEffect(() => {
     window.requestAnimationFrame(() => {
       const viewport = chatViewportRef.current;
-      if (!viewport) {
-        return;
-      }
-
+      if (!viewport) return;
       viewport.scrollTo({
         top: viewport.scrollHeight,
         behavior: "smooth",
@@ -167,66 +102,76 @@ export default function SintomasFlujoPage() {
   }, [messages, isTyping, completed]);
 
   useEffect(() => {
-    const introTimeouts = introTimeoutsRef.current;
+    if (isTyping || completed) {
+      return;
+    }
+    const rafId = window.requestAnimationFrame(() => {
+      answerInputRef.current?.focus();
+    });
+    return () => window.cancelAnimationFrame(rafId);
+  }, [isTyping, completed, questionIndex, messages.length]);
+
+  useEffect(() => {
+    const introTimeoutIds = introTimeoutsRef.current;
     return () => {
       if (timeoutRef.current) {
         window.clearTimeout(timeoutRef.current);
       }
-      introTimeouts.forEach((id) => window.clearTimeout(id));
+      introTimeoutIds.forEach((id) => window.clearTimeout(id));
     };
   }, []);
 
   useEffect(() => {
-    if (!draft || flowQuestions) {
-      return;
-    }
-
-    const flowId = draft.output.flowId?.trim();
-    if (!flowId) {
-      setFlowLabel("Motivo de consulta general");
-      setFlowQuestions(FALLBACK_FLOW_QUESTIONS);
+    if (!requestId) {
+      setBootstrapError("No encontramos un pago confirmado para continuar.");
+      setLoadingRequest(false);
       return;
     }
 
     let cancelled = false;
     void (async () => {
       try {
-        const response = await fetch("/api/sintomas/clinical-evaluate", {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-          },
-          body: JSON.stringify({
-            flowId,
-            answers: {},
-          }),
+        setLoadingRequest(true);
+        const response = await fetch(`/api/sintomas/requests/${requestId}`, {
+          cache: "no-store",
         });
-
-        const payload = (await response.json().catch(() => null)) as ClinicalFlowPayload | null;
-        if (cancelled || !response.ok || !payload?.flow) {
-          throw new Error("No pudimos cargar las preguntas dirigidas.");
+        const payload = (await response.json().catch(() => null)) as
+          | { request?: SymptomsRequestPayload; error?: string }
+          | null;
+        if (!response.ok || !payload?.request) {
+          throw new Error(payload?.error || "No encontramos la solicitud de síntomas.");
         }
-
-        setFlowLabel(payload.flow.label);
-        setFlowQuestions(payload.flow.keyQuestions.length > 0 ? payload.flow.keyQuestions : FALLBACK_FLOW_QUESTIONS);
-      } catch {
         if (cancelled) return;
-        setFlowLabel("Motivo de consulta general");
-        setFlowQuestions(FALLBACK_FLOW_QUESTIONS);
+        if (payload.request.reviewStatus === "draft") {
+          throw new Error("El pago de esta solicitud aún no está confirmado.");
+        }
+        if (
+          payload.request.reviewStatus === "pending_validation" ||
+          payload.request.reviewStatus === "validated"
+        ) {
+          window.location.href = `/sintomas/orden?id=${encodeURIComponent(requestId)}`;
+          return;
+        }
+        setRequestData(payload.request);
+      } catch (error) {
+        if (cancelled) return;
+        setBootstrapError(
+          error instanceof Error ? error.message : "No pudimos cargar la evaluación clínica.",
+        );
+      } finally {
+        if (!cancelled) {
+          setLoadingRequest(false);
+        }
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [draft, flowQuestions]);
+  }, [requestId]);
 
   useEffect(() => {
-    if (!draft || !flowQuestions || flowQuestions.length === 0) {
-      return;
-    }
-
-    if (messages.length > 0) {
+    if (!requestData || messages.length > 0 || bootstrapError) {
       return;
     }
 
@@ -234,14 +179,18 @@ export default function SintomasFlujoPage() {
       {
         id: "intro-1",
         role: "assistant",
-        text: `Perfecto. Tomaremos como base: ${draft.output.probableContext}.`,
+        text: `Perfecto. Tomaremos como base: ${requestData.oneLinerSummary || requestData.interpretation.probableContext}.`,
       },
       {
         id: "intro-2",
         role: "assistant",
         text: "Te haré unas preguntas breves para precisar el recorrido clínico.",
       },
-      createQuestionMessage(flowQuestions[0]),
+      {
+        id: "question-0",
+        role: "assistant",
+        text: activeQuestions[0],
+      },
     ];
 
     let cumulativeDelay = 350;
@@ -255,7 +204,7 @@ export default function SintomasFlujoPage() {
       }, cumulativeDelay);
       introTimeoutsRef.current.push(timeoutId);
     });
-  }, [draft, flowQuestions, messages.length]);
+  }, [activeQuestions, bootstrapError, messages.length, requestData]);
 
   function pushNextQuestion(nextIndex: number) {
     if (nextIndex >= activeQuestions.length) {
@@ -274,7 +223,14 @@ export default function SintomasFlujoPage() {
 
     setQuestionIndex(nextIndex);
     setIsTyping(false);
-    setMessages((current) => [...current, createQuestionMessage(activeQuestions[nextIndex])]);
+    setMessages((current) => [
+      ...current,
+      {
+        id: `question-${nextIndex}`,
+        role: "assistant",
+        text: activeQuestions[nextIndex],
+      },
+    ]);
   }
 
   function answerCurrentQuestion(answerText: string) {
@@ -287,15 +243,16 @@ export default function SintomasFlujoPage() {
       return;
     }
 
+    const answerKey = `q_${questionIndex}`;
     setAnswers((current) => ({
       ...current,
-      [currentQuestion.id]: answerText,
+      [answerKey]: answerText,
     }));
 
     setMessages((current) => [
       ...current,
       {
-        id: `user-${currentQuestion.id}-${Date.now()}`,
+        id: `user-${answerKey}-${Date.now()}`,
         role: "user",
         text: answerText,
       },
@@ -309,8 +266,17 @@ export default function SintomasFlujoPage() {
     }, 760);
   }
 
+  function handleAnswerSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const cleanAnswer = answerInput.trim();
+    if (!cleanAnswer) {
+      return;
+    }
+    answerCurrentQuestion(cleanAnswer);
+  }
+
   async function handleGenerateOrder() {
-    if (!draft || !completed || isGeneratingOrder) {
+    if (!requestId || !completed || isGeneratingOrder) {
       return;
     }
 
@@ -333,10 +299,7 @@ export default function SintomasFlujoPage() {
           "content-type": "application/json",
         },
         body: JSON.stringify({
-          symptomsText: draft.input,
-          patient: draft.patient,
-          interpretation: draft.output,
-          antecedents: draft.antecedents,
+          requestId,
           answers,
         }),
       });
@@ -353,14 +316,14 @@ export default function SintomasFlujoPage() {
       window.sessionStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(payload.order));
       setOrderProgress(100);
       await sleep(320);
-      window.location.href = "/sintomas/orden";
+      window.location.href = `/sintomas/orden?id=${encodeURIComponent(requestId)}`;
     } catch (error) {
       setOrderError(error instanceof Error ? error.message : "No pudimos generar la orden.");
       setIsGeneratingOrder(false);
     }
   }
 
-  if (!draft) {
+  if (loadingRequest) {
     return (
       <main className="min-h-screen bg-slate-50 text-slate-900">
         <div className="mx-auto flex min-h-[70vh] w-full max-w-3xl flex-col items-center justify-center px-6 text-center">
@@ -368,23 +331,14 @@ export default function SintomasFlujoPage() {
             Evaluación clínica guiada
           </p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-            No encontramos un relato de síntomas para continuar
+            Cargando tu solicitud...
           </h1>
-          <p className="mt-4 max-w-xl text-sm leading-7 text-slate-600">
-            Primero necesitamos interpretar tu texto libre en la pantalla inicial de síntomas.
-          </p>
-          <Link
-            href="/sintomas"
-            className="mt-6 inline-flex items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-          >
-            Volver a escribir síntomas
-          </Link>
         </div>
       </main>
     );
   }
 
-  if (!draft.patient) {
+  if (bootstrapError || !requestData) {
     return (
       <main className="min-h-screen bg-slate-50 text-slate-900">
         <div className="mx-auto flex min-h-[70vh] w-full max-w-3xl flex-col items-center justify-center px-6 text-center">
@@ -392,17 +346,16 @@ export default function SintomasFlujoPage() {
             Evaluación clínica guiada
           </p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-            Faltan datos del paciente para continuar
+            No pudimos continuar con tu evaluación
           </h1>
           <p className="mt-4 max-w-xl text-sm leading-7 text-slate-600">
-            Antes de continuar con el flujo guiado, necesitamos los datos del paciente para poder
-            emitir la orden.
+            {bootstrapError || "Primero necesitamos un pago confirmado para continuar."}
           </p>
           <Link
-            href="/sintomas/pago"
+            href="/sintomas"
             className="mt-6 inline-flex items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
           >
-            Ir a completar datos
+            Volver a síntomas
           </Link>
         </div>
       </main>
@@ -421,13 +374,8 @@ export default function SintomasFlujoPage() {
           </h1>
           <p className="mt-3 text-sm leading-7 text-slate-600">
             Síntoma principal detectado:{" "}
-            <span className="font-semibold text-slate-900">{draft.output.primarySymptom}</span>.
+            <span className="font-semibold text-slate-900">{requestData.primarySymptom}</span>.
           </p>
-          {flowLabel ? (
-            <p className="text-sm leading-7 text-slate-600">
-              Flujo clínico inicial: <span className="font-semibold text-slate-900">{flowLabel}</span>.
-            </p>
-          ) : null}
 
           <div className="mt-6 rounded-3xl border border-slate-200 bg-slate-50 p-4 md:p-5">
             <div ref={chatViewportRef} className="max-h-[52vh] overflow-y-auto pr-1">
@@ -485,54 +433,25 @@ export default function SintomasFlujoPage() {
             >
               Tu respuesta en texto libre
             </label>
-            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+            <form onSubmit={handleAnswerSubmit} className="mt-2 flex flex-col gap-2 sm:flex-row">
               <input
+                ref={answerInputRef}
                 id="sintomas-respuesta"
                 value={answerInput}
                 onChange={(event) => setAnswerInput(event.target.value)}
-                placeholder={flowQuestions ? "Escribe tu respuesta..." : "Cargando preguntas..."}
+                placeholder="Escribe tu respuesta..."
                 className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:bg-white focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
-                disabled={!flowQuestions || isTyping || completed}
+                disabled={isTyping || completed}
               />
               <button
-                type="button"
-                onClick={() => {
-                  const cleanAnswer = answerInput.trim();
-                  if (!cleanAnswer) {
-                    return;
-                  }
-                  answerCurrentQuestion(cleanAnswer);
-                }}
-                disabled={!answerInput.trim() || isTyping || completed || !flowQuestions}
+                type="submit"
+                disabled={!answerInput.trim() || isTyping || completed}
                 className="inline-flex items-center justify-center rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
               >
                 Responder
               </button>
-            </div>
+            </form>
           </div>
-
-          {completed ? (
-            <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">
-                Resumen clínico preliminar
-              </p>
-              <p className="mt-2 text-sm leading-7 text-slate-700">
-                Contexto: <span className="font-semibold text-slate-900">{draft.output.probableContext}</span>.
-              </p>
-              <div className="mt-3 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
-                {activeQuestions.map((question) => (
-                  <div key={question.id} className="rounded-xl border border-emerald-100 bg-white px-3 py-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-                      {question.text}
-                    </p>
-                    <p className="mt-1 font-medium text-slate-900">
-                      {formatSummaryAnswer(question, answers[question.id] ?? "")}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
 
           <div className="mt-6 flex flex-wrap gap-3">
             <button
@@ -574,5 +493,28 @@ export default function SintomasFlujoPage() {
         </section>
       </div>
     </main>
+  );
+}
+
+function SintomasFlujoLoadingFallback() {
+  return (
+    <main className="min-h-screen bg-slate-50 text-slate-900">
+      <div className="mx-auto flex min-h-[70vh] w-full max-w-3xl flex-col items-center justify-center px-6 text-center">
+        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
+          Evaluación clínica guiada
+        </p>
+        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
+          Cargando tu solicitud...
+        </h1>
+      </div>
+    </main>
+  );
+}
+
+export default function SintomasFlujoPage() {
+  return (
+    <Suspense fallback={<SintomasFlujoLoadingFallback />}>
+      <SintomasFlujoPageContent />
+    </Suspense>
   );
 }

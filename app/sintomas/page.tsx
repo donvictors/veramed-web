@@ -135,6 +135,12 @@ function normalizeBirthDateInput(nextValue: string) {
   return `${year.slice(-4)}-${month}-${day}`;
 }
 
+function createSymptomsRequestId(timestamp = Date.now()) {
+  const now = timestamp.toString(36);
+  const rand = Math.random().toString(36).slice(2, 8);
+  return `sym_${now}${rand}`.slice(0, 26);
+}
+
 export default function SintomasPage() {
   const router = useRouter();
   const [symptomsText, setSymptomsText] = useState("");
@@ -176,6 +182,7 @@ export default function SintomasPage() {
   const introTimeoutsRef = useRef<number[]>([]);
   const antecedentChatViewportRef = useRef<HTMLDivElement | null>(null);
   const antecedentChatEndRef = useRef<HTMLDivElement | null>(null);
+  const antecedentInputRef = useRef<HTMLInputElement | null>(null);
   const rutInputRef = useRef<HTMLInputElement | null>(null);
 
   const hasEnoughRutInput = rutNormalized.length >= 8;
@@ -230,6 +237,16 @@ export default function SintomasPage() {
       antecedentChatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
     });
   }, [status, antecedentMessages, isAntecedentBotTyping]);
+
+  useEffect(() => {
+    if (status !== "antecedents" || isAntecedentBotTyping) {
+      return;
+    }
+    const rafId = window.requestAnimationFrame(() => {
+      antecedentInputRef.current?.focus();
+    });
+    return () => window.cancelAnimationFrame(rafId);
+  }, [status, isAntecedentBotTyping, antecedentQuestionIndex, antecedentMessages.length]);
 
   function clearIntroTimeouts() {
     introTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
@@ -316,9 +333,11 @@ export default function SintomasPage() {
       }
 
       const finalizedPayload: InterpretationPayload = payload;
+      const requestId = createSymptomsRequestId();
       window.sessionStorage.setItem(
         finalizedPayload.nextStep?.storageKey ?? STORAGE_KEY,
         JSON.stringify({
+          requestId,
           input: symptomsText.trim(),
           patient: {
             fullName: joinPatientFullName(nameFields),
@@ -328,6 +347,7 @@ export default function SintomasPage() {
             phone,
             address,
           },
+          patientSex: sex,
           antecedents: antecedentAnswers,
           output: finalizedPayload.interpretation,
           engineVersion: finalizedPayload.engineVersion,
@@ -728,6 +748,7 @@ export default function SintomasPage() {
                 </label>
                 <div className="mt-2 flex flex-col gap-2 sm:flex-row">
                   <input
+                    ref={antecedentInputRef}
                     id="antecedent-response"
                     value={antecedentInput}
                     onChange={(event) => setAntecedentInput(event.target.value)}
@@ -796,15 +817,26 @@ export default function SintomasPage() {
                 Entendimos tu consulta como…
               </h2>
               <p className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-7 text-slate-700">
-                Para guiar mejor tu evaluación, organizamos tu relato en{" "}
-                <span className="font-semibold text-slate-900">{result?.interpretation.probableContext}</span>.
+                Para guiar mejor tu evaluación, hemos organizado tu historia de{" "}
+                <span className="font-semibold text-slate-900">
+                  {result?.interpretation.oneLinerSummary ?? result?.interpretation.probableContext}
+                </span>{" "}
+                como{" "}
+                <span className="font-semibold text-slate-900">
+                  {result?.interpretation.probableContext}
+                </span>
+                .
               </p>
 
               <div className="mt-5 grid gap-3 md:grid-cols-2">
                 <InfoPill label="Síntoma principal" value={result?.interpretation.primarySymptom ?? "-"} />
                 <InfoPill
-                  label="Motivo de consulta"
-                  value={result?.interpretation.consultationFrame ?? "-"}
+                  label="Síntomas secundarios"
+                  value={
+                    result?.interpretation.secondarySymptoms?.length
+                      ? result.interpretation.secondarySymptoms.join(", ")
+                      : "No reportados"
+                  }
                 />
               </div>
 
@@ -860,32 +892,36 @@ export default function SintomasPage() {
           )}
         </section>
 
-        <div className="mt-6 flex flex-wrap items-center gap-3 text-xs text-slate-600">
-          <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5">
-            Orientación ambulatoria
-          </span>
-          <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5">
-            Revisión y firma médica en la etapa final
-          </span>
-          <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-rose-700">
-            No apto para urgencias
-          </span>
-        </div>
+        {status === "idle" ? (
+          <>
+            <div className="mt-6 flex flex-wrap items-center gap-3 text-xs text-slate-600">
+              <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5">
+                Orientación ambulatoria
+              </span>
+              <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5">
+                Revisión y firma médica en la etapa final
+              </span>
+              <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-rose-700">
+                No apto para urgencias
+              </span>
+            </div>
 
-        <p className="mt-3 text-sm text-slate-500">
-          ¿Prefieres empezar con chequeo general?{" "}
-          <Link href="/chequeo" className="font-semibold text-slate-900 underline">
-            Ir a chequeo preventivo
-          </Link>
-          .
-        </p>
-        <p className="mt-1 text-sm text-slate-500">
-          ¿O prefieres controlar tus enfermedades crónicas?{" "}
-          <Link href="/control-cronico" className="font-semibold text-slate-900 underline">
-            Ir a control crónico
-          </Link>
-          .
-        </p>
+            <p className="mt-3 text-sm text-slate-500">
+              ¿Prefieres empezar con chequeo general?{" "}
+              <Link href="/chequeo" className="font-semibold text-slate-900 underline">
+                Ir a chequeo preventivo
+              </Link>
+              .
+            </p>
+            <p className="mt-1 text-sm text-slate-500">
+              ¿O prefieres controlar tus enfermedades crónicas?{" "}
+              <Link href="/control-cronico" className="font-semibold text-slate-900 underline">
+                Ir a control crónico
+              </Link>
+              .
+            </p>
+          </>
+        ) : null}
       </div>
     </main>
   );

@@ -3,7 +3,7 @@ import { createInternalAccessParams } from "@/lib/server/internal-access";
 import { getAppUrl } from "@/lib/server/transbank/config";
 import { getOrderCategoryMeta, type OrderCategory } from "@/lib/order-categories";
 
-type RequestType = "checkup" | "chronic_control";
+type RequestType = "checkup" | "chronic_control" | "symptoms";
 type OrderPdfCategory = OrderCategory;
 
 type RenderOrderPdfFromPageInput = {
@@ -40,20 +40,27 @@ async function resolveExecutablePath(chromium: { executablePath: () => Promise<s
 
 function buildOrderPageUrl(input: RenderOrderPdfFromPageInput) {
   const appUrl = getAppUrl();
-  const internal = createInternalAccessParams({
-    requestType: input.requestType,
-    requestId: input.requestId,
-  });
-
   const params = new URLSearchParams({
     id: input.requestId,
-    internalTs: internal.internalTs,
-    internalSig: internal.internalSig,
   });
+
+  if (input.requestType !== "symptoms") {
+    const internal = createInternalAccessParams({
+      requestType: input.requestType,
+      requestId: input.requestId,
+    });
+    params.set("internalTs", internal.internalTs);
+    params.set("internalSig", internal.internalSig);
+  }
 
   if (input.requestType === "checkup") {
     params.set("printCategory", input.category);
     return `${appUrl}/chequeo/orden?${params.toString()}`;
+  }
+
+  if (input.requestType === "symptoms") {
+    params.set("printCategory", input.category);
+    return `${appUrl}/sintomas/orden?${params.toString()}`;
   }
 
   params.set("printCategory", input.category);
