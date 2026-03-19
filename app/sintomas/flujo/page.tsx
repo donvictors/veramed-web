@@ -313,6 +313,12 @@ function SintomasFlujoPageContent() {
         throw new Error(payload && "error" in payload && payload.error ? payload.error : "No pudimos generar la orden.");
       }
 
+      if (!payload.order.tests?.length) {
+        throw new Error(
+          "No hemos identificado ningún examen para ti por ahora. Lo sentimos. Puedes editar tu relato o consultar de forma presencial.",
+        );
+      }
+
       window.sessionStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(payload.order));
       setOrderProgress(100);
       await sleep(320);

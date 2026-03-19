@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { AUTH_SESSION_COOKIE } from "@/lib/auth";
 import { calculateAgeFromBirthDate } from "@/lib/checkup";
@@ -76,6 +77,37 @@ function normalizeAntecedents(raw: Partial<SymptomsAntecedents>): SymptomsAntece
     ...EMPTY_SYMPTOMS_ANTECEDENTS,
     ...raw,
   };
+}
+
+function mapCreatePaymentError(error: unknown): { status: number; message: string } {
+  if (error instanceof Prisma.PrismaClientInitializationError) {
+    return {
+      status: 503,
+      message:
+        "No pudimos conectar con nuestra base de datos en este momento. Intenta nuevamente en 1-2 minutos.",
+    };
+  }
+
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P1001") {
+    return {
+      status: 503,
+      message:
+        "No pudimos conectar con nuestra base de datos en este momento. Intenta nuevamente en 1-2 minutos.",
+    };
+  }
+
+  const message =
+    error instanceof Error ? error.message : "No pudimos crear la transacción en Transbank.";
+
+  if (message.includes("Can't reach database server")) {
+    return {
+      status: 503,
+      message:
+        "No pudimos conectar con nuestra base de datos en este momento. Intenta nuevamente en 1-2 minutos.",
+    };
+  }
+
+  return { status: 500, message };
 }
 
 export async function POST(request: Request) {
@@ -180,9 +212,8 @@ export async function POST(request: Request) {
       redirectUrl: `${created.url}?token_ws=${encodeURIComponent(created.token)}`,
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "No pudimos crear la transacción en Transbank.";
     console.error("POST /api/sintomas/payments/create", error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    const mapped = mapCreatePaymentError(error);
+    return NextResponse.json({ error: mapped.message }, { status: mapped.status });
   }
 }

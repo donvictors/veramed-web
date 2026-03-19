@@ -141,6 +141,48 @@ function createSymptomsRequestId(timestamp = Date.now()) {
   return `sym_${now}${rand}`.slice(0, 26);
 }
 
+function buildAntecedentMessagesForIndex(
+  answers: AntecedentAnswerMap,
+  questionIndex: number,
+): AntecedentMessage[] {
+  const safeIndex = Math.max(0, Math.min(questionIndex, ANTECEDENT_QUESTIONS.length - 1));
+  const messages: AntecedentMessage[] = [
+    {
+      id: "ant-intro-replay",
+      role: "assistant",
+      text: ANTECEDENT_INTRO_MESSAGE,
+    },
+  ];
+
+  for (let index = 0; index < safeIndex; index += 1) {
+    const question = ANTECEDENT_QUESTIONS[index];
+    messages.push({
+      id: `ant-q-${question.key}-replay`,
+      role: "assistant",
+      text: question.prompt,
+    });
+    const answer = answers[question.key]?.trim();
+    if (answer) {
+      messages.push({
+        id: `ant-user-${question.key}-replay`,
+        role: "user",
+        text: answer,
+      });
+    }
+  }
+
+  const currentQuestion = ANTECEDENT_QUESTIONS[safeIndex];
+  if (currentQuestion) {
+    messages.push({
+      id: `ant-q-${currentQuestion.key}-active`,
+      role: "assistant",
+      text: currentQuestion.prompt,
+    });
+  }
+
+  return messages;
+}
+
 export default function SintomasPage() {
   const router = useRouter();
   const [symptomsText, setSymptomsText] = useState("");
@@ -247,6 +289,13 @@ export default function SintomasPage() {
     });
     return () => window.cancelAnimationFrame(rafId);
   }, [status, isAntecedentBotTyping, antecedentQuestionIndex, antecedentMessages.length]);
+
+  useEffect(() => {
+    if (status !== "processing") {
+      return;
+    }
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [status]);
 
   function clearIntroTimeouts() {
     introTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
@@ -491,6 +540,29 @@ export default function SintomasPage() {
 
       void runInterpretation();
     }, 650);
+  }
+
+  function handleAntecedentGoBack() {
+    if (status !== "antecedents" || isAntecedentBotTyping) {
+      return;
+    }
+
+    const previousQuestionIndex = antecedentQuestionIndex - 1;
+    if (previousQuestionIndex < 0) {
+      return;
+    }
+
+    if (typingTimeoutRef.current) {
+      window.clearTimeout(typingTimeoutRef.current);
+    }
+    clearIntroTimeouts();
+
+    const previousQuestion = ANTECEDENT_QUESTIONS[previousQuestionIndex];
+    setError("");
+    setIsAntecedentBotTyping(false);
+    setAntecedentQuestionIndex(previousQuestionIndex);
+    setAntecedentMessages(buildAntecedentMessagesForIndex(antecedentAnswers, previousQuestionIndex));
+    setAntecedentInput(previousQuestion ? antecedentAnswers[previousQuestion.key] ?? "" : "");
   }
 
   function handleContinue() {
@@ -762,6 +834,14 @@ export default function SintomasPage() {
                     className="inline-flex items-center justify-center rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
                   >
                     Responder
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAntecedentGoBack}
+                    disabled={antecedentQuestionIndex === 0 || isAntecedentBotTyping}
+                    className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Volver
                   </button>
                 </div>
               </form>
