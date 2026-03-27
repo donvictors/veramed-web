@@ -3,6 +3,16 @@ import BlogArchive from "@/components/BlogArchive";
 
 const posts = [
   {
+    title: "Pólipos de colon: la montaña silenciosa",
+    summary:
+      "¿Te hiciste una colonoscopia y te encontraron pólipos? ¿Quieres saber que son? Acá te explicamos todo relacionado con ellos y el seguimiento que debes tener..",
+    category: "Screening cáncer",
+    date: "27 marzo 2026",
+    publishedAt: "2026-03-27",
+    readTime: "5 min",
+    href: "/blog/polipos-de-colon-la-montana-silenciosa",
+  },
+  {
     title: "Chequeo preventivo: qué exámenes hacerte según tú edad",
     summary:
       "Una guía simple para entender qué se solicita por edad, sexo y factores de riesgo, y por qué no existe un panel único para todas las personas.",
