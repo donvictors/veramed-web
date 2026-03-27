@@ -79,16 +79,8 @@ const ANTECEDENT_QUESTIONS: Array<{ key: AntecedentKey; prompt: string }> = [
     prompt: "¿Tomas algún medicamento de forma crónica?",
   },
   {
-    key: "allergies",
-    prompt: "¿Tienes alguna alergia importante?",
-  },
-  {
     key: "smoking",
     prompt: "¿Fumas? Si tu respuesta es si, di más o menos cuánto",
-  },
-  {
-    key: "alcoholUse",
-    prompt: "¿Consumes alcohol? Si tu respuesta es si, di más o menos cuánto",
   },
   {
     key: "drugUse",
@@ -97,14 +89,6 @@ const ANTECEDENT_QUESTIONS: Array<{ key: AntecedentKey; prompt: string }> = [
   {
     key: "sexualActivity",
     prompt: "¿Eres activ@ sexualmente?",
-  },
-  {
-    key: "firstDegreeFamilyHistory",
-    prompt: "¿Alguna enfermedad importante en tu familia de primer grado? (padres, hermanos, hijos)",
-  },
-  {
-    key: "occupation",
-    prompt: "¿A que te dedicas?",
   },
 ];
 const ANTECEDENT_INTRO_MESSAGE =
@@ -894,18 +878,18 @@ export default function SintomasPage() {
                 <p>Ocupación: {antecedentAnswers.occupation || "No reportado"}</p>
               </div>
               <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-                Entendimos tu consulta como…
+                Resumimos tu consulta…
               </h2>
               <p className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-7 text-slate-700">
-                Para guiar mejor tu evaluación, hemos organizado tu historia de{" "}
+                Para guiar mejor tu evaluación, hemos resumido tu historia como:{" "}
                 <span className="font-semibold text-slate-900">
                   {result?.interpretation.oneLinerSummary ?? result?.interpretation.probableContext}
-                </span>{" "}
-                como{" "}
+                </span>
+                . Nos parece que podría ser compatible con{" "}
                 <span className="font-semibold text-slate-900">
                   {result?.interpretation.probableContext}
                 </span>
-                .
+                ...
               </p>
 
               <div className="mt-5 grid gap-3 md:grid-cols-2">

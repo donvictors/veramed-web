@@ -20,7 +20,7 @@ export default function Hero() {
 
           <h1 className="mt-6 max-w-3xl text-4xl font-semibold tracking-tight text-slate-950 md:text-6xl">
             <span className="block">Órdenes médicas</span>
-            <span className="hero-title-reveal block">basadas en evidencia.</span>
+            <span className="hero-title-reveal block">pensadas para tu salud.</span>
           </h1>
 
           <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">

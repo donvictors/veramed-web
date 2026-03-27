@@ -1,4 +1,5 @@
 import Link from "next/link";
+import BlogArchive from "@/components/BlogArchive";
 
 const posts = [
   {
@@ -7,6 +8,7 @@ const posts = [
       "Una guía simple para entender qué se solicita por edad, sexo y factores de riesgo, y por qué no existe un panel único para todas las personas.",
     category: "Prevención",
     date: "04 marzo 2026",
+    publishedAt: "2026-03-04",
     readTime: "6 min",
     href: "/blog/examenes-chequeo-preventivo",
   },
@@ -16,21 +18,27 @@ const posts = [
       "Qué son las cascadas diagnósticas, por qué ocurren tras hallazgos incidentales y cómo evitar estudios innecesarios en prevención.",
     category: "Decisiones clínicas",
     date: "13 marzo 2026",
+    publishedAt: "2026-03-13",
     readTime: "6 min",
     href: "/blog/cascadas-diagnosticas-sobrediagnostico",
   },
   {
-    title: "Interpretar resultados sin ansiedad: qué mirar y cuándo consultar",
+    title: "Colonoscopía: qué es, cómo prepararse y qué esperar del examen",
     summary:
-      "Claves para leer tus resultados con contexto clínico y reconocer cuándo corresponde evaluación médica presencial.",
-    category: "Educación clínica",
+      "Si tu médico (o Veramed) te pidió una colonoscopía, aquí te explicamos en simple como nos ayuda a detectar problemas a tiempo e incluso prevenir el cáncer de colon.",
+    category: "Screening cáncer",
     date: "20 marzo 2026",
-    readTime: "7 min",
-    href: "",
+    publishedAt: "2026-03-20",
+    readTime: "5 min",
+    href: "/blog/colonoscopia-que-es-como-prepararse-y-que-esperar-del-examen",
   },
 ];
 
 export default function BlogPage() {
+  const sortedPosts = [...posts].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+  const recentPosts = sortedPosts.slice(0, 3);
+  const olderPosts = sortedPosts.slice(3);
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
       <div className="mx-auto max-w-6xl px-6 py-12 md:py-16">
@@ -46,7 +54,7 @@ export default function BlogPage() {
         </section>
 
         <section className="mt-8 grid gap-6 md:grid-cols-3">
-          {posts.map((post) => (
+          {recentPosts.map((post) => (
             <article
               key={post.title}
               className="flex h-full flex-col rounded-[1.75rem] border border-slate-200 bg-white p-6"
@@ -76,6 +84,10 @@ export default function BlogPage() {
               </div>
             </article>
           ))}
+        </section>
+
+        <section className="mt-6">
+          <BlogArchive posts={olderPosts} />
         </section>
 
         <section className="mt-8 rounded-[2rem] border border-slate-200 bg-white p-6">

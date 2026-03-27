@@ -7,11 +7,11 @@ const metadataBaseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:30
 
 export const metadata: Metadata = {
   metadataBase: new URL(metadataBaseUrl),
-  title: "Veramed | Órdenes médicas basadas en evidencia",
+  title: "Veramed | Órdenes médicas pensadas para ti",
   description:
     "Solicita órdenes médicas de laboratorio con una recomendación clara, preparación sugerida y validación clínica en un flujo simple.",
   openGraph: {
-    title: "Veramed | Órdenes médicas basadas en evidencia",
+    title: "Veramed | Órdenes médicas pensadas para ti",
     description:
       "Chequeos preventivos y órdenes médicas orientadas por evidencia, con foco en claridad clínica y trazabilidad.",
     locale: "es_CL",

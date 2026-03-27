@@ -14,11 +14,6 @@ const trustCards = [
     body: "Cada solicitud mantiene tus datos seguros y anónimos. Tu información de salud no es almacenada en nuestros servidores posterior a la emisión de la orden.",
     tone: "slate",
   },
-  {
-    title: "No usar en urgencias",
-    body: "No corresponde para cuadros agudos, síntomas de alarma o decisiones clínicas inmediatas.",
-    tone: "rose",
-  },
 ];
 
 export default function Trust() {
@@ -38,7 +33,7 @@ export default function Trust() {
           </p>
         </div>
 
-        <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {trustCards.map((card) => (
             <article
               key={card.title}
