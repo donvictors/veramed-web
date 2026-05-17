@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-type RequestType = "checkup" | "chronic_control";
+type RequestType = "checkup" | "chronic_control" | "symptoms";
 
 type RequestAccessCookieState = {
   v: 1;

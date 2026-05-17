@@ -117,6 +117,43 @@ Endpoints de PDF protegidos disponibles:
 - `GET /api/checkups/:id/pdf`
 - `GET /api/chronic-controls/:id/pdf`
 
+### Sweeper de correos pendientes (producción)
+
+Se agregó un sweeper para recuperar automáticamente solicitudes con:
+
+- `reviewStatus = approved`
+- pago confirmado (`payment.status = paid`)
+- correo aún no marcado como enviado (`orderEmailSentAt = null`)
+
+Endpoint:
+
+- `GET|POST /api/internal/order-emails/sweep`
+
+Acceso:
+
+- Header `x-support-token: <INTERNAL_SUPPORT_TOKEN>`, o
+- Header `Authorization: Bearer <CRON_SECRET>` (o `INTERNAL_CRON_TOKEN`)
+
+Parámetros:
+
+- `limit` (default 20, máx interno 200)
+- `dryRun` (true/false)
+- `forceResend` (true/false)
+
+Ejemplo manual:
+
+```bash
+curl -X POST https://www.veramed.cl/api/internal/order-emails/sweep \
+  -H "content-type: application/json" \
+  -H "x-support-token: $INTERNAL_SUPPORT_TOKEN" \
+  -d '{"limit":25,"dryRun":false,"forceResend":false}'
+```
+
+Vercel Cron:
+
+- `vercel.json` ejecuta `*/10 * * * *` sobre `/api/internal/order-emails/sweep`.
+- Para autorizar el cron en producción, define `CRON_SECRET` en Vercel.
+
 ### Ejemplo de llamada desde frontend
 
 ```ts

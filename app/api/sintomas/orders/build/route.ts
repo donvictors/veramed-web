@@ -1,6 +1,14 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { z } from "zod";
+import { AUTH_SESSION_COOKIE } from "@/lib/auth";
 import { getExamMetadataByName } from "@/lib/exam-master-catalog";
+import { getUserFromSession } from "@/lib/server/auth-store";
+import { hasValidInternalAccess } from "@/lib/server/internal-access";
+import {
+  getRequestAccessCookieName,
+  hasValidRequestAccessCookie,
+} from "@/lib/server/request-access";
 import { buildSymptomsOrderFromEngine } from "@/lib/server/symptoms-order-engine";
 import { toSymptomsOrderDraftFromRecord } from "@/lib/server/symptoms-order-mapper";
 import { suggestSymptomsExamsWithOpenAI } from "@/lib/server/symptoms-openai";
@@ -88,6 +96,30 @@ export async function POST(request: Request) {
   const requestRecord = await getSymptomsRequest(parsed.data.requestId);
   if (!requestRecord) {
     return NextResponse.json({ error: "Solicitud de síntomas no encontrada." }, { status: 404 });
+  }
+
+  const internalAccess = hasValidInternalAccess(request, {
+    requestType: "symptoms",
+    requestId: requestRecord.id,
+  });
+  const cookieStore = await cookies();
+  const token = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
+  const user = await getUserFromSession(token);
+  const requestAccessCookie = cookieStore.get(getRequestAccessCookieName())?.value;
+
+  if (requestRecord.userId && !internalAccess) {
+    if (!user || user.id !== requestRecord.userId) {
+      return NextResponse.json({ error: "No tienes acceso a esta solicitud." }, { status: 403 });
+    }
+  } else if (!requestRecord.userId && !internalAccess) {
+    const hasGuestAccess = hasValidRequestAccessCookie(requestAccessCookie, {
+      requestType: "symptoms",
+      requestId: requestRecord.id,
+      createdAtMs: requestRecord.createdAt,
+    });
+    if (!hasGuestAccess) {
+      return NextResponse.json({ error: "No tienes acceso a esta solicitud." }, { status: 403 });
+    }
   }
 
   if (!requestRecord.payment || requestRecord.payment.status !== "paid") {

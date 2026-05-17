@@ -52,6 +52,8 @@ function SymptomsOrderPageContent() {
 
   const requestedCategory = parseOrderCategory(searchParams.get("printCategory") || null);
   const requestIdFromUrl = searchParams.get("id")?.trim() || "";
+  const internalTs = searchParams.get("internalTs")?.trim() || "";
+  const internalSig = searchParams.get("internalSig")?.trim() || "";
 
   useEffect(() => {
     if (!requestIdFromUrl) {
@@ -62,7 +64,13 @@ function SymptomsOrderPageContent() {
     void (async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/api/sintomas/orders/${requestIdFromUrl}`, {
+        const query = new URLSearchParams();
+        if (internalTs && internalSig) {
+          query.set("internalTs", internalTs);
+          query.set("internalSig", internalSig);
+        }
+        const suffix = query.toString();
+        const response = await fetch(`/api/sintomas/orders/${requestIdFromUrl}${suffix ? `?${suffix}` : ""}`, {
           cache: "no-store",
         });
         const payload = (await response.json().catch(() => null)) as
@@ -87,7 +95,7 @@ function SymptomsOrderPageContent() {
     return () => {
       cancelled = true;
     };
-  }, [requestIdFromUrl]);
+  }, [internalSig, internalTs, requestIdFromUrl]);
 
   if (!order && !loading) {
     return (

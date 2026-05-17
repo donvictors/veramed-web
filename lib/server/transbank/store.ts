@@ -55,6 +55,12 @@ function getTransactionDelegate(): TxDelegate | null {
     return candidate as TxDelegate;
   }
 
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "PrismaClient no expone transbankPaymentTransaction en producción. Ejecuta `npx prisma generate` con schema actualizado.",
+    );
+  }
+
   return null;
 }
 

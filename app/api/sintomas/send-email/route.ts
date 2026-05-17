@@ -26,9 +26,21 @@ function escapeHtml(value: string) {
     .replaceAll("'", "&#39;");
 }
 
+function isSupportTokenValid(request: Request) {
+  const expected = process.env.INTERNAL_SUPPORT_TOKEN?.trim();
+  if (!expected) return false;
+
+  const provided = request.headers.get("x-support-token")?.trim();
+  return Boolean(provided && provided === expected);
+}
+
 export async function POST(request: Request) {
   if (!process.env.RESEND_API_KEY) {
     return NextResponse.json({ ok: false, error: "RESEND_API_KEY no está configurada." }, { status: 500 });
+  }
+
+  if (!isSupportTokenValid(request)) {
+    return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 403 });
   }
 
   let payload: Payload;

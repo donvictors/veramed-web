@@ -17,8 +17,18 @@ import {
 import { getUserFromSession } from "@/lib/server/auth-store";
 import { parseCreateResponse } from "@/lib/server/transbank/normalize";
 import { buildTransbankTransaction, getAppUrl } from "@/lib/server/transbank/config";
-import { buildSymptomsCachedInput, createOrUpdateSymptomsDraft, markSymptomsPaymentPending } from "@/lib/server/symptoms-store";
+import {
+  buildSymptomsCachedInput,
+  createOrUpdateSymptomsDraft,
+  getSymptomsRequest,
+  markSymptomsPaymentPending,
+} from "@/lib/server/symptoms-store";
 import { upsertSymptomsPaymentTransaction } from "@/lib/server/symptoms-payment";
+import {
+  getRequestAccessCookieName,
+  hasValidRequestAccessCookie,
+  upsertRequestAccessCookie,
+} from "@/lib/server/request-access";
 
 export const runtime = "nodejs";
 
@@ -141,6 +151,38 @@ export async function POST(request: Request) {
     const cookieStore = await cookies();
     const token = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
     const user = await getUserFromSession(token);
+    const currentAccessCookie = cookieStore.get(getRequestAccessCookieName())?.value;
+
+    const existing = await getSymptomsRequest(data.orderId);
+    if (existing) {
+      if (existing.reviewStatus === "validated" || existing.reviewStatus === "rejected") {
+        return NextResponse.json(
+          { error: "Esta solicitud ya fue cerrada y no se puede modificar." },
+          { status: 409 },
+        );
+      }
+
+      if (existing.userId) {
+        if (!user || user.id !== existing.userId) {
+          return NextResponse.json(
+            { error: "No tienes acceso a esta solicitud." },
+            { status: 403 },
+          );
+        }
+      } else {
+        const hasGuestAccess = hasValidRequestAccessCookie(currentAccessCookie, {
+          requestType: "symptoms",
+          requestId: existing.id,
+          createdAtMs: existing.createdAt,
+        });
+        if (!hasGuestAccess) {
+          return NextResponse.json(
+            { error: "No tienes acceso a esta solicitud." },
+            { status: 403 },
+          );
+        }
+      }
+    }
 
     const age = calculateAgeFromBirthDate(data.draft.patient.birthDate);
     const antecedents = normalizeAntecedents(data.draft.antecedents);
@@ -156,7 +198,7 @@ export async function POST(request: Request) {
       antecedents,
     });
 
-    await createOrUpdateSymptomsDraft({
+    const draft = await createOrUpdateSymptomsDraft({
       id: data.orderId,
       userId: user?.id,
       symptomsText: data.draft.input.trim(),
@@ -203,6 +245,22 @@ export async function POST(request: Request) {
       currency: "CLP",
       paymentId: created.token,
     });
+
+    if (!user?.id) {
+      const nextAccessCookie = upsertRequestAccessCookie(currentAccessCookie, {
+        requestType: "symptoms",
+        requestId: draft.id,
+        createdAtMs: draft.createdAt,
+      });
+
+      cookieStore.set(getRequestAccessCookieName(), nextAccessCookie, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 30,
+      });
+    }
 
     return NextResponse.json({
       requestId: data.orderId,

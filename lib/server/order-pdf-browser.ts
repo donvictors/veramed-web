@@ -44,14 +44,12 @@ function buildOrderPageUrl(input: RenderOrderPdfFromPageInput) {
     id: input.requestId,
   });
 
-  if (input.requestType !== "symptoms") {
-    const internal = createInternalAccessParams({
-      requestType: input.requestType,
-      requestId: input.requestId,
-    });
-    params.set("internalTs", internal.internalTs);
-    params.set("internalSig", internal.internalSig);
-  }
+  const internal = createInternalAccessParams({
+    requestType: input.requestType,
+    requestId: input.requestId,
+  });
+  params.set("internalTs", internal.internalTs);
+  params.set("internalSig", internal.internalSig);
 
   if (input.requestType === "checkup") {
     params.set("printCategory", input.category);

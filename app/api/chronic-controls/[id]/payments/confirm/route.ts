@@ -20,6 +20,13 @@ type RouteContext = {
 };
 
 export async function POST(_request: Request, context: RouteContext) {
+  if (process.env.ENABLE_LEGACY_DIRECT_PAYMENTS !== "1") {
+    return NextResponse.json(
+      { error: "Este endpoint legacy de pago directo está deshabilitado en este entorno." },
+      { status: 410 },
+    );
+  }
+
   const { id } = await context.params;
   const current = await getChronicControlRecord(id);
 

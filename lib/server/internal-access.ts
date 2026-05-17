@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-type RequestType = "checkup" | "chronic_control";
+type RequestType = "checkup" | "chronic_control" | "symptoms";
 
 const MAX_AGE_MS = 5 * 60 * 1000;
 
@@ -83,4 +83,3 @@ export function hasValidInternalAccess(
 
   return timingSafeEqual(providedBuffer, expectedBuffer);
 }
-
