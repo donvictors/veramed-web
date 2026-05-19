@@ -186,7 +186,7 @@ function SymptomsPaymentContent() {
                 <div className="mt-3 space-y-1 text-sm text-slate-700">
                   <p>
                     Descuento aplicado:{" "}
-                    <span className="font-semibold">{pricing.discount.percentOff}%</span>
+                    <span className="font-semibold">{pricing.discount.label}</span>
                   </p>
                   <p>
                     Total con descuento:{" "}
