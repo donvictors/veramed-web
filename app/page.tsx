@@ -13,8 +13,8 @@ export default function HomePage() {
         <div className="absolute right-[-10rem] top-24 h-96 w-96 rounded-full bg-slate-100 blur-3xl" />
       </div>
       <Hero />
-      <HowItWorks />
       <Services />
+      <HowItWorks />
       <Trust />
       <FAQ />
     </main>
