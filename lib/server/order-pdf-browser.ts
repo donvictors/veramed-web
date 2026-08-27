@@ -17,20 +17,30 @@ async function resolveExecutablePath(chromium: { executablePath: () => Promise<s
     return process.env.CHROME_EXECUTABLE_PATH;
   }
 
-  const chromiumPath = await chromium.executablePath();
-  if (chromiumPath) {
-    return chromiumPath;
-  }
-
   const localCandidates = [
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
     "/Applications/Chromium.app/Contents/MacOS/Chromium",
+    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
     "/usr/bin/google-chrome-stable",
     "/usr/bin/google-chrome",
     "/usr/bin/chromium-browser",
   ];
 
   const found = localCandidates.find((candidate) => existsSync(candidate));
+  const shouldPreferLocalBinary =
+    process.env.NODE_ENV !== "production" ||
+    process.platform === "darwin" ||
+    process.platform === "win32";
+
+  if (found && shouldPreferLocalBinary) {
+    return found;
+  }
+
+  const chromiumPath = await chromium.executablePath();
+  if (chromiumPath && existsSync(chromiumPath)) {
+    return chromiumPath;
+  }
+
   if (found) {
     return found;
   }

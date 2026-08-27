@@ -39,6 +39,7 @@ type AntecedentMessage = {
 type InterpretationPayload = {
   interpretation: SymptomsInterpretation;
   engineVersion: string;
+  aiConsentVersion: string;
   createdAt: string;
   nextStep?: {
     route: string;
@@ -183,6 +184,7 @@ export default function SintomasPage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
+  const [consentToAiProcessing, setConsentToAiProcessing] = useState(false);
   const [status, setStatus] = useState<ProcessingState>("idle");
   const [progress, setProgress] = useState(0);
   const [messageIndex, setMessageIndex] = useState(0);
@@ -230,8 +232,9 @@ export default function SintomasPage() {
       symptomsText.trim().length >= MIN_TEXT_LENGTH &&
       status !== "processing" &&
       missingRequiredFields.length === 0 &&
-      rutIsValid,
-    [symptomsText, status, missingRequiredFields.length, rutIsValid],
+      rutIsValid &&
+      consentToAiProcessing,
+    [symptomsText, status, missingRequiredFields.length, rutIsValid, consentToAiProcessing],
   );
   const patientAge = useMemo(() => calculateAgeFromBirthDate(birthDate), [birthDate]);
 
@@ -339,6 +342,7 @@ export default function SintomasPage() {
             sex,
             age: patientAge,
           },
+          consentToAiProcessing,
         }),
       });
 
@@ -384,6 +388,8 @@ export default function SintomasPage() {
           antecedents: antecedentAnswers,
           output: finalizedPayload.interpretation,
           engineVersion: finalizedPayload.engineVersion,
+          aiConsentVersion: finalizedPayload.aiConsentVersion,
+          aiConsentAt: new Date().toISOString(),
           createdAt: finalizedPayload.createdAt,
         }),
       );
@@ -619,6 +625,7 @@ export default function SintomasPage() {
                   value={symptomsText}
                   onChange={(event) => setSymptomsText(event.target.value)}
                   rows={8}
+                  maxLength={4000}
                   placeholder="Ej: Tengo dolor de garganta desde ayer, fiebre y me cuesta tragar."
                   className="w-full resize-y rounded-3xl border border-slate-300 bg-slate-50 px-5 py-4 text-[15px] leading-7 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-500 focus:bg-white focus:ring-4 focus:ring-slate-200/70"
                 />
@@ -733,6 +740,20 @@ export default function SintomasPage() {
                   </Field>
                 </div>
               </div>
+
+              <label className="mt-5 flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={consentToAiProcessing}
+                  onChange={(event) => setConsentToAiProcessing(event.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-slate-300"
+                />
+                <span>
+                  Autorizo que Veramed envíe mi relato, antecedentes, edad y sexo a OpenAI para
+                  obtener una orientación inicial asistida por IA. No se envían mi nombre, RUT ni
+                  datos de contacto; la orden final será revisada por un médico.
+                </span>
+              </label>
 
               <button
                 type="submit"

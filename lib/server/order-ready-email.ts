@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import { prisma } from "@/lib/prisma";
 import { ensureOrderPdfAssets } from "@/lib/server/order-pdf-assets";
+import { createTemporaryPdfAccessLinks } from "@/lib/server/order-pdf-access";
 
 type RequestType = "checkup" | "chronic_control";
 
@@ -53,7 +54,7 @@ function normalizeCategoryLabel(
 function buildPdfLinksHtml(
   assets: Array<{
     category: "laboratory" | "image" | "procedure" | "interconsultation";
-    blobUrl: string;
+    url: string;
   }>,
 ) {
   if (assets.length === 0) {
@@ -63,7 +64,7 @@ function buildPdfLinksHtml(
   const links = assets
     .map((asset) => {
       const label = escapeHtml(normalizeCategoryLabel(asset.category));
-      const href = escapeHtml(asset.blobUrl);
+      const href = escapeHtml(asset.url);
       return `<li style="margin: 0 0 4px;"><a href="${href}" style="color:#0f172a;font-weight:600;">${label}</a></li>`;
     })
     .join("");
@@ -161,11 +162,18 @@ export async function sendApprovedOrderEmail(
       throw new Error("No pudimos preparar los PDFs de la orden.");
     }
 
+    const linkedPdfAssets = await createTemporaryPdfAccessLinks({
+      requestType: "checkup",
+      assets: pdfAssets,
+      purpose: "email",
+      recipientKey: patient.email,
+    });
+
     const firstName = escapeHtml(extractFirstName(patient.fullName));
     const pdfLinksHtml = buildPdfLinksHtml(
-      pdfAssets.map((asset) => ({
+      linkedPdfAssets.map((asset) => ({
         category: asset.category,
-        blobUrl: asset.blobUrl,
+        url: asset.url,
       })),
     );
 
@@ -222,9 +230,9 @@ export async function sendApprovedOrderEmail(
     return {
       ok: true,
       messageId: result.data?.id ?? null,
-      pdfAssets: pdfAssets.map((asset) => ({
+      pdfAssets: linkedPdfAssets.map((asset) => ({
         category: asset.category,
-        url: asset.blobUrl,
+        url: asset.url,
         fileName: asset.fileName,
       })),
     };
@@ -287,11 +295,18 @@ export async function sendApprovedOrderEmail(
     throw new Error("No pudimos preparar los PDFs de la orden.");
   }
 
+  const linkedPdfAssets = await createTemporaryPdfAccessLinks({
+    requestType: "chronic_control",
+    assets: pdfAssets,
+    purpose: "email",
+    recipientKey: patient.email,
+  });
+
   const firstName = escapeHtml(extractFirstName(patient.fullName));
   const pdfLinksHtml = buildPdfLinksHtml(
-    pdfAssets.map((asset) => ({
+    linkedPdfAssets.map((asset) => ({
       category: asset.category,
-      blobUrl: asset.blobUrl,
+      url: asset.url,
     })),
   );
 
@@ -348,9 +363,9 @@ export async function sendApprovedOrderEmail(
   return {
     ok: true,
     messageId: result.data?.id ?? null,
-    pdfAssets: pdfAssets.map((asset) => ({
+    pdfAssets: linkedPdfAssets.map((asset) => ({
       category: asset.category,
-      url: asset.blobUrl,
+      url: asset.url,
       fileName: asset.fileName,
     })),
   };

@@ -7,6 +7,12 @@ import {
   validateCreatePayload,
 } from "@/lib/server/transbank/service";
 import { getRequestAccessCookieName } from "@/lib/server/request-access";
+import {
+  enforceRateLimit,
+  httpErrorResponse,
+  readJsonBody,
+  requireSameOrigin,
+} from "@/lib/server/http-security";
 
 export const runtime = "nodejs";
 
@@ -30,19 +36,21 @@ function resolveErrorStatus(message: string) {
 }
 
 export async function POST(request: Request) {
-  let payload: unknown;
   try {
-    payload = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Body inválido." }, { status: 400 });
-  }
+    requireSameOrigin(request);
+    await enforceRateLimit({
+      request,
+      action: "transbank:create",
+      limit: 10,
+      windowMs: 15 * 60 * 1000,
+    });
+    const payload = await readJsonBody(request, 8_000);
 
-  const validation = validateCreatePayload(payload);
-  if (!validation.ok) {
-    return NextResponse.json({ error: validation.error }, { status: 400 });
-  }
+    const validation = validateCreatePayload(payload);
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
+    }
 
-  try {
     const cookieStore = await cookies();
     const token = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
     const user = await getUserFromSession(token);
@@ -54,6 +62,8 @@ export async function POST(request: Request) {
     });
     return NextResponse.json(created);
   } catch (error) {
+    const securityResponse = httpErrorResponse(error, "");
+    if (securityResponse.status !== 500) return securityResponse;
     const message =
       error instanceof Error ? error.message : "No pudimos crear la transacción en Transbank.";
     console.error("POST /api/payments/transbank/create", error);

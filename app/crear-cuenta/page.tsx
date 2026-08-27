@@ -3,9 +3,11 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { registerWithEmail } from "@/lib/auth-api";
 
 export default function CreateAccountPage() {
+  const router = useRouter();
   const [firstName, setFirstName] = useState("");
   const [paternalSurname, setPaternalSurname] = useState("");
   const [maternalSurname, setMaternalSurname] = useState("");
@@ -37,7 +39,7 @@ export default function CreateAccountPage() {
       setIsSubmitting(true);
       setError("");
       await registerWithEmail({ name, email, password });
-      window.location.href = "/mi-cuenta";
+      router.push("/mi-cuenta");
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "No pudimos crear tu cuenta.");
     } finally {

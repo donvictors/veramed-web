@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import type { SymptomsOrderDraft, StoredSymptomsIntakeDraft } from "@/lib/symptoms-order";
 
@@ -63,6 +63,7 @@ function sleep(ms: number) {
 }
 
 function SintomasFlujoPageContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [draft] = useState<StoredSymptomsIntakeDraft | null>(() => readDraftFromStorage());
   const [requestData, setRequestData] = useState<SymptomsRequestPayload | null>(null);
@@ -149,7 +150,7 @@ function SintomasFlujoPageContent() {
           payload.request.reviewStatus === "pending_validation" ||
           payload.request.reviewStatus === "validated"
         ) {
-          window.location.href = `/sintomas/orden?id=${encodeURIComponent(requestId)}`;
+          router.replace(`/sintomas/orden?id=${encodeURIComponent(requestId)}`);
           return;
         }
         setRequestData(payload.request);
@@ -168,7 +169,7 @@ function SintomasFlujoPageContent() {
     return () => {
       cancelled = true;
     };
-  }, [requestId]);
+  }, [requestId, router]);
 
   useEffect(() => {
     if (!requestData || messages.length > 0 || bootstrapError) {
@@ -322,7 +323,7 @@ function SintomasFlujoPageContent() {
       window.sessionStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(payload.order));
       setOrderProgress(100);
       await sleep(320);
-      window.location.href = `/sintomas/orden?id=${encodeURIComponent(requestId)}`;
+      router.push(`/sintomas/orden?id=${encodeURIComponent(requestId)}`);
     } catch (error) {
       setOrderError(error instanceof Error ? error.message : "No pudimos generar la orden.");
       setIsGeneratingOrder(false);

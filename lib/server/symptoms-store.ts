@@ -41,8 +41,15 @@ export type SymptomsRequestRecord = {
   notes: string[];
   engineVersion: string;
   cachedInput: string;
+  aiConsentAt?: number;
+  aiConsentVersion?: string;
+  aiProvider?: string;
   reviewStatus: "draft" | "paid" | "in_flow" | "pending_validation" | "validated" | "rejected";
   validatedByEmail?: string;
+  validatedByUserId?: string;
+  validatedByName?: string;
+  validatedByRut?: string;
+  validatedBySis?: string;
   validatedAt?: number;
   createdAt: number;
   updatedAt: number;
@@ -185,8 +192,15 @@ function toRecord(row: {
   notes: unknown;
   engineVersion: string;
   cachedInput: string;
+  aiConsentAt: Date | null;
+  aiConsentVersion: string | null;
+  aiProvider: string | null;
   reviewStatus: SymptomsRequestStatusDb;
   validatedByEmail: string | null;
+  validatedByUserId: string | null;
+  validatedByName: string | null;
+  validatedByRut: string | null;
+  validatedBySis: string | null;
   validatedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -232,8 +246,15 @@ function toRecord(row: {
     notes: asStringArray(row.notes),
     engineVersion: row.engineVersion,
     cachedInput: row.cachedInput,
+    aiConsentAt: row.aiConsentAt?.getTime(),
+    aiConsentVersion: row.aiConsentVersion ?? undefined,
+    aiProvider: row.aiProvider ?? undefined,
     reviewStatus: toPublicStatus(row.reviewStatus),
     validatedByEmail: row.validatedByEmail ?? undefined,
+    validatedByUserId: row.validatedByUserId ?? undefined,
+    validatedByName: row.validatedByName ?? undefined,
+    validatedByRut: row.validatedByRut ?? undefined,
+    validatedBySis: row.validatedBySis ?? undefined,
     validatedAt: row.validatedAt?.getTime(),
     createdAt: row.createdAt.getTime(),
     updatedAt: row.updatedAt.getTime(),
@@ -283,6 +304,9 @@ export async function createOrUpdateSymptomsDraft(input: {
   antecedents: SymptomsAntecedents;
   engineVersion: string;
   cachedInput: string;
+  aiConsentAt: Date;
+  aiConsentVersion: string;
+  aiProvider: string;
 }) {
   const symptomsRequest = getSymptomsRequestDelegate();
   const created = await (symptomsRequest.upsert as (args: unknown) => Promise<unknown>)({
@@ -300,6 +324,9 @@ export async function createOrUpdateSymptomsDraft(input: {
       followUpQuestions: input.interpretation.followUpQuestions,
       engineVersion: input.engineVersion,
       cachedInput: input.cachedInput,
+      aiConsentAt: input.aiConsentAt,
+      aiConsentVersion: input.aiConsentVersion,
+      aiProvider: input.aiProvider,
       reviewStatus: SymptomsRequestStatusDb.draft,
     },
     create: {
@@ -320,6 +347,9 @@ export async function createOrUpdateSymptomsDraft(input: {
       notes: [],
       engineVersion: input.engineVersion,
       cachedInput: input.cachedInput,
+      aiConsentAt: input.aiConsentAt,
+      aiConsentVersion: input.aiConsentVersion,
+      aiProvider: input.aiProvider,
       reviewStatus: SymptomsRequestStatusDb.draft,
     },
     include: { payment: true },
@@ -382,49 +412,68 @@ export async function markSymptomsPaymentPaid(input: {
   amount: number;
   cardLast4?: string;
 }) {
-  const now = new Date();
-  const updated = await prisma.symptomsRequest.update({
-    where: { id: input.requestId },
-    data: {
-      payment: {
-        upsert: {
-          create: {
-            amount: input.amount,
-            currency: "CLP",
-            paymentId: input.paymentId,
-            cardLast4: input.cardLast4 ?? "0000",
-            cardholder: "Pago Webpay Plus",
-            status: "paid",
-            paidAt: now,
-          },
-          update: {
-            amount: input.amount,
-            currency: "CLP",
-            paymentId: input.paymentId,
-            cardLast4: input.cardLast4 ?? "0000",
-            cardholder: "Pago Webpay Plus",
-            status: "paid",
-            paidAt: now,
+  const updated = await prisma.$transaction(async (tx) => {
+    const current = await tx.symptomsRequest.findUnique({
+      where: { id: input.requestId },
+      include: { payment: true },
+    });
+    if (!current) throw new Error("Solicitud de síntomas no encontrada.");
+    if (current.payment?.status === "paid") return current;
+    if (current.reviewStatus === "validated" || current.reviewStatus === "rejected") {
+      throw new Error("La solicitud ya fue cerrada y no admite cambios de pago.");
+    }
+    const now = new Date();
+    return tx.symptomsRequest.update({
+      where: { id: input.requestId },
+      data: {
+        payment: {
+          upsert: {
+            create: {
+              amount: input.amount,
+              currency: "CLP",
+              paymentId: input.paymentId,
+              cardLast4: input.cardLast4 ?? "0000",
+              cardholder: "Pago Webpay Plus",
+              status: "paid",
+              paidAt: now,
+            },
+            update: {
+              amount: input.amount,
+              currency: "CLP",
+              paymentId: input.paymentId,
+              cardLast4: input.cardLast4 ?? "0000",
+              cardholder: "Pago Webpay Plus",
+              status: "paid",
+              paidAt: now,
+            },
           },
         },
+        reviewStatus: SymptomsRequestStatusDb.paid,
       },
-      reviewStatus: SymptomsRequestStatusDb.paid,
-    },
-    include: { payment: true },
+      include: { payment: true },
+    });
   });
 
   return toRecord(updated);
 }
 
 export async function markSymptomsInFlow(requestId: string) {
-  const updated = await prisma.symptomsRequest.update({
-    where: { id: requestId },
+  const changed = await prisma.symptomsRequest.updateMany({
+    where: {
+      id: requestId,
+      reviewStatus: { in: [SymptomsRequestStatusDb.paid, SymptomsRequestStatusDb.in_flow] },
+      payment: { is: { status: "paid" } },
+    },
     data: {
       reviewStatus: SymptomsRequestStatusDb.in_flow,
     },
+  });
+  if (changed.count !== 1) throw new Error("La solicitud no está pagada o ya fue cerrada.");
+  const updated = await prisma.symptomsRequest.findUnique({
+    where: { id: requestId },
     include: { payment: true },
   });
-
+  if (!updated) throw new Error("Solicitud de síntomas no encontrada.");
   return toRecord(updated);
 }
 
@@ -435,8 +484,12 @@ export async function saveSymptomsOrderDraft(input: {
   notes: string[];
   oneLinerSummary?: string;
 }) {
-  const updated = await prisma.symptomsRequest.update({
-    where: { id: input.requestId },
+  const changed = await prisma.symptomsRequest.updateMany({
+    where: {
+      id: input.requestId,
+      reviewStatus: { in: [SymptomsRequestStatusDb.paid, SymptomsRequestStatusDb.in_flow] },
+      payment: { is: { status: "paid" } },
+    },
     data: {
       followUpAnswers: input.followUpAnswers,
       suggestedTests: input.suggestedTests,
@@ -445,28 +498,59 @@ export async function saveSymptomsOrderDraft(input: {
       oneLinerSummary: input.oneLinerSummary || undefined,
       reviewStatus: SymptomsRequestStatusDb.pending_validation,
     },
+  });
+  if (changed.count !== 1) throw new Error("Transición clínica inválida para construir la orden.");
+  const updated = await prisma.symptomsRequest.findUnique({
+    where: { id: input.requestId },
     include: { payment: true },
   });
-
+  if (!updated) throw new Error("Solicitud de síntomas no encontrada.");
   return toRecord(updated);
 }
 
 export async function validateSymptomsOrder(input: {
   requestId: string;
+  doctorUserId: string;
   doctorEmail: string;
+  doctorName: string;
+  doctorRut: string;
+  doctorSis: string;
   selectedTests: TestItem[];
 }) {
-  const updated = await prisma.symptomsRequest.update({
+  const current = await prisma.symptomsRequest.findUnique({
     where: { id: input.requestId },
+    include: { payment: true },
+  });
+  if (!current) throw new Error("Solicitud de síntomas no encontrada.");
+  if (current.reviewStatus === SymptomsRequestStatusDb.validated) {
+    if (current.validatedByUserId !== input.doctorUserId) {
+      throw new Error("La orden ya fue validada por otro médico.");
+    }
+    return toRecord(current);
+  }
+  const changed = await prisma.symptomsRequest.updateMany({
+    where: {
+      id: input.requestId,
+      reviewStatus: SymptomsRequestStatusDb.pending_validation,
+      payment: { is: { status: "paid" } },
+    },
     data: {
       selectedTests: input.selectedTests,
       reviewStatus: SymptomsRequestStatusDb.validated,
       validatedByEmail: input.doctorEmail.trim().toLowerCase(),
+      validatedByUserId: input.doctorUserId,
+      validatedByName: input.doctorName.trim(),
+      validatedByRut: input.doctorRut.trim(),
+      validatedBySis: input.doctorSis.trim(),
       validatedAt: new Date(),
     },
+  });
+  if (changed.count !== 1) throw new Error("La orden no está pendiente de validación médica.");
+  const updated = await prisma.symptomsRequest.findUnique({
+    where: { id: input.requestId },
     include: { payment: true },
   });
-
+  if (!updated) throw new Error("Solicitud de síntomas no encontrada.");
   return toRecord(updated);
 }
 

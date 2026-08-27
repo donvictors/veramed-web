@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { AUTH_SESSION_COOKIE } from "@/lib/auth";
 import { isValidRut } from "@/lib/checkup";
 import { getUserFromSession, updateUserProfile } from "@/lib/server/auth-store";
+import { httpErrorResponse, readJsonBody, requireSameOrigin } from "@/lib/server/http-security";
 
 type UpdateProfilePayload = {
   firstName?: string;
@@ -22,6 +23,8 @@ function isValidDateString(value: string) {
 }
 
 export async function PATCH(request: Request) {
+  try {
+  requireSameOrigin(request);
   const cookieStore = await cookies();
   const token = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
   const user = await getUserFromSession(token);
@@ -32,7 +35,7 @@ export async function PATCH(request: Request) {
 
   let payload: UpdateProfilePayload;
   try {
-    payload = (await request.json()) as UpdateProfilePayload;
+    payload = (await readJsonBody(request, 12_000)) as UpdateProfilePayload;
   } catch {
     return NextResponse.json({ error: "Payload inválido." }, { status: 400 });
   }
@@ -86,5 +89,7 @@ export async function PATCH(request: Request) {
   }
 
   return NextResponse.json({ user: updated });
+  } catch (error) {
+    return httpErrorResponse(error, "No pudimos actualizar el perfil.");
+  }
 }
-

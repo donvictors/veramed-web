@@ -4,14 +4,15 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { AUTH_SESSION_COOKIE } from "@/lib/auth";
 import { calculateAgeFromBirthDate } from "@/lib/checkup";
+import { calculateDiscountedAmount } from "@/lib/discount-pricing";
 import {
-  calculateDiscountedAmount,
   getDiscountByCode,
   normalizeDiscountCode,
-} from "@/lib/discount-codes";
+} from "@/lib/server/discount-codes";
 import type { SymptomsInterpretation } from "@/lib/symptoms-intake";
 import {
   EMPTY_SYMPTOMS_ANTECEDENTS,
+  SYMPTOMS_PRICE_CLP,
   type SymptomsAntecedents,
 } from "@/lib/symptoms-order";
 import { getUserFromSession } from "@/lib/server/auth-store";
@@ -29,10 +30,15 @@ import {
   hasValidRequestAccessCookie,
   upsertRequestAccessCookie,
 } from "@/lib/server/request-access";
+import {
+  enforceRateLimit,
+  httpErrorResponse,
+  readJsonBody,
+  requireSameOrigin,
+} from "@/lib/server/http-security";
+import { patientSchema, symptomsAntecedentsSchema } from "@/lib/server/request-schemas";
 
 export const runtime = "nodejs";
-
-const SYMPTOMS_PRICE_CLP = 5990;
 const BUY_ORDER_PATTERN = /^[A-Za-z0-9_-]+$/;
 const MAX_BUY_ORDER_LENGTH = 26;
 const MAX_SESSION_ID_LENGTH = 61;
@@ -42,42 +48,24 @@ const payloadSchema = z.object({
   sessionId: z.string().min(1).max(MAX_SESSION_ID_LENGTH),
   discountCode: z.string().optional(),
   draft: z.object({
-    input: z.string().min(12),
-    engineVersion: z.string().min(1),
+    input: z.string().trim().min(12).max(4_000),
+    engineVersion: z.string().trim().min(1).max(100),
+    aiConsentVersion: z.literal("ai-health-data-v1"),
+    aiConsentAt: z.iso.datetime(),
     patientSex: z.enum(["female", "male", ""]).optional().default(""),
-    patient: z.object({
-      fullName: z.string().min(1),
-      rut: z.string().min(1),
-      birthDate: z.string().min(1),
-      email: z.string().optional().default(""),
-      phone: z.string().optional().default(""),
-      address: z.string().optional().default(""),
-    }),
-    antecedents: z
-      .object({
-        medicalHistory: z.string().optional(),
-        surgicalHistory: z.string().optional(),
-        chronicMedication: z.string().optional(),
-        allergies: z.string().optional(),
-        smoking: z.string().optional(),
-        alcoholUse: z.string().optional(),
-        drugUse: z.string().optional(),
-        sexualActivity: z.string().optional(),
-        firstDegreeFamilyHistory: z.string().optional(),
-        occupation: z.string().optional(),
-      })
-      .default({}),
+    patient: patientSchema,
+    antecedents: symptomsAntecedentsSchema.partial().default({}),
     output: z.object({
-      flowId: z.string().optional(),
-      oneLinerSummary: z.string().min(1),
-      primarySymptom: z.string().min(1),
-      secondarySymptoms: z.array(z.string()).default([]),
-      followUpQuestions: z.array(z.string()).default([]),
-      probableContext: z.string().min(1),
-      consultationFrame: z.string().min(1),
-      tags: z.array(z.string()).default([]),
+      flowId: z.string().max(100).optional(),
+      oneLinerSummary: z.string().min(1).max(2_000),
+      primarySymptom: z.string().min(1).max(500),
+      secondarySymptoms: z.array(z.string().max(500)).max(30).default([]),
+      followUpQuestions: z.array(z.string().max(1_000)).max(30).default([]),
+      probableContext: z.string().min(1).max(2_000),
+      consultationFrame: z.string().min(1).max(2_000),
+      tags: z.array(z.string().max(100)).max(30).default([]),
       urgencyWarning: z.boolean(),
-      guidanceText: z.string().min(1),
+      guidanceText: z.string().min(1).max(4_000),
     }),
   }),
 });
@@ -121,33 +109,37 @@ function mapCreatePaymentError(error: unknown): { status: number; message: strin
 }
 
 export async function POST(request: Request) {
-  let body: unknown;
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Body inválido." }, { status: 400 });
-  }
+    requireSameOrigin(request);
+    await enforceRateLimit({
+      request,
+      action: "symptoms:payment-create",
+      limit: 8,
+      windowMs: 15 * 60 * 1000,
+    });
+    const parsed = payloadSchema.safeParse(await readJsonBody(request, 48_000));
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Payload inválido para pago de síntomas.", details: parsed.error.issues },
+        { status: 400 },
+      );
+    }
 
-  const parsed = payloadSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Payload inválido para pago de síntomas." }, { status: 400 });
-  }
+    const data = parsed.data;
+    if (!BUY_ORDER_PATTERN.test(data.orderId)) {
+      return NextResponse.json(
+        { error: "orderId solo permite letras, números, guion y guion bajo." },
+        { status: 400 },
+      );
+    }
 
-  const data = parsed.data;
-  if (!BUY_ORDER_PATTERN.test(data.orderId)) {
-    return NextResponse.json(
-      { error: "orderId solo permite letras, números, guion y guion bajo." },
-      { status: 400 },
-    );
-  }
+    const discountCode = normalizeDiscountCode(data.discountCode);
+    const appliedDiscount = await getDiscountByCode(discountCode);
+    if (discountCode && !appliedDiscount) {
+      return NextResponse.json({ error: "Código de descuento inválido." }, { status: 400 });
+    }
 
-  const discountCode = normalizeDiscountCode(data.discountCode);
-  if (discountCode && !getDiscountByCode(discountCode)) {
-    return NextResponse.json({ error: "Código de descuento inválido." }, { status: 400 });
-  }
-
-  try {
-    const pricing = calculateDiscountedAmount(SYMPTOMS_PRICE_CLP, discountCode);
+    const pricing = calculateDiscountedAmount(SYMPTOMS_PRICE_CLP, appliedDiscount);
     const cookieStore = await cookies();
     const token = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
     const user = await getUserFromSession(token);
@@ -158,6 +150,12 @@ export async function POST(request: Request) {
       if (existing.reviewStatus === "validated" || existing.reviewStatus === "rejected") {
         return NextResponse.json(
           { error: "Esta solicitud ya fue cerrada y no se puede modificar." },
+          { status: 409 },
+        );
+      }
+      if (existing.payment?.status === "paid") {
+        return NextResponse.json(
+          { error: "Esta solicitud ya tiene un pago confirmado." },
           { status: 409 },
         );
       }
@@ -215,6 +213,9 @@ export async function POST(request: Request) {
       antecedents,
       engineVersion: data.draft.engineVersion.trim(),
       cachedInput,
+      aiConsentAt: new Date(data.draft.aiConsentAt),
+      aiConsentVersion: data.draft.aiConsentVersion,
+      aiProvider: data.draft.engineVersion.startsWith("openai-") ? "openai" : "local",
     });
 
     const returnUrl = `${getAppUrl()}/api/sintomas/payments/return`;
@@ -271,6 +272,8 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("POST /api/sintomas/payments/create", error);
+    const securityResponse = httpErrorResponse(error, "");
+    if (securityResponse.status !== 500) return securityResponse;
     const mapped = mapCreatePaymentError(error);
     return NextResponse.json({ error: mapped.message }, { status: mapped.status });
   }

@@ -29,7 +29,14 @@ export async function POST(request: Request) {
     );
   }
 
+  const declaredLength = Number(request.headers.get("content-length") || "0");
+  if (Number.isFinite(declaredLength) && declaredLength > 1_000_000) {
+    return NextResponse.json({ ok: false, error: "Payload demasiado grande." }, { status: 413 });
+  }
   const rawBody = await request.text();
+  if (Buffer.byteLength(rawBody, "utf8") > 1_000_000) {
+    return NextResponse.json({ ok: false, error: "Payload demasiado grande." }, { status: 413 });
+  }
   if (!rawBody) {
     return NextResponse.json({ ok: false, error: "Body vacío." }, { status: 400 });
   }
@@ -97,13 +104,6 @@ export async function POST(request: Request) {
     to: FORWARD_DESTINATION,
     subject: `Fwd: ${subject}`,
     text: textBody,
-    html: inbound.html
-      ? `<p><strong>From:</strong> ${from}</p>
-<p><strong>To:</strong> ${toLine}</p>
-<p><strong>Subject:</strong> ${subject}</p>
-<hr />
-${inbound.html}`
-      : undefined,
   });
 
   if (forwardResponse.error) {

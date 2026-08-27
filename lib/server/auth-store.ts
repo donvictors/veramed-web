@@ -1,4 +1,4 @@
-import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import {
   formatRut,
@@ -7,6 +7,8 @@ import {
   splitPatientFullName,
   type PatientDetails,
 } from "@/lib/checkup";
+import { hashOpaqueToken } from "@/lib/server/http-security";
+import { hashPassword, verifyPassword } from "@/lib/server/password-hashing";
 
 export type PublicUser = {
   id: string;
@@ -48,22 +50,6 @@ function normalizeEmail(email: string) {
 
 function createSessionToken() {
   return randomBytes(32).toString("hex");
-}
-
-function hashPassword(password: string, salt = randomBytes(16).toString("hex")) {
-  const hash = scryptSync(password, salt, 64).toString("hex");
-  return { hash, salt };
-}
-
-function verifyPassword(password: string, passwordHash: string, passwordSalt: string) {
-  const nextHash = scryptSync(password, passwordSalt, 64);
-  const currentHash = Buffer.from(passwordHash, "hex");
-
-  if (nextHash.length !== currentHash.length) {
-    return false;
-  }
-
-  return timingSafeEqual(nextHash, currentHash);
 }
 
 function createDefaultProfile(name: string, email: string, overrides?: Partial<PatientDetails>): PatientDetails {
@@ -124,15 +110,19 @@ async function purgeExpiredSessions() {
 
 async function createSession(userId: string) {
   const now = new Date();
+  const rawToken = createSessionToken();
   const session: SessionRecord = {
-    token: createSessionToken(),
+    token: rawToken,
     userId,
     createdAt: now,
     expiresAt: new Date(now.getTime() + SESSION_TTL_MS),
   };
 
   await prisma.session.create({
-    data: session,
+    data: {
+      ...session,
+      token: hashOpaqueToken(rawToken),
+    },
   });
 
   return session;
@@ -306,10 +296,26 @@ export async function getUserFromSession(token: string | undefined) {
   await maybeEnsureSeededTestUser();
   await purgeExpiredSessions();
 
-  const session = await prisma.session.findUnique({
-    where: { token },
+  const tokenHash = hashOpaqueToken(token);
+  let session = await prisma.session.findUnique({
+    where: { token: tokenHash },
     include: { user: true },
   });
+
+  // Compatibilidad de una sola lectura para sesiones emitidas antes del hash at-rest.
+  if (!session) {
+    const legacy = await prisma.session.findUnique({
+      where: { token },
+      include: { user: true },
+    });
+    if (legacy) {
+      session = await prisma.session.update({
+        where: { token },
+        data: { token: tokenHash },
+        include: { user: true },
+      });
+    }
+  }
 
   if (!session?.user) {
     return null;
@@ -324,7 +330,7 @@ export async function logoutSession(token: string | undefined) {
   }
 
   await prisma.session.deleteMany({
-    where: { token },
+    where: { token: { in: [token, hashOpaqueToken(token)] } },
   });
 }
 
@@ -452,6 +458,7 @@ export async function updateUserProfile(
     where: { id: userId },
     data: {
       name: fullName || current.name,
+      email: normalizedEmail,
       profileFirstName: firstName,
       profilePaternalSurname: paternalSurname,
       profileMaternalSurname: maternalSurname,

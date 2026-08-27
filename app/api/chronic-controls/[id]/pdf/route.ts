@@ -4,6 +4,7 @@ import { AUTH_SESSION_COOKIE } from "@/lib/auth";
 import { getUserFromSession } from "@/lib/server/auth-store";
 import { getChronicControlRecord } from "@/lib/server/chronic-control-store";
 import { buildOrderPdf } from "@/lib/server/order-pdf";
+import { requireApprovedMedicalSigner } from "@/lib/server/medical-approval";
 import { hasValidInternalAccess } from "@/lib/server/internal-access";
 import {
   getRequestAccessCookieName,
@@ -51,6 +52,14 @@ export async function GET(_request: Request, context: RouteContext) {
     }
   }
 
+  const signer = await requireApprovedMedicalSigner("chronic_control", id).catch(() => null);
+  if (!signer) {
+    return NextResponse.json(
+      { error: "La orden requiere pago confirmado y aprobación médica antes de descargarse." },
+      { status: 403 },
+    );
+  }
+
   const issuedAtMs = record.status.approvedAt ?? record.status.queuedAt ?? record.updatedAt;
   const patient = record.patient ?? {
     fullName: "Paciente Veramed",
@@ -69,6 +78,7 @@ export async function GET(_request: Request, context: RouteContext) {
     patient,
     tests,
     issuedAtMs,
+    signer,
   });
 
   return new NextResponse(buffer, {

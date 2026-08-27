@@ -8,6 +8,13 @@ import { getCheckupRecord } from "@/lib/server/checkup-store";
 import { getChronicControlRecord } from "@/lib/server/chronic-control-store";
 import { ensureOrderPdfAssets } from "@/lib/server/order-pdf-assets";
 import { type TestItem } from "@/lib/checkup";
+import { createTemporaryPdfAccessLinks } from "@/lib/server/order-pdf-access";
+import {
+  enforceRateLimit,
+  httpErrorResponse,
+  readJsonBody,
+  requireSameOrigin,
+} from "@/lib/server/http-security";
 
 export const runtime = "nodejs";
 
@@ -22,9 +29,6 @@ type SendEmailPayload = {
   orderLink?: string;
   requestType?: RequestType;
   requestId?: string;
-  pdfUrl?: string;
-  pdfBase64?: string;
-  pdfFilename?: string;
   forceResend?: boolean;
 };
 
@@ -47,10 +51,6 @@ type RequestContext = {
   issuedAtMs: number;
   tests: TestItem[];
 };
-
-function normalizeBase64Pdf(input: string) {
-  return input.replace(/^data:application\/pdf;base64,/i, "").trim();
-}
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -209,59 +209,6 @@ async function markEmailSent(payload: SendEmailPayload, messageId: string | null
   });
 }
 
-async function buildPdfAttachments(payload: SendEmailPayload, request: Request) {
-  if (payload.pdfBase64) {
-    const content = normalizeBase64Pdf(payload.pdfBase64);
-    if (!content) {
-      throw new Error("El PDF base64 está vacío.");
-    }
-
-    return [
-      {
-        filename: payload.pdfFilename || "orden-veramed.pdf",
-        content,
-        content_type: "application/pdf",
-      },
-    ];
-  }
-
-  if (payload.pdfUrl) {
-    const requestOrigin = new URL(request.url).origin;
-    const absoluteUrl = payload.pdfUrl.startsWith("http")
-      ? payload.pdfUrl
-      : new URL(payload.pdfUrl, requestOrigin).toString();
-
-    const pdfOrigin = new URL(absoluteUrl).origin;
-    if (pdfOrigin !== requestOrigin) {
-      throw new Error("El enlace del PDF debe pertenecer al mismo dominio.");
-    }
-
-    const cookieHeader = request.headers.get("cookie");
-    const response = await fetch(absoluteUrl, {
-      cache: "no-store",
-      headers: cookieHeader ? { cookie: cookieHeader } : undefined,
-    });
-    if (!response.ok) {
-      throw new Error("No pudimos descargar el PDF desde el enlace proporcionado.");
-    }
-
-    const buffer = Buffer.from(await response.arrayBuffer());
-    if (buffer.byteLength === 0) {
-      throw new Error("El PDF descargado está vacío.");
-    }
-
-    return [
-      {
-        filename: payload.pdfFilename || "orden-veramed.pdf",
-        content: buffer.toString("base64"),
-        content_type: "application/pdf",
-      },
-    ];
-  }
-
-  return [];
-}
-
 export async function POST(request: Request) {
   if (!process.env.RESEND_API_KEY) {
     return NextResponse.json(
@@ -270,15 +217,10 @@ export async function POST(request: Request) {
     );
   }
 
-  let payload: SendEmailPayload;
   try {
-    payload = (await request.json()) as SendEmailPayload;
-  } catch {
-    return NextResponse.json(
-      { ok: false, error: "Payload inválido para envío de correo." },
-      { status: 400 },
-    );
-  }
+    requireSameOrigin(request);
+    await enforceRateLimit({ request, action: "order:send-email", limit: 8, windowMs: 15 * 60 * 1000 });
+    const payload = (await readJsonBody(request, 16_000)) as SendEmailPayload;
 
   const email = payload.email?.trim().toLowerCase() ?? "";
   if (!email || !isValidEmail(email)) {
@@ -351,7 +293,7 @@ export async function POST(request: Request) {
   }
 
   const hasTestsToSend = requestContext.tests.length > 0;
-  if (hasTestsToSend && pdfAssets.length === 0 && !payload.pdfBase64 && !payload.pdfUrl) {
+  if (hasTestsToSend && pdfAssets.length === 0) {
     return NextResponse.json(
       {
         ok: false,
@@ -363,6 +305,13 @@ export async function POST(request: Request) {
     );
   }
 
+  const linkedPdfAssets = await createTemporaryPdfAccessLinks({
+    requestType: requestContext.requestType,
+    assets: pdfAssets,
+    purpose: "email",
+    recipientKey: requestContext.patientEmail,
+  });
+
   const sendState = await getEmailSendState(requestContext);
   if (sendState.sentAt && !payload.forceResend) {
     return NextResponse.json({
@@ -371,37 +320,19 @@ export async function POST(request: Request) {
       id: sendState.messageId ?? null,
       attachedPdf: false,
       pdfAssetsError,
-      pdfAssets: pdfAssets.map((asset) => ({
+      pdfAssets: linkedPdfAssets.map((asset) => ({
         category: asset.category,
-        url: asset.blobUrl,
+        url: asset.url,
         fileName: asset.fileName,
       })),
     });
   }
 
-  let attachments: Array<{
-    filename: string;
-    content: string;
-    content_type: string;
-  }> = [];
-  try {
-    attachments = await buildPdfAttachments(payload, request);
-  } catch (error) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error:
-          error instanceof Error ? error.message : "No pudimos preparar el PDF para adjuntar.",
-      },
-      { status: 400 },
-    );
-  }
-
   const firstName = escapeHtml(extractFirstName(payload.patientName || requestContext.patientName));
   const pdfLinksHtml = buildPdfLinksHtml(
-    pdfAssets.map((asset) => ({
+    linkedPdfAssets.map((asset) => ({
       category: asset.category,
-      blobUrl: asset.blobUrl,
+      blobUrl: asset.url,
     })),
   );
 
@@ -441,7 +372,6 @@ export async function POST(request: Request) {
     to: [email],
     subject: DEFAULT_SUBJECT,
     html,
-    attachments: attachments.length > 0 ? attachments : undefined,
   });
 
   if (result.error) {
@@ -459,12 +389,15 @@ export async function POST(request: Request) {
   return NextResponse.json({
     ok: true,
     id: result.data?.id ?? null,
-    attachedPdf: attachments.length > 0,
+    attachedPdf: false,
     pdfAssetsError,
-    pdfAssets: pdfAssets.map((asset) => ({
+    pdfAssets: linkedPdfAssets.map((asset) => ({
       category: asset.category,
-      url: asset.blobUrl,
+      url: asset.url,
       fileName: asset.fileName,
     })),
   });
+  } catch (error) {
+    return httpErrorResponse(error, "No pudimos enviar el correo.");
+  }
 }

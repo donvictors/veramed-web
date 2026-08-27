@@ -58,8 +58,11 @@ export type SymptomsOrderDraft = {
     category: "laboratory" | "image" | "procedure" | "interconsultation";
     url: string;
     fileName: string;
+    expiresAt?: number;
   }>;
 };
+
+export const SYMPTOMS_PRICE_CLP = 5990;
 
 export type StoredSymptomsIntakeDraft = {
   requestId: string;
@@ -69,5 +72,7 @@ export type StoredSymptomsIntakeDraft = {
   antecedents: SymptomsAntecedents;
   output: SymptomsInterpretation;
   engineVersion: string;
+  aiConsentVersion: string;
+  aiConsentAt: string;
   createdAt: string;
 };

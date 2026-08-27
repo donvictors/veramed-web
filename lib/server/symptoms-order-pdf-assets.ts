@@ -1,9 +1,11 @@
-import { put } from "@vercel/blob";
+import { del, put } from "@vercel/blob";
 import { OrderPdfCategoryDb } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { type PatientDetails, type TestItem } from "@/lib/checkup";
 import { getOrderCategoryByTestName, type OrderCategory } from "@/lib/order-categories";
 import { renderOrderPdfFromOrderPage } from "@/lib/server/order-pdf-browser";
+import { requireApprovedMedicalSigner } from "@/lib/server/medical-approval";
+import { revokePdfAccessLinks } from "@/lib/server/order-pdf-access";
 
 type SymptomsPdfAsset = {
   category: OrderCategory;
@@ -65,9 +67,12 @@ export async function ensureSymptomsSignedPdfAssets(input: {
   tests: TestItem[];
   issuedAtMs: number;
 }) {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    throw new Error("BLOB_READ_WRITE_TOKEN no está configurada.");
+  const privateBlobToken = process.env.PRIVATE_BLOB_READ_WRITE_TOKEN?.trim();
+  if (!privateBlobToken) {
+    throw new Error("PRIVATE_BLOB_READ_WRITE_TOKEN no está configurada.");
   }
+
+  await requireApprovedMedicalSigner("symptoms", input.requestId);
 
   const grouped = groupTestsByCategory(input.tests);
   if (grouped.length === 0) return [];
@@ -76,7 +81,7 @@ export async function ensureSymptomsSignedPdfAssets(input: {
 
   for (const group of grouped) {
     const fileName = `orden-symptoms-${input.requestId}-${getCategoryLabel(group.category)}.pdf`;
-    const blobPath = `ordenes/${CURRENT_RENDER_VERSION}/signed/symptoms/${input.requestId}/${getCategoryLabel(
+    const blobPath = `private/ordenes/${CURRENT_RENDER_VERSION}/signed/symptoms/${input.requestId}/${getCategoryLabel(
       group.category,
     )}-${input.issuedAtMs}.pdf`;
     let buffer: Buffer;
@@ -96,13 +101,22 @@ export async function ensureSymptomsSignedPdfAssets(input: {
     }
 
     const blob = await put(blobPath, buffer, {
-      access: "public",
+      access: "private",
       contentType: "application/pdf",
       addRandomSuffix: false,
       allowOverwrite: true,
+      token: privateBlobToken,
     });
 
     try {
+      const existing = await prisma.symptomsOrderPdfAsset.findUnique({
+        where: {
+          requestId_category: {
+            requestId: input.requestId,
+            category: group.category as unknown as OrderPdfCategoryDb,
+          },
+        },
+      });
       await prisma.symptomsOrderPdfAsset.upsert({
         where: {
           requestId_category: {
@@ -125,6 +139,24 @@ export async function ensureSymptomsSignedPdfAssets(input: {
           sizeBytes: buffer.byteLength,
         },
       });
+      await revokePdfAccessLinks({
+        requestType: "symptoms",
+        requestId: input.requestId,
+        reason: "pdf_regenerated",
+      });
+      if (existing?.blobUrl && existing.blobUrl !== blob.url) {
+        try {
+          await del(existing.blobUrl, {
+            token: process.env.BLOB_READ_WRITE_TOKEN,
+          });
+        } catch (error) {
+          console.error("No pudimos eliminar el PDF anterior de síntomas", {
+            requestId: input.requestId,
+            category: group.category,
+            error,
+          });
+        }
+      }
     } catch (error) {
       console.error("No pudimos persistir metadata de PDF firmado de síntomas", {
         requestId: input.requestId,

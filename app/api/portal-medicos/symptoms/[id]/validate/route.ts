@@ -5,11 +5,14 @@ import { type TestItem } from "@/lib/checkup";
 import { getExamMetadataByName } from "@/lib/exam-master-catalog";
 import {
   MEDICAL_PORTAL_SESSION_COOKIE,
+  recordMedicalAudit,
   verifyMedicalPortalSessionToken,
 } from "@/lib/server/medical-portal-auth";
 import { ensureSymptomsSignedPdfAssets } from "@/lib/server/symptoms-order-pdf-assets";
 import { sendSymptomsValidatedOrderEmail } from "@/lib/server/symptoms-order-email";
 import { getSymptomsRequest, validateSymptomsOrder } from "@/lib/server/symptoms-store";
+import { createTemporaryPdfAccessLinks } from "@/lib/server/order-pdf-access";
+import { readJsonBody, requireSameOrigin } from "@/lib/server/http-security";
 
 type Params = {
   params: Promise<{ id: string }>;
@@ -42,11 +45,18 @@ function buildManualTestFromCatalog(name: string): TestItem | null {
 
 export async function POST(request: Request, context: Params) {
   try {
+    requireSameOrigin(request);
     const cookieStore = await cookies();
     const token = cookieStore.get(MEDICAL_PORTAL_SESSION_COOKIE)?.value;
-    const session = verifyMedicalPortalSessionToken(token);
+    const session = await verifyMedicalPortalSessionToken(token);
     if (!session) {
       return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+    }
+    if (!session.medicalRut || !session.sisRegistration) {
+      return NextResponse.json(
+        { error: "Tu perfil médico no tiene RUT y registro SIS configurados." },
+        { status: 409 },
+      );
     }
 
     const { id } = await context.params;
@@ -57,7 +67,7 @@ export async function POST(request: Request, context: Params) {
 
     let body: unknown;
     try {
-      body = await request.json();
+      body = await readJsonBody(request, 16_000);
     } catch {
       return NextResponse.json({ error: "Body inválido." }, { status: 400 });
     }
@@ -97,7 +107,11 @@ export async function POST(request: Request, context: Params) {
 
     const validated = await validateSymptomsOrder({
       requestId,
+      doctorUserId: session.userId,
       doctorEmail: session.email,
+      doctorName: session.name,
+      doctorRut: session.medicalRut,
+      doctorSis: session.sisRegistration,
       selectedTests: selected,
     });
 
@@ -131,9 +145,10 @@ export async function POST(request: Request, context: Params) {
     try {
       await sendSymptomsValidatedOrderEmail(validated.id, {
         assets: assets.map((asset) => ({
+          requestId: validated.id,
           category: asset.category,
           fileName: asset.fileName,
-          blobUrl: asset.blobUrl,
+          blobPath: asset.blobPath,
         })),
       });
     } catch (error) {
@@ -144,6 +159,23 @@ export async function POST(request: Request, context: Params) {
       warnings.push("La orden quedó validada, pero no pudimos enviar el correo automáticamente.");
     }
 
+    const portalLinks = await createTemporaryPdfAccessLinks({
+      requestType: "symptoms",
+      assets: assets.map((asset) => ({ ...asset, requestId: validated.id })),
+      purpose: "medical_portal",
+      recipientKey: session.email,
+      ttlMs: 60 * 60 * 1000,
+    });
+
+    await recordMedicalAudit({
+      session,
+      action: "symptoms.validate",
+      request,
+      requestType: "symptoms",
+      requestId: validated.id,
+      metadata: { selectedExamCount: selected.length, warningCount: warnings.length },
+    });
+
     return NextResponse.json({
       ok: true,
       requestId: validated.id,
@@ -151,10 +183,11 @@ export async function POST(request: Request, context: Params) {
       validatedByEmail: validated.validatedByEmail,
       validatedAt: validated.validatedAt,
       warnings,
-      signedPdfLinks: assets.map((asset) => ({
+      signedPdfLinks: portalLinks.map((asset) => ({
         category: asset.category,
         fileName: asset.fileName,
-        url: asset.blobUrl,
+        url: asset.url,
+        expiresAt: asset.expiresAt,
       })),
     });
   } catch (error) {

@@ -35,6 +35,12 @@ function isSupportTokenValid(request: Request) {
 }
 
 export async function POST(request: Request) {
+  if (process.env.ENABLE_LEGACY_SYMPTOMS_EMAIL !== "1") {
+    return NextResponse.json(
+      { ok: false, error: "Este endpoint legacy está deshabilitado." },
+      { status: 410 },
+    );
+  }
   if (!process.env.RESEND_API_KEY) {
     return NextResponse.json({ ok: false, error: "RESEND_API_KEY no está configurada." }, { status: 500 });
   }

@@ -4,8 +4,12 @@ import { getServerSession } from "next-auth";
 import { AUTH_SESSION_COOKIE } from "@/lib/auth";
 import { authOptions } from "@/lib/next-auth";
 import { getSessionTtlMs, loginOrRegisterOAuthUser } from "@/lib/server/auth-store";
+import { enforceRateLimit, httpErrorResponse, requireSameOrigin } from "@/lib/server/http-security";
 
-export async function POST() {
+export async function POST(request: Request) {
+  try {
+  requireSameOrigin(request);
+  await enforceRateLimit({ request, action: "auth:google-sync", limit: 20, windowMs: 15 * 60 * 1000 });
   const providerSession = await getServerSession(authOptions);
   const email = providerSession?.user?.email?.trim().toLowerCase() ?? "";
 
@@ -26,4 +30,7 @@ export async function POST() {
   });
 
   return NextResponse.json({ user: result.user });
+  } catch (error) {
+    return httpErrorResponse(error, "No pudimos sincronizar la cuenta de Google.");
+  }
 }

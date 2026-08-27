@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { listSymptomsSignedPdfAssets } from "@/lib/server/symptoms-order-pdf-assets";
 import type { OrderCategory } from "@/lib/order-categories";
 import { joinPatientFullName } from "@/lib/checkup";
+import { createTemporaryPdfAccessLinks } from "@/lib/server/order-pdf-access";
 
 const FROM_EMAIL = "Veramed <ordenes@mail.veramed.cl>";
 const SUBJECT = "Tu orden de exámenes está lista 📋";
@@ -30,9 +31,10 @@ function categoryLabel(category: "laboratory" | "image" | "procedure" | "interco
 }
 
 type EmailPdfAsset = {
+  requestId: string;
   category: OrderCategory;
   fileName: string;
-  blobUrl: string;
+  blobPath: string;
 };
 
 export async function sendSymptomsValidatedOrderEmail(
@@ -59,7 +61,10 @@ export async function sendSymptomsValidatedOrderEmail(
   let assets = input?.assets ?? [];
   if (assets.length === 0) {
     try {
-      assets = await listSymptomsSignedPdfAssets(request.id);
+      assets = (await listSymptomsSignedPdfAssets(request.id)).map((asset) => ({
+        ...asset,
+        requestId: request.id,
+      }));
     } catch (error) {
       console.error("No pudimos cargar assets firmados desde DB para correo de síntomas", {
         requestId: request.id,
@@ -68,6 +73,13 @@ export async function sendSymptomsValidatedOrderEmail(
       assets = [];
     }
   }
+
+  const linkedAssets = await createTemporaryPdfAccessLinks({
+    requestType: "symptoms",
+    assets,
+    purpose: "email",
+    recipientKey: request.patientEmail,
+  });
 
   const patientName = joinPatientFullName({
     firstName: request.patientFirstName,
@@ -81,11 +93,11 @@ export async function sendSymptomsValidatedOrderEmail(
     "https://www.veramed.cl";
 
   const links =
-    assets.length > 0
-      ? assets
+    linkedAssets.length > 0
+      ? linkedAssets
           .map((asset) => {
             const label = categoryLabel(asset.category);
-            return `<li style="margin: 0 0 4px;"><a href="${escapeHtml(asset.blobUrl)}" style="color:#0f172a;font-weight:600;">${escapeHtml(label)}</a></li>`;
+            return `<li style="margin: 0 0 4px;"><a href="${escapeHtml(asset.url)}" style="color:#0f172a;font-weight:600;">${escapeHtml(label)}</a></li>`;
           })
           .join("")
       : `<li style="margin: 0 0 4px;"><a href="${escapeHtml(`${appUrl}/sintomas/orden?id=${request.id}`)}" style="color:#0f172a;font-weight:600;">Abrir orden en Veramed</a></li>`;

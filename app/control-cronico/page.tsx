@@ -1,6 +1,7 @@
 "use client";
 
 import { startTransition, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Stepper from "@/components/checkup/Stepper";
 import { fetchCurrentUser } from "@/lib/auth-api";
 import { createChronicControlRequest } from "@/lib/chronic-control-api";
@@ -34,6 +35,7 @@ import {
 } from "@/lib/chronic-control";
 
 export default function ChronicControlPage() {
+  const router = useRouter();
   const recommendationCardRef = useRef<HTMLDivElement>(null);
   const [conditions, setConditions] = useState<ChronicCondition[]>(["hypertension"]);
   const [showAllConditions, setShowAllConditions] = useState(false);
@@ -276,7 +278,7 @@ export default function ChronicControlPage() {
         generalCheckupInput: includeGeneralCheckup ? checkupInput : undefined,
       });
 
-      window.location.href = `/control-cronico/resumen?id=${request.id}`;
+      router.push(`/control-cronico/resumen?id=${request.id}`);
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "No pudimos crear tu solicitud.");
     } finally {

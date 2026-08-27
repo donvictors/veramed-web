@@ -19,6 +19,7 @@ import {
   type OrderCategory,
 } from "@/lib/order-categories";
 import type { SymptomsOrderDraft } from "@/lib/symptoms-order";
+import { buildProtectedSignatureUrl } from "@/lib/protected-order-assets";
 
 const STORAGE_KEY = "veramed_symptoms_order_v1";
 const ORDER_CATEGORIES: OrderCategory[] = [
@@ -54,6 +55,15 @@ function SymptomsOrderPageContent() {
   const requestIdFromUrl = searchParams.get("id")?.trim() || "";
   const internalTs = searchParams.get("internalTs")?.trim() || "";
   const internalSig = searchParams.get("internalSig")?.trim() || "";
+  const signatureRequestId = requestIdFromUrl || order?.id || "";
+  const signatureUrl = signatureRequestId
+    ? buildProtectedSignatureUrl({
+        requestType: "symptoms",
+        requestId: signatureRequestId,
+        internalTs,
+        internalSig,
+      })
+    : "";
 
   useEffect(() => {
     if (!requestIdFromUrl) {
@@ -417,6 +427,7 @@ function SymptomsOrderPageContent() {
               pageIndex={pageIndex}
               totalPages={printPages.length}
               showSignature={isValidated}
+              signatureUrl={signatureUrl}
             />
           ))}
         </section>
@@ -541,6 +552,7 @@ function PrintOrderPage({
   pageIndex,
   totalPages,
   showSignature,
+  signatureUrl,
 }: {
   category: OrderCategory;
   categoryMeta: ReturnType<typeof getOrderCategoryMeta>;
@@ -552,6 +564,7 @@ function PrintOrderPage({
   pageIndex: number;
   totalPages: number;
   showSignature: boolean;
+  signatureUrl: string;
 }) {
   return (
     <article className="veramed-order-page">
@@ -568,6 +581,7 @@ function PrintOrderPage({
         pageIndex={pageIndex}
         totalPages={totalPages}
         showSignature={showSignature}
+        signatureUrl={signatureUrl}
       />
     </article>
   );
@@ -711,12 +725,14 @@ function OrderFooter({
   pageIndex,
   totalPages,
   showSignature,
+  signatureUrl,
 }: {
   verificationCode: string;
   issuedAt: string;
   pageIndex: number;
   totalPages: number;
   showSignature: boolean;
+  signatureUrl: string;
 }) {
   return (
     <footer className="veramed-order-footer border-t border-slate-300 pt-3 text-[11px] text-slate-600">
@@ -741,7 +757,7 @@ function OrderFooter({
               <>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src="/firmas/firma-VRM.png"
+                  src={signatureUrl}
                   alt="Firma Dr. Víctor Rebolledo"
                   loading="eager"
                   decoding="sync"

@@ -18,6 +18,7 @@ import { getExamObservationForOrder } from "@/lib/exam-master-catalog";
 import { getFonasaCodeByExamName } from "@/lib/fonasa-codes";
 import { getOrderCategoryByTestName } from "@/lib/order-categories";
 import { useRequestId } from "@/lib/use-request-id";
+import { buildProtectedSignatureUrl } from "@/lib/protected-order-assets";
 
 export default function OrderPage() {
   const router = useRouter();
@@ -111,6 +112,14 @@ export default function OrderPage() {
   const verificationCode = issuedAtTimestamp
     ? createVerificationCode(patient?.rut, issuedAtTimestamp)
     : "";
+  const signatureUrl = requestId
+    ? buildProtectedSignatureUrl({
+        requestType: "checkup",
+        requestId,
+        internalTs,
+        internalSig,
+      })
+    : "";
 
   function handlePrint(category: OrderCategory) {
     setSelectedCategory(category);
@@ -149,6 +158,32 @@ export default function OrderPage() {
                 Volver al resumen
               </Link>
             </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (!approved) {
+    return (
+      <main className="min-h-screen bg-slate-50 text-slate-900">
+        <div className="mx-auto max-w-3xl px-6 py-12">
+          <div className="rounded-[2rem] border border-amber-200 bg-amber-50 p-8">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-700">
+              Revisión clínica
+            </p>
+            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-amber-950">
+              La orden todavía no está firmada.
+            </h1>
+            <p className="mt-3 text-sm leading-7 text-amber-900">
+              La descarga se habilitará cuando la aprobación médica quede registrada.
+            </p>
+            <Link
+              href={`/chequeo/estado?id=${requestId}`}
+              className="mt-6 inline-block rounded-2xl bg-amber-950 px-5 py-3 text-sm font-semibold text-white"
+            >
+              Revisar estado
+            </Link>
           </div>
         </div>
       </main>
@@ -406,6 +441,7 @@ export default function OrderPage() {
               verificationCode={verificationCode}
               pageIndex={pageIndex}
               totalPages={printPages.length}
+              signatureUrl={signatureUrl}
             />
           ))}
         </section>
@@ -559,6 +595,7 @@ function PrintOrderPage({
   verificationCode,
   pageIndex,
   totalPages,
+  signatureUrl,
 }: {
   category: OrderCategory;
   categoryMeta: ReturnType<typeof getOrderCategoryMeta>;
@@ -569,6 +606,7 @@ function PrintOrderPage({
   verificationCode: string;
   pageIndex: number;
   totalPages: number;
+  signatureUrl: string;
 }) {
   return (
     <article className="veramed-order-page">
@@ -588,6 +626,7 @@ function PrintOrderPage({
         issuedAt={issuedAt}
         pageIndex={pageIndex}
         totalPages={totalPages}
+        signatureUrl={signatureUrl}
       />
     </article>
   );
@@ -723,11 +762,13 @@ function OrderFooter({
   issuedAt,
   pageIndex,
   totalPages,
+  signatureUrl,
 }: {
   verificationCode: string;
   issuedAt: string;
   pageIndex: number;
   totalPages: number;
+  signatureUrl: string;
 }) {
   return (
     <footer className="veramed-order-footer border-t border-slate-300 pt-3 text-[11px] text-slate-600">
@@ -748,7 +789,7 @@ function OrderFooter({
           <div className="ml-auto flex h-14 w-52 items-end justify-end border-b border-slate-500">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/firmas/firma-VRM.png"
+              src={signatureUrl}
               alt="Firma Dr. Víctor Rebolledo"
               loading="eager"
               decoding="sync"

@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import {
   MEDICAL_PORTAL_SESSION_COOKIE,
+  recordMedicalAudit,
   verifyMedicalPortalSessionToken,
 } from "@/lib/server/medical-portal-auth";
 import {
@@ -22,7 +23,7 @@ function parseMonthYear(searchParams: URLSearchParams) {
 export async function GET(request: Request) {
   const cookieStore = await cookies();
   const token = cookieStore.get(MEDICAL_PORTAL_SESSION_COOKIE)?.value;
-  const session = verifyMedicalPortalSessionToken(token);
+  const session = await verifyMedicalPortalSessionToken(token);
   if (!session) {
     return NextResponse.json({ error: "No autorizado." }, { status: 401 });
   }
@@ -43,6 +44,8 @@ export async function GET(request: Request) {
       year,
     }),
   ]);
+
+  await recordMedicalAudit({ session, action: "symptoms.list", request, requestType: "symptoms" });
 
   return NextResponse.json({
     month,
@@ -68,4 +71,3 @@ export async function GET(request: Request) {
     })),
   });
 }
-

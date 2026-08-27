@@ -10,6 +10,7 @@ import {
 import { getSymptomsRequest } from "@/lib/server/symptoms-store";
 import { listSymptomsSignedPdfAssets } from "@/lib/server/symptoms-order-pdf-assets";
 import { toSymptomsOrderDraftFromRecord } from "@/lib/server/symptoms-order-mapper";
+import { createTemporaryPdfAccessLinks } from "@/lib/server/order-pdf-access";
 
 type Params = {
   params: Promise<{ id: string }>;
@@ -63,16 +64,27 @@ export async function GET(_request: Request, context: Params) {
     });
   }
 
+  const signedLinks =
+    record.reviewStatus === "validated"
+      ? await createTemporaryPdfAccessLinks({
+          requestType: "symptoms",
+          assets: signedAssets.map((asset) => ({ ...asset, requestId })),
+          purpose: "patient",
+          recipientKey: user?.id ?? `guest:${requestId}`,
+        })
+      : [];
+
   return NextResponse.json({
     order: {
       ...order,
       reviewStatus: record.reviewStatus,
       validatedByEmail: record.validatedByEmail,
       validatedAt: record.validatedAt,
-      signedPdfLinks: signedAssets.map((asset) => ({
+      signedPdfLinks: signedLinks.map((asset) => ({
         category: asset.category,
-        url: asset.blobUrl,
+        url: asset.url,
         fileName: asset.fileName,
+        expiresAt: asset.expiresAt,
       })),
     },
   });

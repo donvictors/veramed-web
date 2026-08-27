@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function GoogleCompletePage() {
+  const router = useRouter();
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -21,7 +23,7 @@ export default function GoogleCompletePage() {
         }
 
         if (!cancelled) {
-          window.location.href = "/mi-cuenta";
+          router.replace("/mi-cuenta");
         }
       } catch (nextError) {
         if (!cancelled) {
@@ -38,7 +40,7 @@ export default function GoogleCompletePage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [router]);
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">

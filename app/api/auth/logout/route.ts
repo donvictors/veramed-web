@@ -2,8 +2,11 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { AUTH_SESSION_COOKIE } from "@/lib/auth";
 import { logoutSession } from "@/lib/server/auth-store";
+import { httpErrorResponse, requireSameOrigin } from "@/lib/server/http-security";
 
-export async function POST() {
+export async function POST(request: Request) {
+  try {
+  requireSameOrigin(request);
   const cookieStore = await cookies();
   const token = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
 
@@ -18,4 +21,7 @@ export async function POST() {
   });
 
   return NextResponse.json({ ok: true });
+  } catch (error) {
+    return httpErrorResponse(error, "No pudimos cerrar la sesión.");
+  }
 }

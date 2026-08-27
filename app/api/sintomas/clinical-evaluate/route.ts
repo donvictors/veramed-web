@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
 import { evaluateFlow, getClinicalFlow } from "@/lib/clinical/engine";
+import {
+  enforceRateLimit,
+  httpErrorResponse,
+  readJsonBody,
+  requireSameOrigin,
+} from "@/lib/server/http-security";
 
 type EvaluateBody = {
   flowId?: string;
@@ -7,20 +13,16 @@ type EvaluateBody = {
 };
 
 export async function POST(request: Request) {
-  let body: EvaluateBody;
-
   try {
-    body = (await request.json()) as EvaluateBody;
-  } catch {
-    return NextResponse.json({ error: "Body JSON inválido." }, { status: 400 });
-  }
+    requireSameOrigin(request);
+    await enforceRateLimit({ request, action: "symptoms:clinical-evaluate", limit: 30, windowMs: 15 * 60 * 1000 });
+    const body = (await readJsonBody(request, 12_000)) as EvaluateBody;
 
   const flowId = body.flowId?.trim();
   if (!flowId) {
     return NextResponse.json({ error: "flowId es obligatorio." }, { status: 400 });
   }
 
-  try {
     const flow = getClinicalFlow(flowId);
     const evaluation = evaluateFlow(flowId, body.answers ?? {});
 
@@ -35,8 +37,6 @@ export async function POST(request: Request) {
       createdAt: new Date().toISOString(),
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "No fue posible evaluar el flujo clínico.";
-    return NextResponse.json({ error: message }, { status: 400 });
+    return httpErrorResponse(error, "No fue posible evaluar el flujo clínico.");
   }
 }
-

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import Stepper from "@/components/checkup/Stepper";
 import { fetchCurrentUser } from "@/lib/auth-api";
@@ -27,6 +28,7 @@ import {
 } from "@/lib/checkup";
 
 export default function CheckupPage() {
+  const router = useRouter();
   const recommendationCardRef = useRef<HTMLDivElement>(null);
   const [nameFields, setNameFields] = useState<PatientNameFields>({
     firstName: "",
@@ -221,7 +223,7 @@ export default function CheckupPage() {
       setSubmitError("");
 
       const checkup = await createCheckupRequest({ input, patient });
-      window.location.href = `/chequeo/resumen?id=${checkup.id}`;
+      router.push(`/chequeo/resumen?id=${checkup.id}`);
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "No pudimos crear tu solicitud.");
     } finally {

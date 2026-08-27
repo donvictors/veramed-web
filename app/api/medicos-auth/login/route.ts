@@ -1,24 +1,35 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import {
-  createMedicalPortalSessionToken,
+  createMedicalPortalSession,
   getMedicalPortalSessionMaxAgeSeconds,
   MEDICAL_PORTAL_SESSION_COOKIE,
+  recordMedicalAudit,
   validateDoctorCredentials,
 } from "@/lib/server/medical-portal-auth";
+import {
+  enforceRateLimit,
+  httpErrorResponse,
+  readJsonBody,
+  requireSameOrigin,
+} from "@/lib/server/http-security";
 
 type LoginBody = {
   email?: string;
   password?: string;
+  totpCode?: string;
 };
 
 export async function POST(request: Request) {
-  let body: LoginBody;
   try {
-    body = (await request.json()) as LoginBody;
-  } catch {
-    return NextResponse.json({ error: "Body inválido." }, { status: 400 });
-  }
+    requireSameOrigin(request);
+    await enforceRateLimit({
+      request,
+      action: "medical-auth:login",
+      limit: 6,
+      windowMs: 15 * 60 * 1000,
+    });
+    const body = (await readJsonBody(request, 8_000)) as LoginBody;
 
   const email = body.email?.trim() ?? "";
   const password = body.password ?? "";
@@ -30,14 +41,18 @@ export async function POST(request: Request) {
     );
   }
 
-  const result = validateDoctorCredentials({ email, password });
+  const result = await validateDoctorCredentials({
+    email,
+    password,
+    totpCode: body.totpCode?.trim(),
+  });
   if (!result.ok) {
-    const status = result.reason === "Portal médico no configurado." ? 503 : 401;
-    return NextResponse.json({ error: result.reason }, { status });
+    return NextResponse.json({ error: result.reason }, { status: 401 });
   }
 
+  const created = await createMedicalPortalSession({ userId: result.user.id, request });
   const cookieStore = await cookies();
-  cookieStore.set(MEDICAL_PORTAL_SESSION_COOKIE, createMedicalPortalSessionToken(result.email), {
+  cookieStore.set(MEDICAL_PORTAL_SESSION_COOKIE, created.token, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
@@ -45,5 +60,23 @@ export async function POST(request: Request) {
     maxAge: getMedicalPortalSessionMaxAgeSeconds(),
   });
 
+  await recordMedicalAudit({
+    session: {
+      sessionId: created.session.id,
+      userId: result.user.id,
+      email: result.user.email,
+      name: result.user.name,
+      medicalRut: result.user.medicalRut ?? undefined,
+      sisRegistration: result.user.sisRegistration ?? undefined,
+      role: result.user.role,
+      expiresAt: created.session.expiresAt,
+    },
+    action: "medical.login",
+    request,
+  });
+
   return NextResponse.json({ ok: true });
+  } catch (error) {
+    return httpErrorResponse(error, "No pudimos iniciar sesión en el portal médico.");
+  }
 }

@@ -1,10 +1,12 @@
-import { put } from "@vercel/blob";
+import { del, put } from "@vercel/blob";
 import { OrderPdfCategoryDb, TransbankRequestTypeDb } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { type PatientDetails, type TestItem } from "@/lib/checkup";
 import { getOrderCategoryByTestName, type OrderCategory } from "@/lib/order-categories";
 import { buildOrderPdf } from "@/lib/server/order-pdf";
 import { renderOrderPdfFromOrderPage } from "@/lib/server/order-pdf-browser";
+import { requireApprovedMedicalSigner } from "@/lib/server/medical-approval";
+import { revokePdfAccessLinks } from "@/lib/server/order-pdf-access";
 
 type RequestType = "checkup" | "chronic_control";
 type OrderPdfCategory = OrderCategory;
@@ -129,9 +131,12 @@ function sortAssetsByCategory(assets: StoredOrderPdfAsset[]) {
 export async function ensureOrderPdfAssets(
   input: EnsureOrderPdfAssetsInput,
 ): Promise<StoredOrderPdfAsset[]> {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    throw new Error("BLOB_READ_WRITE_TOKEN no está configurada.");
+  const privateBlobToken = process.env.PRIVATE_BLOB_READ_WRITE_TOKEN?.trim();
+  if (!privateBlobToken) {
+    throw new Error("PRIVATE_BLOB_READ_WRITE_TOKEN no está configurada.");
   }
+
+  const signer = await requireApprovedMedicalSigner(input.requestType, input.requestId);
 
   const requestTypeDb = toDbRequestType(input.requestType);
   const requestedCategories = getTargetCategories(input);
@@ -163,13 +168,15 @@ export async function ensureOrderPdfAssets(
 
   for (const [category, tests] of requestedCategories.entries()) {
     const existingAsset = existingByCategory.get(category);
-    const hasCurrentVersionPath = existingAsset?.blobPath.includes(`/${CURRENT_RENDER_VERSION}/`);
+    const hasCurrentVersionPath =
+      existingAsset?.blobPath.startsWith("private/") &&
+      existingAsset.blobPath.includes(`/${CURRENT_RENDER_VERSION}/`);
     if (existingAsset && !input.forceRegenerate && hasCurrentVersionPath) {
       continue;
     }
 
     const fileName = `orden-${input.requestType}-${input.requestId}-${getCategoryLabel(category)}.pdf`;
-    const blobPath = `ordenes/${CURRENT_RENDER_VERSION}/${input.requestType}/${input.requestId}/${getCategoryLabel(
+    const blobPath = `private/ordenes/${CURRENT_RENDER_VERSION}/${input.requestType}/${input.requestId}/${getCategoryLabel(
       category,
     )}-${input.issuedAtMs}.pdf`;
     let buffer: Buffer;
@@ -201,14 +208,16 @@ export async function ensureOrderPdfAssets(
         tests,
         issuedAtMs: input.issuedAtMs,
         referralTo: category === "interconsultation" ? "Oftalmólogo/a" : undefined,
+        signer,
       });
     }
 
     const blob = await put(blobPath, buffer, {
-      access: "public",
+      access: "private",
       contentType: "application/pdf",
       addRandomSuffix: false,
-      allowOverwrite: Boolean(input.forceRegenerate),
+      allowOverwrite: true,
+      token: privateBlobToken,
     });
 
     const saved = await prisma.orderPdfAsset.upsert({
@@ -241,6 +250,27 @@ export async function ensureOrderPdfAssets(
       renderEngine,
       renderError,
     });
+
+    await revokePdfAccessLinks({
+      requestType: input.requestType,
+      requestId: input.requestId,
+      reason: "pdf_regenerated",
+    });
+
+    if (existingAsset?.blobUrl && existingAsset.blobUrl !== blob.url) {
+      try {
+        await del(existingAsset.blobUrl, {
+          token: process.env.BLOB_READ_WRITE_TOKEN,
+        });
+      } catch (error) {
+        console.error("No pudimos eliminar el PDF anterior después de migrarlo", {
+          requestType: input.requestType,
+          requestId: input.requestId,
+          category,
+          error,
+        });
+      }
+    }
   }
 
   const assets = [...existingByCategory.values()].filter((asset) =>

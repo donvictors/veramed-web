@@ -32,8 +32,8 @@ export function validateRegisterInput(payload: AuthFormPayload) {
     errors.push("Ingresa un correo válido.");
   }
 
-  if (!payload.password || payload.password.length < 6) {
-    errors.push("La contraseña debe tener al menos 6 caracteres.");
+  if (!payload.password || payload.password.length < 10) {
+    errors.push("La contraseña debe tener al menos 10 caracteres.");
   }
 
   return errors;
@@ -46,8 +46,8 @@ export function validateLoginInput(payload: AuthFormPayload) {
     errors.push("Ingresa un correo válido.");
   }
 
-  if (!payload.password || payload.password.length < 6) {
-    errors.push("La contraseña debe tener al menos 6 caracteres.");
+  if (!payload.password) {
+    errors.push("Ingresa tu contraseña.");
   }
 
   return errors;

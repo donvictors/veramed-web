@@ -46,6 +46,42 @@ enum SymptomsRequestStatusDb {
   rejected
 }
 
+enum MedicalApprovalMethodDb {
+  automatic_protocol
+  manual
+}
+
+enum ClinicalRequestTypeDb {
+  checkup
+  chronic_control
+  symptoms
+}
+
+enum DiscountTypeDb {
+  percent_off
+  fixed_final_amount
+}
+
+enum OrderPdfAccessOutcomeDb {
+  granted
+  expired
+  revoked
+  not_found
+  storage_error
+}
+
+enum MedicalPortalRoleDb {
+  doctor
+  admin
+}
+
+enum OutboxStatusDb {
+  pending
+  processing
+  completed
+  failed
+}
+
 model Healthcheck {
   id        String   @id @default(cuid())
   key       String   @unique
@@ -55,21 +91,21 @@ model Healthcheck {
 }
 
 model User {
-  id                     String                 @id @default(cuid())
+  id                     String                  @id @default(cuid())
   name                   String
-  email                  String                 @unique
+  email                  String                  @unique
   passwordHash           String
   passwordSalt           String
   profileFirstName       String
-  profilePaternalSurname String                 @default("")
-  profileMaternalSurname String                 @default("")
-  profileRut             String                 @default("")
-  profileBirthDate       String                 @default("")
+  profilePaternalSurname String                  @default("")
+  profileMaternalSurname String                  @default("")
+  profileRut             String                  @default("")
+  profileBirthDate       String                  @default("")
   profileEmail           String
-  profilePhone           String                 @default("")
-  profileAddress         String                 @default("")
-  createdAt              DateTime               @default(now())
-  updatedAt              DateTime               @updatedAt
+  profilePhone           String                  @default("")
+  profileAddress         String                  @default("")
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
   sessions               Session[]
   checkups               CheckupRequest[]
   chronicControls        ChronicControlRequest[]
@@ -88,82 +124,94 @@ model Session {
 }
 
 model CheckupRequest {
-  id                    String         @id
-  userId                String?
-  input                 Json
-  patientFirstName      String
-  patientPaternalSurname String        @default("")
-  patientMaternalSurname String        @default("")
-  patientRut            String         @default("")
-  patientBirthDate      String         @default("")
-  patientEmail          String         @default("")
-  patientPhone          String         @default("")
-  patientAddress        String         @default("")
-  rec                   Json
-  reviewStatus          ReviewStatusDb @default(queued)
-  queuedAt              DateTime?
-  approvedAt            DateTime?
-  rejectedAt            DateTime?
-  orderId               String?
-  orderEmailSentAt      DateTime?
-  orderEmailMessageId   String?
-  createdAt             DateTime       @default(now())
-  updatedAt             DateTime       @updatedAt
-  user                  User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
-  payment               CheckupPayment?
+  id                      String                   @id
+  userId                  String?
+  input                   Json
+  patientFirstName        String
+  patientPaternalSurname  String                   @default("")
+  patientMaternalSurname  String                   @default("")
+  patientRut              String                   @default("")
+  patientBirthDate        String                   @default("")
+  patientEmail            String                   @default("")
+  patientPhone            String                   @default("")
+  patientAddress          String                   @default("")
+  rec                     Json
+  reviewStatus            ReviewStatusDb           @default(queued)
+  queuedAt                DateTime?
+  approvedAt              DateTime?
+  approvedByName          String?
+  approvedByRut           String?
+  approvedBySis           String?
+  approvedByEmail         String?
+  approvalMethod          MedicalApprovalMethodDb?
+  approvalProtocolVersion String?
+  rejectedAt              DateTime?
+  orderId                 String?
+  orderEmailSentAt        DateTime?
+  orderEmailMessageId     String?
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  user                    User?                    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  payment                 CheckupPayment?
 
   @@index([userId])
 }
 
 model ChronicControlRequest {
-  id                    String                 @id
-  userId                String?
-  conditions            Json
-  patientFirstName      String
-  patientPaternalSurname String               @default("")
-  patientMaternalSurname String               @default("")
-  patientRut            String                 @default("")
-  patientBirthDate      String                 @default("")
-  patientEmail          String                 @default("")
-  patientPhone          String                 @default("")
-  patientAddress        String                 @default("")
-  yearsSinceDiagnosis   Int
-  hasRecentChanges      Boolean
-  usesMedication        Boolean
-  selectedMedications   Json
-  rec                   Json
-  reviewStatus          ReviewStatusDb         @default(queued)
-  queuedAt              DateTime?
-  approvedAt            DateTime?
-  rejectedAt            DateTime?
-  orderId               String?
-  orderEmailSentAt      DateTime?
-  orderEmailMessageId   String?
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
-  user                  User?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
-  payment               ChronicControlPayment?
+  id                      String                   @id
+  userId                  String?
+  conditions              Json
+  patientFirstName        String
+  patientPaternalSurname  String                   @default("")
+  patientMaternalSurname  String                   @default("")
+  patientRut              String                   @default("")
+  patientBirthDate        String                   @default("")
+  patientEmail            String                   @default("")
+  patientPhone            String                   @default("")
+  patientAddress          String                   @default("")
+  yearsSinceDiagnosis     Int
+  hasRecentChanges        Boolean
+  usesMedication          Boolean
+  selectedMedications     Json
+  rec                     Json
+  reviewStatus            ReviewStatusDb           @default(queued)
+  queuedAt                DateTime?
+  approvedAt              DateTime?
+  approvedByName          String?
+  approvedByRut           String?
+  approvedBySis           String?
+  approvedByEmail         String?
+  approvalMethod          MedicalApprovalMethodDb?
+  approvalProtocolVersion String?
+  rejectedAt              DateTime?
+  orderId                 String?
+  orderEmailSentAt        DateTime?
+  orderEmailMessageId     String?
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  user                    User?                    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  payment                 ChronicControlPayment?
 
   @@index([userId])
 }
 
 model SymptomsRequest {
-  id                     String                  @id
+  id                     String                       @id
   userId                 String?
   symptomsText           String
-  flowId                 String                  @default("")
-  oneLinerSummary        String                  @default("")
-  primarySymptom         String                  @default("")
+  flowId                 String                       @default("")
+  oneLinerSummary        String                       @default("")
+  primarySymptom         String                       @default("")
   secondarySymptoms      Json
   patientFirstName       String
-  patientPaternalSurname String                  @default("")
-  patientMaternalSurname String                  @default("")
-  patientRut             String                  @default("")
-  patientBirthDate       String                  @default("")
-  patientSex             String                  @default("")
-  patientEmail           String                  @default("")
-  patientPhone           String                  @default("")
-  patientAddress         String                  @default("")
+  patientPaternalSurname String                       @default("")
+  patientMaternalSurname String                       @default("")
+  patientRut             String                       @default("")
+  patientBirthDate       String                       @default("")
+  patientSex             String                       @default("")
+  patientEmail           String                       @default("")
+  patientPhone           String                       @default("")
+  patientAddress         String                       @default("")
   antecedents            Json
   interpretation         Json
   followUpQuestions      Json
@@ -171,14 +219,21 @@ model SymptomsRequest {
   suggestedTests         Json
   selectedTests          Json
   notes                  Json
-  engineVersion          String                  @default("")
-  cachedInput            String                  @default("")
-  reviewStatus           SymptomsRequestStatusDb @default(draft)
+  engineVersion          String                       @default("")
+  cachedInput            String                       @default("")
+  aiConsentAt            DateTime?
+  aiConsentVersion       String?
+  aiProvider             String?
+  reviewStatus           SymptomsRequestStatusDb      @default(draft)
   validatedByEmail       String?
+  validatedByUserId      String?
+  validatedByName        String?
+  validatedByRut         String?
+  validatedBySis         String?
   validatedAt            DateTime?
-  createdAt              DateTime                @default(now())
-  updatedAt              DateTime                @updatedAt
-  user                   User?                   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt              DateTime                     @default(now())
+  updatedAt              DateTime                     @updatedAt
+  user                   User?                        @relation(fields: [userId], references: [id], onDelete: SetNull)
   payment                SymptomsPayment?
   transactions           SymptomsPaymentTransaction[]
   pdfAssets              SymptomsOrderPdfAsset[]
@@ -189,69 +244,69 @@ model SymptomsRequest {
 }
 
 model CheckupPayment {
-  requestId   String          @id
-  amount      Int
-  currency    String
-  paymentId   String          @unique
-  cardLast4   String
-  cardholder  String
-  status      PaymentStatusDb @default(pending)
-  createdAt   DateTime        @default(now())
-  paidAt      DateTime?
-  updatedAt   DateTime        @updatedAt
-  request     CheckupRequest  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  requestId  String          @id
+  amount     Int
+  currency   String
+  paymentId  String          @unique
+  cardLast4  String
+  cardholder String
+  status     PaymentStatusDb @default(pending)
+  createdAt  DateTime        @default(now())
+  paidAt     DateTime?
+  updatedAt  DateTime        @updatedAt
+  request    CheckupRequest  @relation(fields: [requestId], references: [id], onDelete: Cascade)
 }
 
 model ChronicControlPayment {
-  requestId   String               @id
-  amount      Int
-  currency    String
-  paymentId   String               @unique
-  cardLast4   String
-  cardholder  String
-  status      PaymentStatusDb      @default(pending)
-  createdAt   DateTime             @default(now())
-  paidAt      DateTime?
-  updatedAt   DateTime             @updatedAt
-  request     ChronicControlRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  requestId  String                @id
+  amount     Int
+  currency   String
+  paymentId  String                @unique
+  cardLast4  String
+  cardholder String
+  status     PaymentStatusDb       @default(pending)
+  createdAt  DateTime              @default(now())
+  paidAt     DateTime?
+  updatedAt  DateTime              @updatedAt
+  request    ChronicControlRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
 }
 
 model SymptomsPayment {
-  requestId   String          @id
-  amount      Int
-  currency    String
-  paymentId   String          @unique
-  cardLast4   String
-  cardholder  String
-  status      PaymentStatusDb @default(pending)
-  createdAt   DateTime        @default(now())
-  paidAt      DateTime?
-  updatedAt   DateTime        @updatedAt
-  request     SymptomsRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  requestId  String          @id
+  amount     Int
+  currency   String
+  paymentId  String          @unique
+  cardLast4  String
+  cardholder String
+  status     PaymentStatusDb @default(pending)
+  createdAt  DateTime        @default(now())
+  paidAt     DateTime?
+  updatedAt  DateTime        @updatedAt
+  request    SymptomsRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
 }
 
 model TransbankPaymentTransaction {
-  id                 String                       @id @default(cuid())
-  orderId            String                       @unique
-  sessionId          String
-  requestType        TransbankRequestTypeDb
-  requestId          String
-  amount             Int
-  token              String                       @unique
-  webpayUrl          String
-  status             TransbankTransactionStatusDb @default(created)
-  authorizationCode  String?
-  buyOrder           String?
-  responseCode       Int?
-  paymentTypeCode    String?
-  cardLast4          String?
-  transactionDate    DateTime?
-  transbankResponse  Json?
-  errorReason        String?
-  committedAt        DateTime?
-  paidAt             DateTime?
-  createdAt          DateTime                     @default(now())
-  updatedAt          DateTime                     @updatedAt
+  id                String                       @id @default(cuid())
+  orderId           String                       @unique
+  sessionId         String
+  requestType       TransbankRequestTypeDb
+  requestId         String
+  amount            Int
+  token             String                       @unique
+  webpayUrl         String
+  status            TransbankTransactionStatusDb @default(created)
+  authorizationCode String?
+  buyOrder          String?
+  responseCode      Int?
+  paymentTypeCode   String?
+  cardLast4         String?
+  transactionDate   DateTime?
+  transbankResponse Json?
+  errorReason       String?
+  committedAt       DateTime?
+  paidAt            DateTime?
+  createdAt         DateTime                     @default(now())
+  updatedAt         DateTime                     @updatedAt
 
   @@index([requestType, requestId])
   @@index([status, createdAt])
@@ -301,18 +356,153 @@ model OrderPdfAsset {
 }
 
 model SymptomsOrderPdfAsset {
-  id        String          @id @default(cuid())
+  id        String             @id @default(cuid())
   requestId String
   category  OrderPdfCategoryDb
   fileName  String
   blobUrl   String
   blobPath  String
   sizeBytes Int
-  signedAt  DateTime        @default(now())
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
-  request   SymptomsRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  signedAt  DateTime           @default(now())
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  request   SymptomsRequest    @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
   @@unique([requestId, category])
   @@index([requestId])
+}
+
+model DiscountCode {
+  id             String         @id @default(cuid())
+  codeHash       String         @unique
+  label          String
+  type           DiscountTypeDb
+  percentOff     Int?
+  finalAmountClp Int?
+  active         Boolean        @default(true)
+  startsAt       DateTime?
+  expiresAt      DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([active, startsAt, expiresAt])
+}
+
+model OrderPdfAccessLink {
+  id               String                @id @default(cuid())
+  tokenHash        String                @unique
+  requestType      ClinicalRequestTypeDb
+  requestId        String
+  category         OrderPdfCategoryDb
+  blobPath         String
+  fileName         String
+  purpose          String
+  recipientKeyHash String?
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  revokedReason    String?
+  createdAt        DateTime              @default(now())
+  lastAccessedAt   DateTime?
+  accessLogs       OrderPdfAccessLog[]
+
+  @@index([requestType, requestId])
+  @@index([expiresAt, revokedAt])
+}
+
+model OrderPdfAccessLog {
+  id         String                  @id @default(cuid())
+  linkId     String
+  outcome    OrderPdfAccessOutcomeDb
+  ipHash     String?
+  userAgent  String?
+  accessedAt DateTime                @default(now())
+  link       OrderPdfAccessLink      @relation(fields: [linkId], references: [id], onDelete: Cascade)
+
+  @@index([linkId, accessedAt])
+  @@index([outcome, accessedAt])
+}
+
+model RateLimitBucket {
+  keyHash     String
+  action      String
+  windowStart DateTime
+  count       Int      @default(1)
+  expiresAt   DateTime
+
+  @@id([keyHash, action, windowStart])
+  @@index([expiresAt])
+}
+
+model MedicalPortalUser {
+  id                  String                 @id @default(cuid())
+  email               String                 @unique
+  name                String
+  medicalRut          String?
+  sisRegistration     String?
+  role                MedicalPortalRoleDb    @default(doctor)
+  passwordHash        String
+  passwordSalt        String
+  active              Boolean                @default(true)
+  mfaEnabled          Boolean                @default(false)
+  totpSecretEncrypted String?
+  lastLoginAt         DateTime?
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+  sessions            MedicalPortalSession[]
+  auditLogs           MedicalAuditLog[]
+
+  @@index([active, role])
+}
+
+model MedicalPortalSession {
+  id         String            @id @default(cuid())
+  tokenHash  String            @unique
+  userId     String
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime          @default(now())
+  lastSeenAt DateTime          @default(now())
+  ipHash     String?
+  userAgent  String?
+  user       MedicalPortalUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt, revokedAt])
+}
+
+model MedicalAuditLog {
+  id          String                @id @default(cuid())
+  userId      String?
+  actorEmail  String
+  action      String
+  requestType ClinicalRequestTypeDb?
+  requestId   String?
+  metadata    Json?
+  ipHash      String?
+  createdAt   DateTime              @default(now())
+  user        MedicalPortalUser?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([requestType, requestId, createdAt])
+  @@index([action, createdAt])
+}
+
+model EventOutbox {
+  id            String         @id @default(cuid())
+  type          String
+  aggregateType String
+  aggregateId   String
+  dedupeKey     String         @unique
+  payload       Json
+  status        OutboxStatusDb @default(pending)
+  attempts      Int            @default(0)
+  nextAttemptAt DateTime       @default(now())
+  lockedAt      DateTime?
+  processedAt   DateTime?
+  lastError     String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([status, nextAttemptAt])
+  @@index([aggregateType, aggregateId])
 }

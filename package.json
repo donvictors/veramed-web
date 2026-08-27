@@ -2,34 +2,43 @@
   "name": "veramed-web",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "dev": "next dev .",
-    "build": "next build .",
+    "build": "next build --webpack",
     "start": "next start .",
     "postinstall": "prisma generate",
     "lint": "eslint --max-warnings=0",
     "test:checkup-recommend": "node --test tests/checkup-recommend.smoke.test.mjs",
+    "test:security": "node --test tests/security-invariants.smoke.test.mjs",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "db:import-discounts": "node scripts/import-discount-codes.mjs",
+    "storage:migrate-private": "node scripts/migrate-order-pdfs-private.mjs"
   },
   "dependencies": {
-    "@prisma/client": "^6.16.0",
-    "@sparticuz/chromium": "^143.0.4",
-    "@vercel/blob": "^2.3.1",
-    "next": "16.1.6",
-    "next-auth": "^4.24.13",
+    "@prisma/client": "^6.19.3",
+    "@sparticuz/chromium": "^147.0.0",
+    "@vercel/blob": "^2.8.0",
+    "next": "16.3.1",
+    "next-auth": "^4.24.15",
     "pdf-lib": "^1.17.1",
-    "puppeteer-core": "^24.38.0",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
-    "resend": "^6.9.3",
+    "puppeteer-core": "^25.7.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "resend": "^6.20.0",
     "transbank-sdk": "^6.1.1",
-    "zod": "^4.3.6"
+    "zod": "^4.4.3"
   },
   "overrides": {
-    "undici": "6.24.1",
-    "flatted": "3.4.1"
+    "axios": "1.19.0",
+    "deepmerge-ts": "8.0.0",
+    "flatted": "3.4.4",
+    "undici": "6.28.0",
+    "ws": "8.21.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -37,8 +46,8 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.1.6",
-    "prisma": "^6.16.0",
+    "eslint-config-next": "16.3.1",
+    "prisma": "^6.19.3",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

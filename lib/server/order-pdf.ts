@@ -2,6 +2,10 @@ import { PDFDocument, StandardFonts } from "pdf-lib";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { calculateAgeFromBirthDate, createVerificationCode } from "@/lib/checkup";
+import {
+  loadProtectedMedicalSignature,
+  type MedicalSignerIdentity,
+} from "@/lib/server/medical-approval";
 
 type PatientPayload = {
   fullName: string;
@@ -23,7 +27,7 @@ type BuildOrderPdfInput = {
   tests: TestPayload[];
   issuedAtMs: number;
   referralTo?: string;
-  includeSignature?: boolean;
+  signer?: MedicalSignerIdentity;
 };
 
 function formatIssuedAt(issuedAtMs: number) {
@@ -181,6 +185,7 @@ function drawFooter(args: {
   fontBold: import("pdf-lib").PDFFont;
   signatureImage: import("pdf-lib").PDFImage | null;
   includeSignature: boolean;
+  signer?: MedicalSignerIdentity;
 }) {
   const {
     page,
@@ -192,6 +197,7 @@ function drawFooter(args: {
     fontBold,
     signatureImage,
     includeSignature,
+    signer,
   } = args;
   const { width } = page.getSize();
   const marginX = 42;
@@ -264,20 +270,20 @@ function drawFooter(args: {
     thickness: 0.8,
   });
 
-  if (includeSignature) {
-    page.drawText("Dr. Víctor Rebolledo M.", {
+  if (includeSignature && signer) {
+    page.drawText(signer.name, {
       x: signatureTextX,
       y: y + 42,
       size: 9,
       font,
     });
-    page.drawText("RUT 18.856.820-3", {
+    page.drawText(`RUT ${signer.rut}`, {
       x: signatureTextX + 10,
       y: y + 30,
       size: 9,
       font,
     });
-    page.drawText("Registro SIS N°611341", {
+    page.drawText(`Registro SIS N°${signer.sisRegistration}`, {
       x: signatureTextX,
       y: y + 18,
       size: 9,
@@ -295,8 +301,7 @@ function drawFooter(args: {
 
 async function loadSignatureImage(doc: PDFDocument) {
   try {
-    const imagePath = path.join(process.cwd(), "public", "firmas", "firma-VRM.png");
-    const imageBytes = await readFile(imagePath);
+    const imageBytes = await loadProtectedMedicalSignature();
     return await doc.embedPng(imageBytes);
   } catch {
     return null;
@@ -321,7 +326,7 @@ export async function buildOrderPdf(input: BuildOrderPdfInput) {
   const logoImage = await loadBrandLogoImage(doc);
   const issuedAtLabel = formatIssuedAt(input.issuedAtMs);
   const verificationCode = createVerificationCode(input.patient.rut, input.issuedAtMs);
-  const includeSignature = input.includeSignature !== false;
+  const includeSignature = Boolean(input.signer);
 
   const topLimit = 210;
   const bottomLimit = 136;
@@ -402,6 +407,7 @@ export async function buildOrderPdf(input: BuildOrderPdfInput) {
       fontBold,
       signatureImage,
       includeSignature,
+      signer: input.signer,
     });
   });
 

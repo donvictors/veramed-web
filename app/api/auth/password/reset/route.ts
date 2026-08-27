@@ -4,15 +4,18 @@ import {
   resetPasswordByUserId,
 } from "@/lib/server/auth-store";
 import { verifyPasswordResetToken } from "@/lib/server/password-reset";
+import {
+  enforceRateLimit,
+  httpErrorResponse,
+  readJsonBody,
+  requireSameOrigin,
+} from "@/lib/server/http-security";
 
 export async function POST(request: Request) {
-  let payload: { token?: string; password?: string };
-
   try {
-    payload = (await request.json()) as { token?: string; password?: string };
-  } catch {
-    return NextResponse.json({ error: "Body inválido." }, { status: 400 });
-  }
+    requireSameOrigin(request);
+    await enforceRateLimit({ request, action: "auth:reset", limit: 8, windowMs: 60 * 60 * 1000 });
+    const payload = (await readJsonBody(request, 8_000)) as { token?: string; password?: string };
 
   const token = payload.token?.trim() ?? "";
   const password = payload.password ?? "";
@@ -21,9 +24,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Token inválido." }, { status: 400 });
   }
 
-  if (!password || password.length < 6) {
+  if (!password || password.length < 10) {
     return NextResponse.json(
-      { error: "La contraseña debe tener al menos 6 caracteres." },
+      { error: "La contraseña debe tener al menos 10 caracteres." },
       { status: 400 },
     );
   }
@@ -53,6 +56,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Token inválido o expirado." }, { status: 400 });
   }
 
-  await resetPasswordByUserId(user.id, password);
-  return NextResponse.json({ ok: true });
+    await resetPasswordByUserId(user.id, password);
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return httpErrorResponse(error, "No pudimos restablecer la contraseña.");
+  }
 }

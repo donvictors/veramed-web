@@ -13,7 +13,8 @@ import {
   CHECKUP_PRICE_CLP,
   inferOrderDetails,
 } from "@/lib/checkup";
-import { calculateDiscountedAmount, getDiscountByCode } from "@/lib/discount-codes";
+import { calculateDiscountedAmount, type DiscountPricing } from "@/lib/discount-pricing";
+import { validateDiscountCode } from "@/lib/discount-api";
 import { useRequestId } from "@/lib/use-request-id";
 
 export default function PaymentPage() {
@@ -24,6 +25,7 @@ export default function PaymentPage() {
   const [discountCode, setDiscountCode] = useState("");
   const [discountError, setDiscountError] = useState("");
   const [appliedDiscountCode, setAppliedDiscountCode] = useState("");
+  const [appliedPricing, setAppliedPricing] = useState<DiscountPricing | null>(null);
   const createRequestLockRef = useRef(false);
   const { requestId, resolved } = useRequestId();
 
@@ -53,8 +55,8 @@ export default function PaymentPage() {
     [data],
   );
   const pricing = useMemo(
-    () => calculateDiscountedAmount(CHECKUP_PRICE_CLP, appliedDiscountCode),
-    [appliedDiscountCode],
+    () => appliedPricing ?? calculateDiscountedAmount(CHECKUP_PRICE_CLP),
+    [appliedPricing],
   );
 
   async function handlePayment() {
@@ -103,23 +105,30 @@ export default function PaymentPage() {
 
   if (!data || !orderDetails) return null;
 
-  function handleApplyDiscount() {
+  async function handleApplyDiscount() {
     const normalized = discountCode.trim().toUpperCase();
     if (!normalized) {
       setAppliedDiscountCode("");
+      setAppliedPricing(null);
       setDiscountError("");
       return;
     }
 
-    const discount = getDiscountByCode(normalized);
-    if (!discount) {
+    if (!requestId) return;
+    try {
+      const result = await validateDiscountCode({
+        requestType: "checkup",
+        requestId,
+        code: normalized,
+      });
+      setAppliedDiscountCode(result.appliedCode);
+      setAppliedPricing(result.pricing);
+      setDiscountError("");
+    } catch (error) {
       setAppliedDiscountCode("");
-      setDiscountError("Código no válido");
-      return;
+      setAppliedPricing(null);
+      setDiscountError(error instanceof Error ? error.message : "Código no válido");
     }
-
-    setAppliedDiscountCode(discount.code);
-    setDiscountError("");
   }
 
   return (
@@ -211,6 +220,7 @@ export default function PaymentPage() {
                     setDiscountError("");
                     if (appliedDiscountCode) {
                       setAppliedDiscountCode("");
+                      setAppliedPricing(null);
                     }
                   }}
                   placeholder="Ingresa tu código"

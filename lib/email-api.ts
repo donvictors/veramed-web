@@ -4,9 +4,6 @@ type SendOrderEmailPayload = {
   email: string;
   patientName?: string;
   orderLink?: string;
-  pdfUrl?: string;
-  pdfBase64?: string;
-  pdfFilename?: string;
   forceResend?: boolean;
 };
 

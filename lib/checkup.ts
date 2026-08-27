@@ -73,6 +73,12 @@ export type StoredCheckupStatus = {
   approvedAt?: number;
   rejectedAt?: number;
   orderId?: string;
+  approvedByName?: string;
+  approvedByRut?: string;
+  approvedBySis?: string;
+  approvedByEmail?: string;
+  approvalMethod?: "automatic_protocol" | "manual";
+  approvalProtocolVersion?: string;
 };
 
 export type StoredPayment = {

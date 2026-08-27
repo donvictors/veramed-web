@@ -4,10 +4,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { calculateDiscountedAmount, getDiscountByCode } from "@/lib/discount-codes";
-import type { StoredSymptomsIntakeDraft } from "@/lib/symptoms-order";
-
-const SYMPTOMS_PRICE_CLP = 5990;
+import { calculateDiscountedAmount, type DiscountPricing } from "@/lib/discount-pricing";
+import { validateDiscountCode } from "@/lib/discount-api";
+import { SYMPTOMS_PRICE_CLP, type StoredSymptomsIntakeDraft } from "@/lib/symptoms-order";
 const SYMPTOMS_STORAGE_KEY = "veramed_symptoms_intake_v1";
 
 function buildClientOrderId() {
@@ -36,12 +35,13 @@ function SymptomsPaymentContent() {
   const [discountCode, setDiscountCode] = useState("");
   const [discountError, setDiscountError] = useState("");
   const [appliedDiscountCode, setAppliedDiscountCode] = useState("");
+  const [appliedPricing, setAppliedPricing] = useState<DiscountPricing | null>(null);
   const [draft, setDraft] = useState<StoredSymptomsIntakeDraft | null>(() => readSymptomsDraft());
 
   const orderId = useMemo(() => draft?.requestId?.trim() || buildClientOrderId(), [draft?.requestId]);
   const pricing = useMemo(
-    () => calculateDiscountedAmount(SYMPTOMS_PRICE_CLP, appliedDiscountCode),
-    [appliedDiscountCode],
+    () => appliedPricing ?? calculateDiscountedAmount(SYMPTOMS_PRICE_CLP),
+    [appliedPricing],
   );
   const paymentError = searchParams.get("error");
 
@@ -125,22 +125,28 @@ function SymptomsPaymentContent() {
     return null;
   }
 
-  function handleApplyDiscount() {
+  async function handleApplyDiscount() {
     const normalized = discountCode.trim();
     if (!normalized) {
       setAppliedDiscountCode("");
+      setAppliedPricing(null);
       setDiscountError("");
       return;
     }
-    const discount = getDiscountByCode(normalized);
-    if (!discount) {
+    try {
+      const result = await validateDiscountCode({
+        requestType: "symptoms",
+        requestId: orderId,
+        code: normalized,
+      });
+      setAppliedDiscountCode(result.appliedCode);
+      setAppliedPricing(result.pricing);
+      setDiscountError("");
+    } catch (error) {
       setAppliedDiscountCode("");
-      setDiscountError("Código no válido");
-      return;
+      setAppliedPricing(null);
+      setDiscountError(error instanceof Error ? error.message : "Código no válido");
     }
-
-    setAppliedDiscountCode(discount.code);
-    setDiscountError("");
   }
 
   return (
@@ -266,6 +272,7 @@ function SymptomsPaymentContent() {
                     }
                     if (appliedDiscountCode) {
                       setAppliedDiscountCode("");
+                      setAppliedPricing(null);
                     }
                   }}
                   placeholder="Ingresa tu código"

@@ -2,6 +2,12 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { findUserForPasswordReset } from "@/lib/server/auth-store";
 import { createPasswordResetToken, getPasswordResetTtlMs } from "@/lib/server/password-reset";
+import {
+  enforceRateLimit,
+  httpErrorResponse,
+  readJsonBody,
+  requireSameOrigin,
+} from "@/lib/server/http-security";
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -17,13 +23,10 @@ function getAppBaseUrl(request: Request) {
 }
 
 export async function POST(request: Request) {
-  let payload: { email?: string };
-
   try {
-    payload = (await request.json()) as { email?: string };
-  } catch {
-    return NextResponse.json({ error: "Body inválido." }, { status: 400 });
-  }
+    requireSameOrigin(request);
+    await enforceRateLimit({ request, action: "auth:forgot", limit: 5, windowMs: 60 * 60 * 1000 });
+    const payload = (await readJsonBody(request, 4_000)) as { email?: string };
 
   const email = payload.email?.trim().toLowerCase() ?? "";
   if (!email || !isValidEmail(email)) {
@@ -82,5 +85,8 @@ export async function POST(request: Request) {
     console.error("No pudimos enviar correo de recuperación", error);
   }
 
-  return NextResponse.json(genericOk);
+    return NextResponse.json(genericOk);
+  } catch (error) {
+    return httpErrorResponse(error, "No pudimos procesar la recuperación.");
+  }
 }

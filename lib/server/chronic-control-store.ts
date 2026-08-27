@@ -16,7 +16,8 @@ import {
 } from "@/lib/chronic-control";
 import { type CheckupInput } from "@/lib/checkup";
 import { prisma } from "@/lib/prisma";
-import { sendApprovedOrderEmail } from "@/lib/server/order-ready-email";
+import { getAutomaticApprovalAttribution } from "@/lib/server/medical-approval";
+import { enqueueOrderApproved, processOrderOutbox } from "@/lib/server/order-workflow";
 
 type ChronicControlRecord = {
   id: string;
@@ -60,6 +61,12 @@ type ChronicControlRow = {
   reviewStatus: ReviewStatusDb;
   queuedAt: Date | null;
   approvedAt: Date | null;
+  approvedByName: string | null;
+  approvedByRut: string | null;
+  approvedBySis: string | null;
+  approvedByEmail: string | null;
+  approvalMethod: "automatic_protocol" | "manual" | null;
+  approvalProtocolVersion: string | null;
   rejectedAt: Date | null;
   orderId: string | null;
   payment: {
@@ -72,8 +79,6 @@ type ChronicControlRow = {
     paidAt: Date | null;
   } | null;
 };
-
-const REVIEW_DELAY_MS = 8000;
 
 function createRequestId(timestamp = Date.now()) {
   return `chr_${timestamp.toString(36)}${Math.random().toString(36).slice(2, 8)}`;
@@ -162,69 +167,18 @@ function fromRow(row: ChronicControlRow): ChronicControlRecord {
       approvedAt: row.approvedAt?.getTime(),
       rejectedAt: row.rejectedAt?.getTime(),
       orderId: row.orderId ?? undefined,
+      approvedByName: row.approvedByName ?? undefined,
+      approvedByRut: row.approvedByRut ?? undefined,
+      approvedBySis: row.approvedBySis ?? undefined,
+      approvedByEmail: row.approvedByEmail ?? undefined,
+      approvalMethod: row.approvalMethod ?? undefined,
+      approvalProtocolVersion: row.approvalProtocolVersion ?? undefined,
     },
   };
 }
 
-function shouldAutoApprove(record: ChronicControlRecord) {
-  return (
-    record.status.status === "queued" &&
-    Boolean(record.status.queuedAt) &&
-    Date.now() - (record.status.queuedAt ?? 0) >= REVIEW_DELAY_MS
-  );
-}
-
 async function resolveStatus(record: ChronicControlRecord) {
-  const shouldApproveNow = shouldAutoApprove(record);
-  const shouldCheckMissingEmail = record.status.status === "approved";
-
-  if (!shouldApproveNow && !shouldCheckMissingEmail) {
-    return record;
-  }
-
-  if (shouldApproveNow) {
-    const approvedAt = record.status.approvedAt ?? Date.now();
-    await prisma.chronicControlRequest.updateMany({
-      where: {
-        id: record.id,
-        reviewStatus: "queued",
-      },
-      data: {
-        reviewStatus: "approved",
-        approvedAt: new Date(approvedAt),
-      },
-    });
-  }
-
-  const updated = await prisma.chronicControlRequest.findUnique({
-    where: { id: record.id },
-    include: { payment: true },
-  });
-
-  if (!updated) {
-    return record;
-  }
-
-  const shouldSendEmail =
-    updated.reviewStatus === "approved" &&
-    updated.payment?.status === "paid" &&
-    !updated.orderEmailSentAt;
-
-  if (shouldSendEmail) {
-    try {
-      await sendApprovedOrderEmail({
-        requestType: "chronic_control",
-        requestId: updated.id,
-      });
-    } catch (error) {
-      console.error("No pudimos enviar el correo de orden aprobada (control crónico)", {
-        requestId: updated.id,
-        error,
-      });
-    }
-  }
-
-  return fromRow(updated);
+  return record;
 }
 
 export async function createChronicControlRecord(payload: {
@@ -654,51 +608,57 @@ export async function confirmChronicPendingPayment(
   id: string,
   overrides?: Partial<Pick<StoredPayment, "paymentId" | "cardLast4" | "cardholder">>,
 ) {
-  const current = await prisma.chronicControlRequest.findUnique({
-    where: { id },
-    include: { payment: true },
-  });
+  const updated = await prisma.$transaction(async (tx) => {
+    const current = await tx.chronicControlRequest.findUnique({
+      where: { id },
+      include: { payment: true },
+    });
+    if (!current?.payment) return null;
+    if (current.payment.status === "paid" && current.reviewStatus === "approved") {
+      await enqueueOrderApproved(tx, "chronic_control", id);
+      return current;
+    }
 
-  if (!current?.payment) {
-    return null;
-  }
-
-  const pending = current.payment;
-  const paidAt = Date.now();
-  const confirmed: StoredPayment = {
-    amount: pending.amount,
-    currency: pending.currency as "CLP",
-    paymentId: overrides?.paymentId ?? pending.paymentId,
-    cardLast4: overrides?.cardLast4 ?? pending.cardLast4,
-    cardholder: overrides?.cardholder ?? pending.cardholder,
-    paid: true,
-    paidAt,
-  };
-
-  const currentStatus = fromRow(current).status;
-  const updated = await prisma.chronicControlRequest.update({
-    where: { id },
-    data: {
-      reviewStatus: "queued",
-      queuedAt: new Date(paidAt),
-      approvedAt: null,
-      rejectedAt: null,
-      orderId: currentStatus.orderId ?? createOrderId(paidAt),
-      payment: {
-        update: {
-          amount: confirmed.amount,
-          currency: confirmed.currency,
-          paymentId: confirmed.paymentId,
-          cardLast4: confirmed.cardLast4,
-          cardholder: confirmed.cardholder,
-          status: "paid",
-          paidAt: new Date(paidAt),
+    const paidAt = new Date();
+    const pending = current.payment;
+    const confirmed = {
+      amount: pending.amount,
+      currency: pending.currency as "CLP",
+      paymentId: overrides?.paymentId ?? pending.paymentId,
+      cardLast4: overrides?.cardLast4 ?? pending.cardLast4,
+      cardholder: overrides?.cardholder ?? pending.cardholder,
+    };
+    const result = await tx.chronicControlRequest.update({
+      where: { id },
+      data: {
+        reviewStatus: "approved",
+        queuedAt: paidAt,
+        approvedAt: paidAt,
+        rejectedAt: null,
+        orderId: current.orderId ?? createOrderId(paidAt.getTime()),
+        ...getAutomaticApprovalAttribution("chronic_control"),
+        payment: {
+          update: {
+            ...confirmed,
+            status: "paid",
+            paidAt,
+          },
         },
       },
-    },
-    include: { payment: true },
+      include: { payment: true },
+    });
+    await enqueueOrderApproved(tx, "chronic_control", id);
+    return result;
   });
 
+  if (!updated) return null;
+  void processOrderOutbox({ aggregateId: id, maxItems: 1 }).catch((error) => {
+    console.error("No pudimos procesar el evento de orden aprobada", {
+      requestType: "chronic_control",
+      id,
+      error,
+    });
+  });
   return fromRow(updated);
 }
 
@@ -713,7 +673,7 @@ export async function listChronicControlsByUser(userId: string) {
     include: { payment: true },
   });
 
-  const records = await Promise.all(rows.map((row) => resolveStatus(fromRow(row))));
+  const records = rows.map((row) => fromRow(row));
 
   return records.map((record) => ({
     id: record.id,

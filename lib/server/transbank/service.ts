@@ -29,11 +29,11 @@ import {
   parseCreateResponse,
   toNormalizedStatus,
 } from "@/lib/server/transbank/normalize";
+import { calculateDiscountedAmount } from "@/lib/discount-pricing";
 import {
-  calculateDiscountedAmount,
   getDiscountByCode,
   normalizeDiscountCode,
-} from "@/lib/discount-codes";
+} from "@/lib/server/discount-codes";
 
 const BUY_ORDER_PATTERN = /^[A-Za-z0-9_-]+$/;
 const MAX_BUY_ORDER_LENGTH = 26;
@@ -391,8 +391,8 @@ export async function createTransbankPayment(
 ) {
   const target = await resolveOrderTarget(input.orderId);
   const normalizedDiscountCode = normalizeDiscountCode(input.discountCode);
-  const appliedDiscount = getDiscountByCode(normalizedDiscountCode);
-  const pricing = calculateDiscountedAmount(target.expectedAmount, normalizedDiscountCode);
+  const appliedDiscount = await getDiscountByCode(normalizedDiscountCode);
+  const pricing = calculateDiscountedAmount(target.expectedAmount, appliedDiscount);
 
   if (target.userId) {
     if (actor?.userId !== target.userId) {

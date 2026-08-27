@@ -42,7 +42,7 @@ npm run db:studio
 Levanta el proyecto y consulta:
 
 ```bash
-curl http://localhost:3000/api/health/db
+curl http://localhost:3000/api/health
 ```
 
 La respuesta esperada es:
@@ -61,10 +61,19 @@ Se agregó un endpoint en App Router para envío de correos:
 
 ```bash
 RESEND_API_KEY="re_..."
-BLOB_READ_WRITE_TOKEN="vercel_blob_rw_..."
+BLOB_READ_WRITE_TOKEN="vercel_blob_rw_..." # store público legado, solo para migración/limpieza
+PRIVATE_BLOB_READ_WRITE_TOKEN="vercel_blob_rw_..." # store privado de órdenes
 AUTH_SECRET="..."
+RATE_LIMIT_SECRET="..." # opcional; HMAC para claves de rate limiting
+DISCOUNT_CODE_PEPPER="..." # opcional; si falta se usa AUTH_SECRET
 AUTH_GOOGLE_ID="..."
 AUTH_GOOGLE_SECRET="..."
+MEDICAL_PORTAL_MFA_ENCRYPTION_KEY="..." # protege secretos TOTP con AES-256-GCM
+MEDICOS_PORTAL_EMAIL="medico@veramed.cl" # bootstrap único del primer administrador
+MEDICOS_PORTAL_PASSWORD="..." # mínimo 10 caracteres; rotar después del primer acceso
+MEDICAL_SIGNER_NAME="..."
+MEDICAL_SIGNER_RUT="..."
+MEDICAL_SIGNER_SIS="..."
 ```
 
 Para el envío de órdenes se usa:
@@ -79,22 +88,33 @@ Para el envío de órdenes se usa:
   "requestType": "checkup",
   "requestId": "chk_abc123",
   "email": "paciente@correo.cl",
-  "orderLink": "https://veramed.cl/chequeo/orden?id=...",
-  "pdfUrl": "https://veramed.cl/api/checkups/chk_123/pdf",
-  "pdfBase64": "JVBERi0xLjc...",
-  "pdfFilename": "orden-veramed.pdf"
+  "orderLink": "https://veramed.cl/chequeo/orden?id=..."
 }
 ```
 
-`pdfUrl` o `pdfBase64` son opcionales. Si se envían, el endpoint intenta adjuntar el PDF.
 `requestType` y `requestId` son obligatorios para validar propiedad, estado e idempotencia del envío.
+El endpoint no acepta PDFs aportados por el cliente: genera los documentos exclusivamente en el
+backend después de comprobar pago y aprobación médica, y envía enlaces temporales revocables.
 
-Si no envías `pdfUrl`/`pdfBase64`, el backend genera automáticamente los PDFs de la orden y los guarda en Vercel Blob:
+El backend genera automáticamente los PDFs de la orden y los guarda en un Vercel Blob Store privado:
 
-- `ordenes/checkup/<requestId>/...` para chequeo (laboratorio / imágenes / procedimientos según corresponda)
-- `ordenes/chronic_control/<requestId>/...` para control crónico
+- `private/ordenes/checkup/<requestId>/...` para chequeo (laboratorio / imágenes / procedimientos según corresponda)
+- `private/ordenes/chronic_control/<requestId>/...` para control crónico
 
-La metadata (URL, categoría, tamaño) se guarda en Neon mediante Prisma en `OrderPdfAsset`.
+La metadata se guarda en Neon mediante Prisma en `OrderPdfAsset`. El navegador y los correos reciben enlaces de Veramed con expiración máxima de siete días; cada acceso queda registrado y puede revocarse.
+
+Para migrar objetos históricos después de conectar el store privado:
+
+```bash
+npm run storage:migrate-private -- --dry-run
+npm run storage:migrate-private
+```
+
+Los descuentos se guardan en `DiscountCode` como HMAC, nunca en texto legible ni en el bundle cliente. Para una importación privada:
+
+```bash
+DISCOUNT_CODES_IMPORT_JSON='[...]' npm run db:import-discounts
+```
 
 ### Endpoint interno de soporte (PDFs guardados)
 
@@ -116,6 +136,11 @@ Endpoints de PDF protegidos disponibles:
 
 - `GET /api/checkups/:id/pdf`
 - `GET /api/chronic-controls/:id/pdf`
+
+Auditoría y revocación de enlaces temporales (requiere `x-support-token`):
+
+- `GET /api/internal/order-pdf-access?requestId=<id>&requestType=checkup|chronic_control|symptoms`
+- `DELETE /api/internal/order-pdf-access?requestId=<id>&requestType=checkup|chronic_control|symptoms`
 
 ### Sweeper de correos pendientes (producción)
 
@@ -149,9 +174,10 @@ curl -X POST https://www.veramed.cl/api/internal/order-emails/sweep \
   -d '{"limit":25,"dryRun":false,"forceResend":false}'
 ```
 
-Vercel Cron:
+Vercel Cron y outbox:
 
-- `vercel.json` ejecuta `*/10 * * * *` sobre `/api/internal/order-emails/sweep`.
+- La confirmación de pago crea atómicamente un evento outbox idempotente y lo procesa de inmediato.
+- `vercel.json` ejecuta un barrido de recuperación diario a las 06:00 UTC, compatible con Hobby.
 - Para autorizar el cron en producción, define `CRON_SECRET` en Vercel.
 
 ### Ejemplo de llamada desde frontend
@@ -165,11 +191,32 @@ await fetch("/api/send-email", {
     requestId: "abc123",
     email: "paciente@correo.cl",
     orderLink: `${window.location.origin}/chequeo/orden?id=abc123`,
-    pdfUrl: `${window.location.origin}/api/checkups/abc123/pdf`,
-    pdfFilename: "orden-chequeo-abc123.pdf",
   }),
 });
 ```
+
+## Portal médico y controles P1
+
+El portal usa usuarios persistentes en `MedicalPortalUser`, roles `doctor|admin`, sesiones aleatorias
+con hash en base de datos, revocación, registro de IP con HMAC y auditoría de vistas/validaciones.
+En el primer login, si todavía no existe ningún usuario médico, se importa una sola vez la cuenta
+definida por `MEDICOS_PORTAL_EMAIL` y `MEDICOS_PORTAL_PASSWORD` (mínimo 10 caracteres). Después las
+credenciales compartidas dejan de intervenir en el login.
+
+Antes del primer despliegue de este flujo, configura ambas variables exclusivamente en producción.
+Si faltan, el bootstrap queda cerrado y no se crea una cuenta médica implícita ni de prueba.
+Después de crear y comprobar el primer administrador, elimina `MEDICOS_PORTAL_PASSWORD` y
+`MEDICOS_PORTAL_EMAIL` de Vercel. La cuenta persiste en la base de datos y ya no depende de esas
+variables de bootstrap.
+
+Administración y MFA:
+
+- `GET|POST|PATCH /api/medicos-auth/users` (solo rol `admin`).
+- `POST /api/medicos-auth/password` para rotar contraseña y revocar todas las sesiones.
+- `POST /api/medicos-auth/mfa` con acciones `start` y `confirm` para activar TOTP.
+
+Los relatos de síntomas solo se envían a OpenAI después de consentimiento explícito. Se limitan
+tamaño y frecuencia, y no se incluyen nombre, RUT, correo, teléfono ni dirección.
 
 ## Transbank Webpay Plus (API REST)
 

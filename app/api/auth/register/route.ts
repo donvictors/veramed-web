@@ -2,13 +2,22 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { AUTH_SESSION_COOKIE, validateRegisterInput } from "@/lib/auth";
 import { getSessionTtlMs, registerUser } from "@/lib/server/auth-store";
+import {
+  enforceRateLimit,
+  httpErrorResponse,
+  readJsonBody,
+  requireSameOrigin,
+} from "@/lib/server/http-security";
 
 export async function POST(request: Request) {
-  const payload = (await request.json()) as {
-    name?: string;
-    email?: string;
-    password?: string;
-  };
+  try {
+    requireSameOrigin(request);
+    await enforceRateLimit({ request, action: "auth:register", limit: 5, windowMs: 60 * 60 * 1000 });
+    const payload = (await readJsonBody(request, 8_000)) as {
+      name?: string;
+      email?: string;
+      password?: string;
+    };
 
   const errors = validateRegisterInput({
     name: payload.name,
@@ -45,7 +54,8 @@ export async function POST(request: Request) {
     maxAge: Math.floor(getSessionTtlMs() / 1000),
   });
 
-  return NextResponse.json({
-    user: result.user,
-  });
+    return NextResponse.json({ user: result.user });
+  } catch (error) {
+    return httpErrorResponse(error, "No pudimos crear la cuenta.");
+  }
 }

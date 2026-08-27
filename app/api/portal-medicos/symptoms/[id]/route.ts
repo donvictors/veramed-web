@@ -2,20 +2,22 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import {
   MEDICAL_PORTAL_SESSION_COOKIE,
+  recordMedicalAudit,
   verifyMedicalPortalSessionToken,
 } from "@/lib/server/medical-portal-auth";
 import { getSymptomsRequest } from "@/lib/server/symptoms-store";
 import { listSymptomsSignedPdfAssets } from "@/lib/server/symptoms-order-pdf-assets";
 import { getExamCatalog } from "@/lib/exam-master-catalog";
+import { createTemporaryPdfAccessLinks } from "@/lib/server/order-pdf-access";
 
 type Params = {
   params: Promise<{ id: string }>;
 };
 
-export async function GET(_request: Request, context: Params) {
+export async function GET(request: Request, context: Params) {
   const cookieStore = await cookies();
   const token = cookieStore.get(MEDICAL_PORTAL_SESSION_COOKIE)?.value;
-  const session = verifyMedicalPortalSessionToken(token);
+  const session = await verifyMedicalPortalSessionToken(token);
   if (!session) {
     return NextResponse.json({ error: "No autorizado." }, { status: 401 });
   }
@@ -47,6 +49,24 @@ export async function GET(_request: Request, context: Params) {
       fonasaCode: exam.fonasaCode,
     }))
     .sort((a, b) => a.name.localeCompare(b.name, "es"));
+  const signedLinks =
+    record.reviewStatus === "validated"
+      ? await createTemporaryPdfAccessLinks({
+          requestType: "symptoms",
+          assets: signedAssets.map((asset) => ({ ...asset, requestId })),
+          purpose: "medical_portal",
+          recipientKey: session.email,
+          ttlMs: 60 * 60 * 1000,
+        })
+      : [];
+
+  await recordMedicalAudit({
+    session,
+    action: "symptoms.view",
+    request,
+    requestType: "symptoms",
+    requestId,
+  });
 
   return NextResponse.json({
     request: {
@@ -64,10 +84,11 @@ export async function GET(_request: Request, context: Params) {
       followUpAnswers: record.followUpAnswers,
       validatedByEmail: record.validatedByEmail,
       validatedAt: record.validatedAt,
-      signedPdfLinks: signedAssets.map((asset) => ({
+      signedPdfLinks: signedLinks.map((asset) => ({
         category: asset.category,
-        url: asset.blobUrl,
+        url: asset.url,
         fileName: asset.fileName,
+        expiresAt: asset.expiresAt,
       })),
     },
     examCatalog,

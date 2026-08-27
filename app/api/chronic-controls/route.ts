@@ -3,12 +3,18 @@ import { cookies } from "next/headers";
 import { AUTH_SESSION_COOKIE } from "@/lib/auth";
 import { createChronicControlRecord, serializeChronicControlRecord } from "@/lib/server/chronic-control-store";
 import { getUserFromSession } from "@/lib/server/auth-store";
-import { type CheckupInput, type PatientDetails } from "@/lib/checkup";
-import { type AntiepilepticOption, type ChronicCondition, type MedicationOption } from "@/lib/chronic-control";
+import { type PatientDetails } from "@/lib/checkup";
 import {
   getRequestAccessCookieName,
   upsertRequestAccessCookie,
 } from "@/lib/server/request-access";
+import {
+  enforceRateLimit,
+  httpErrorResponse,
+  readJsonBody,
+  requireSameOrigin,
+} from "@/lib/server/http-security";
+import { createChronicControlSchema } from "@/lib/server/request-schemas";
 
 function mergePatientDefaults(patient: PatientDetails, profile?: PatientDetails): PatientDetails {
   if (!profile) {
@@ -27,27 +33,21 @@ function mergePatientDefaults(patient: PatientDetails, profile?: PatientDetails)
 
 export async function POST(request: Request) {
   try {
-    const payload = (await request.json()) as {
-      conditions?: ChronicCondition[];
-      patient?: PatientDetails;
-      yearsSinceDiagnosis?: number;
-      hasRecentChanges?: boolean;
-      usesMedication?: boolean;
-      selectedMedications?: MedicationOption[];
-      selectedAntiepileptics?: AntiepilepticOption[];
-      generalCheckupInput?: CheckupInput;
-    };
-
-    if (
-      !payload.patient ||
-      typeof payload.yearsSinceDiagnosis !== "number" ||
-      typeof payload.hasRecentChanges !== "boolean" ||
-      typeof payload.usesMedication !== "boolean" ||
-      !payload.conditions ||
-      !payload.selectedMedications
-    ) {
-      return NextResponse.json({ error: "Datos incompletos." }, { status: 400 });
+    requireSameOrigin(request);
+    await enforceRateLimit({
+      request,
+      action: "chronic-control:create",
+      limit: 20,
+      windowMs: 60 * 60 * 1000,
+    });
+    const parsed = createChronicControlSchema.safeParse(await readJsonBody(request, 32_000));
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Datos de control crónico inválidos.", details: parsed.error.issues },
+        { status: 400 },
+      );
     }
+    const payload = parsed.data;
 
     const cookieStore = await cookies();
     const token = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
@@ -86,9 +86,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ request: serializeChronicControlRecord(record) }, { status: 201 });
   } catch (error) {
     console.error("POST /api/chronic-controls failed", error);
-    return NextResponse.json(
-      { error: "No pudimos crear tu solicitud de control crónico." },
-      { status: 500 },
-    );
+    return httpErrorResponse(error, "No pudimos crear tu solicitud de control crónico.");
   }
 }

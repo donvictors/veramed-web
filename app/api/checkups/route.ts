@@ -3,11 +3,18 @@ import { cookies } from "next/headers";
 import { AUTH_SESSION_COOKIE } from "@/lib/auth";
 import { createCheckupRecord, serializeCheckupRecord } from "@/lib/server/checkup-store";
 import { getUserFromSession } from "@/lib/server/auth-store";
-import { type CheckupInput, type PatientDetails } from "@/lib/checkup";
+import { type PatientDetails } from "@/lib/checkup";
 import {
   getRequestAccessCookieName,
   upsertRequestAccessCookie,
 } from "@/lib/server/request-access";
+import {
+  enforceRateLimit,
+  httpErrorResponse,
+  readJsonBody,
+  requireSameOrigin,
+} from "@/lib/server/http-security";
+import { createCheckupSchema } from "@/lib/server/request-schemas";
 
 function mergePatientDefaults(patient: PatientDetails, profile?: PatientDetails): PatientDetails {
   if (!profile) {
@@ -26,14 +33,21 @@ function mergePatientDefaults(patient: PatientDetails, profile?: PatientDetails)
 
 export async function POST(request: Request) {
   try {
-    const payload = (await request.json()) as {
-      input?: CheckupInput;
-      patient?: PatientDetails;
-    };
-
-    if (!payload.input || !payload.patient) {
-      return NextResponse.json({ error: "Datos incompletos." }, { status: 400 });
+    requireSameOrigin(request);
+    await enforceRateLimit({
+      request,
+      action: "checkup:create",
+      limit: 20,
+      windowMs: 60 * 60 * 1000,
+    });
+    const parsed = createCheckupSchema.safeParse(await readJsonBody(request, 24_000));
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Datos de chequeo inválidos.", details: parsed.error.issues },
+        { status: 400 },
+      );
     }
+    const payload = parsed.data;
 
     const cookieStore = await cookies();
     const token = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
@@ -66,9 +80,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ checkup: serializeCheckupRecord(record) }, { status: 201 });
   } catch (error) {
     console.error("POST /api/checkups failed", error);
-    return NextResponse.json(
-      { error: "No pudimos crear tu solicitud de chequeo." },
-      { status: 500 },
-    );
+    return httpErrorResponse(error, "No pudimos crear tu solicitud de chequeo.");
   }
 }

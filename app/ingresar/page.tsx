@@ -3,9 +3,11 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { loginWithEmail } from "@/lib/auth-api";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -18,7 +20,7 @@ export default function LoginPage() {
       setIsSubmitting(true);
       setError("");
       await loginWithEmail({ email, password });
-      window.location.href = "/mi-cuenta";
+      router.push("/mi-cuenta");
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "No pudimos iniciar sesión.");
     } finally {

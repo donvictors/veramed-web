@@ -14,7 +14,8 @@ import {
   getChronicControlTotalPrice,
   medicationLabel,
 } from "@/lib/chronic-control";
-import { calculateDiscountedAmount, getDiscountByCode } from "@/lib/discount-codes";
+import { calculateDiscountedAmount, type DiscountPricing } from "@/lib/discount-pricing";
+import { validateDiscountCode } from "@/lib/discount-api";
 import { useRequestId } from "@/lib/use-request-id";
 
 export default function ChronicControlPaymentPage() {
@@ -25,6 +26,7 @@ export default function ChronicControlPaymentPage() {
   const [discountCode, setDiscountCode] = useState("");
   const [discountError, setDiscountError] = useState("");
   const [appliedDiscountCode, setAppliedDiscountCode] = useState("");
+  const [appliedPricing, setAppliedPricing] = useState<DiscountPricing | null>(null);
   const createRequestLockRef = useRef(false);
   const { requestId, resolved } = useRequestId();
 
@@ -51,8 +53,8 @@ export default function ChronicControlPaymentPage() {
 
   const totalAmount = data ? getChronicControlTotalPrice(data.rec) : 0;
   const pricing = useMemo(
-    () => calculateDiscountedAmount(totalAmount, appliedDiscountCode),
-    [totalAmount, appliedDiscountCode],
+    () => appliedPricing ?? calculateDiscountedAmount(totalAmount),
+    [totalAmount, appliedPricing],
   );
 
   async function handlePayment() {
@@ -101,23 +103,30 @@ export default function ChronicControlPaymentPage() {
 
   if (!data) return null;
 
-  function handleApplyDiscount() {
+  async function handleApplyDiscount() {
     const normalized = discountCode.trim().toUpperCase();
     if (!normalized) {
       setAppliedDiscountCode("");
+      setAppliedPricing(null);
       setDiscountError("");
       return;
     }
 
-    const discount = getDiscountByCode(normalized);
-    if (!discount) {
+    if (!requestId) return;
+    try {
+      const result = await validateDiscountCode({
+        requestType: "chronic_control",
+        requestId,
+        code: normalized,
+      });
+      setAppliedDiscountCode(result.appliedCode);
+      setAppliedPricing(result.pricing);
+      setDiscountError("");
+    } catch (error) {
       setAppliedDiscountCode("");
-      setDiscountError("Código no válido");
-      return;
+      setAppliedPricing(null);
+      setDiscountError(error instanceof Error ? error.message : "Código no válido");
     }
-
-    setAppliedDiscountCode(discount.code);
-    setDiscountError("");
   }
 
   return (
@@ -216,6 +225,7 @@ export default function ChronicControlPaymentPage() {
                     setDiscountError("");
                     if (appliedDiscountCode) {
                       setAppliedDiscountCode("");
+                      setAppliedPricing(null);
                     }
                   }}
                   placeholder="Ingresa tu código"

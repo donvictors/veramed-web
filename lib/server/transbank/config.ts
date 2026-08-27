@@ -20,7 +20,10 @@ export function getAppUrl() {
   }
 
   if (process.env.NODE_ENV !== "production") {
-    return "http://localhost:3000";
+    const localPortRaw = process.env.PORT?.trim();
+    const localPort =
+      localPortRaw && /^\d{2,5}$/.test(localPortRaw) ? localPortRaw : "3000";
+    return `http://localhost:${localPort}`;
   }
 
   throw new Error("APP_URL no está configurada.");
@@ -48,4 +51,3 @@ export function buildTransbankTransaction() {
   );
   return new WebpayPlus.Transaction(options);
 }
-

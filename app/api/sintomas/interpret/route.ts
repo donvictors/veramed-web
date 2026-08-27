@@ -2,75 +2,76 @@ import { NextResponse } from "next/server";
 import { interpretSymptomsText } from "@/lib/symptoms-intake";
 import { interpretSymptomsWithOpenAI } from "@/lib/server/symptoms-openai";
 import { EMPTY_SYMPTOMS_ANTECEDENTS, type SymptomsAntecedents } from "@/lib/symptoms-order";
+import {
+  enforceRateLimit,
+  httpErrorResponse,
+  readJsonBody,
+  requireSameOrigin,
+} from "@/lib/server/http-security";
+import { interpretSymptomsSchema } from "@/lib/server/request-schemas";
 
-type InterpretBody = {
-  symptomsText?: string;
-  antecedents?: Partial<SymptomsAntecedents>;
-  patientContext?: {
-    sex?: "female" | "male" | "";
-    age?: number;
-  };
-};
-
-const MIN_SYMPTOM_TEXT_LENGTH = 12;
 const ENGINE_VERSION_FALLBACK = "sintomas-intake-local-v1";
 
 export async function POST(request: Request) {
-  let body: InterpretBody;
-
   try {
-    body = (await request.json()) as InterpretBody;
-  } catch {
-    return NextResponse.json({ error: "Body JSON inválido." }, { status: 400 });
-  }
-
-  const symptomsText = body.symptomsText?.trim() ?? "";
-  const antecedents: SymptomsAntecedents = {
-    ...EMPTY_SYMPTOMS_ANTECEDENTS,
-    ...(body.antecedents ?? {}),
-  };
-
-  if (!symptomsText) {
-    return NextResponse.json(
-      { error: "Debes ingresar un relato de síntomas." },
-      { status: 400 },
-    );
-  }
-
-  if (symptomsText.length < MIN_SYMPTOM_TEXT_LENGTH) {
-    return NextResponse.json(
-      {
-        error:
-          "Para orientar mejor la evaluación, describe tus síntomas con más detalle (al menos 12 caracteres).",
-      },
-      { status: 400 },
-    );
-  }
-
-  let interpretation = interpretSymptomsText(symptomsText);
-  let engineVersion = ENGINE_VERSION_FALLBACK;
-
-  try {
-    if (process.env.OPENAI_API_KEY?.trim()) {
-      const openAIResult = await interpretSymptomsWithOpenAI(
-        symptomsText,
-        antecedents,
-        body.patientContext,
+    requireSameOrigin(request);
+    await enforceRateLimit({
+      request,
+      action: "symptoms:interpret",
+      limit: 10,
+      windowMs: 15 * 60 * 1000,
+    });
+    const parsed = interpretSymptomsSchema.safeParse(await readJsonBody(request, 16_000));
+    if (!parsed.success) {
+      return NextResponse.json(
+        {
+          error:
+            "Revisa el relato, sus antecedentes y confirma el consentimiento para el procesamiento asistido.",
+          details: parsed.error.issues,
+        },
+        { status: 400 },
       );
-      interpretation = openAIResult.interpretation;
-      engineVersion = `openai-${openAIResult.model}`;
     }
-  } catch (error) {
-    console.error("OpenAI síntomas: fallback a motor local", error);
-  }
+    const body = parsed.data;
+    const symptomsText = body.symptomsText;
+    const antecedents: SymptomsAntecedents = {
+      ...EMPTY_SYMPTOMS_ANTECEDENTS,
+      ...body.antecedents,
+    };
 
-  return NextResponse.json({
-    interpretation,
-    engineVersion,
-    createdAt: new Date().toISOString(),
-    nextStep: {
-      route: "/sintomas/pago",
-      storageKey: "veramed_symptoms_intake_v1",
-    },
-  });
+    let interpretation = interpretSymptomsText(symptomsText);
+    let engineVersion = ENGINE_VERSION_FALLBACK;
+
+    try {
+      if (process.env.OPENAI_API_KEY?.trim()) {
+        const openAIResult = await interpretSymptomsWithOpenAI(
+          symptomsText,
+          antecedents,
+          body.patientContext,
+        );
+        interpretation = openAIResult.interpretation;
+        engineVersion = `openai-${openAIResult.model}`;
+      }
+    } catch (error) {
+      console.error("OpenAI síntomas: fallback a motor local", {
+        name: error instanceof Error ? error.name : "UnknownError",
+      });
+    }
+
+    return NextResponse.json({
+      interpretation,
+      engineVersion,
+      aiConsentVersion: "ai-health-data-v1",
+      createdAt: new Date().toISOString(),
+      nextStep: {
+        route: "/sintomas/pago",
+        storageKey: "veramed_symptoms_intake_v1",
+      },
+    });
+  } catch (error) {
+    console.error("POST /api/sintomas/interpret failed", {
+      name: error instanceof Error ? error.name : "UnknownError",
+    });
+    return httpErrorResponse(error, "No pudimos interpretar el relato en este momento.");
+  }
 }

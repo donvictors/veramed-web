@@ -15,10 +15,19 @@ import { suggestSymptomsExamsWithOpenAI } from "@/lib/server/symptoms-openai";
 import { getSymptomsRequest, saveSymptomsOrderDraft } from "@/lib/server/symptoms-store";
 import type { SymptomsFlowAnswerMap } from "@/lib/symptoms-order";
 import type { TestItem } from "@/lib/checkup";
+import {
+  enforceRateLimit,
+  httpErrorResponse,
+  readJsonBody,
+  requireSameOrigin,
+} from "@/lib/server/http-security";
 
 const buildOrderBodySchema = z.object({
-  requestId: z.string().min(1),
-  answers: z.record(z.string(), z.string()).default({}),
+  requestId: z.string().min(1).max(100),
+  answers: z.record(z.string().max(100), z.string().max(2_000)).refine(
+    (answers) => Object.keys(answers).length <= 30,
+    "Demasiadas respuestas.",
+  ).default({}),
 });
 
 function mapFollowUpToPairs(questions: string[], answers: SymptomsFlowAnswerMap) {
@@ -75,13 +84,10 @@ function buildDeterministicFallback(requestRecord: {
 }
 
 export async function POST(request: Request) {
-  let body: unknown;
-
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Body JSON inválido." }, { status: 400 });
-  }
+  requireSameOrigin(request);
+  await enforceRateLimit({ request, action: "symptoms:order-build", limit: 10, windowMs: 15 * 60 * 1000 });
+  const body = await readJsonBody(request, 32_000);
 
   const parsed = buildOrderBodySchema.safeParse(body);
   if (!parsed.success) {
@@ -138,7 +144,11 @@ export async function POST(request: Request) {
     let oneLinerSummary = requestRecord.oneLinerSummary;
     let usedOpenAI = false;
 
-    if (process.env.OPENAI_API_KEY?.trim()) {
+    if (
+      process.env.OPENAI_API_KEY?.trim() &&
+      requestRecord.aiConsentAt &&
+      requestRecord.aiConsentVersion === "ai-health-data-v1"
+    ) {
       try {
         const openAI = await suggestSymptomsExamsWithOpenAI({
           cachedInput: requestRecord.cachedInput,
@@ -155,7 +165,9 @@ export async function POST(request: Request) {
         ];
         usedOpenAI = true;
       } catch (openAIError) {
-        console.error("OpenAI suggestions fallback to deterministic engine:", openAIError);
+        console.error("OpenAI suggestions fallback to deterministic engine", {
+          name: openAIError instanceof Error ? openAIError.name : "UnknownError",
+        });
       }
     }
 
@@ -205,5 +217,8 @@ export async function POST(request: Request) {
         ? error.message
         : "No fue posible construir la orden por síntomas.";
     return NextResponse.json({ error: message }, { status: 409 });
+  }
+  } catch (error) {
+    return httpErrorResponse(error, "No fue posible construir la orden por síntomas.");
   }
 }

@@ -13,7 +13,7 @@ type Params = {
 export default async function ReviewSymptomsOrderPage(context: Params) {
   const cookieStore = await cookies();
   const token = cookieStore.get(MEDICAL_PORTAL_SESSION_COOKIE)?.value;
-  const session = verifyMedicalPortalSessionToken(token);
+  const session = await verifyMedicalPortalSessionToken(token);
 
   if (!session) {
     redirect("/medicos-login");
@@ -29,4 +29,3 @@ export default async function ReviewSymptomsOrderPage(context: Params) {
     </main>
   );
 }
-

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import {
   sweepPendingOrderEmails,
-  type SweepOrderEmailsResult,
 } from "@/lib/server/order-email-sweeper";
+import { approveQueuedAutomaticOrders, processOrderOutbox } from "@/lib/server/order-workflow";
 
 export const runtime = "nodejs";
 
@@ -52,13 +52,6 @@ function unauthorizedResponse() {
   );
 }
 
-function buildSuccessResponse(result: SweepOrderEmailsResult) {
-  return NextResponse.json({
-    ok: true,
-    ...result,
-  });
-}
-
 export async function GET(request: Request) {
   if (!isRequestAuthorized(request)) {
     return unauthorizedResponse();
@@ -69,13 +62,15 @@ export async function GET(request: Request) {
   const dryRun = parseBoolean(searchParams.get("dryRun"), false);
   const forceResend = parseBoolean(searchParams.get("forceResend"), false);
 
+  const automaticApprovals = dryRun ? { scanned: 0, approved: 0 } : await approveQueuedAutomaticOrders(limit);
+  const outbox = dryRun ? { scanned: 0, completed: 0, failed: 0 } : await processOrderOutbox({ maxItems: limit });
   const result = await sweepPendingOrderEmails({
     maxItems: limit,
     dryRun,
     forceResend,
   });
 
-  return buildSuccessResponse(result);
+  return NextResponse.json({ ok: true, automaticApprovals, outbox, ...result });
 }
 
 export async function POST(request: Request) {
@@ -94,11 +89,15 @@ export async function POST(request: Request) {
     payload = {};
   }
 
+  const limit = Number.isFinite(payload.limit) ? Number(payload.limit) : 20;
+  const dryRun = Boolean(payload.dryRun);
+  const automaticApprovals = dryRun ? { scanned: 0, approved: 0 } : await approveQueuedAutomaticOrders(limit);
+  const outbox = dryRun ? { scanned: 0, completed: 0, failed: 0 } : await processOrderOutbox({ maxItems: limit });
   const result = await sweepPendingOrderEmails({
-    maxItems: Number.isFinite(payload.limit) ? Number(payload.limit) : 20,
-    dryRun: Boolean(payload.dryRun),
+    maxItems: limit,
+    dryRun,
     forceResend: Boolean(payload.forceResend),
   });
 
-  return buildSuccessResponse(result);
+  return NextResponse.json({ ok: true, automaticApprovals, outbox, ...result });
 }

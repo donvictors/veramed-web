@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { fetchAccountOverview, logoutCurrentUser } from "@/lib/auth-api";
 import { sendOrderReadyEmail } from "@/lib/email-api";
 import { type AuthUser } from "@/lib/auth";
@@ -34,6 +35,7 @@ const secondaryBtnCls =
   "inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-slate-50";
 
 export default function AccountPage() {
+  const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,12 +52,12 @@ export default function AccountPage() {
         setHistory(response.history as HistoryItem[]);
       })
       .catch(() => {
-        window.location.href = "/ingresar";
+        router.replace("/ingresar");
       })
       .finally(() => {
         setLoading(false);
       });
-  }, []);
+  }, [router]);
 
   const sortedHistory = useMemo(() => {
     return [...history].sort((a, b) => {
@@ -90,7 +92,7 @@ export default function AccountPage() {
 
   async function handleLogout() {
     await logoutCurrentUser();
-    window.location.href = "/ingresar";
+    router.push("/ingresar");
   }
 
   async function handleResendEmail(item: HistoryItem) {
