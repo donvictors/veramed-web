@@ -1,14 +1,14 @@
 export default function TermsPage() {
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
-      <div className="mx-auto max-w-4xl px-6 py-12">
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
+    <main className="veramed-page min-h-screen bg-slate-50 text-slate-900">
+      <div className="mx-auto max-w-4xl px-6 py-16 md:py-24">
+        <p className="veramed-kicker">
           Términos
         </p>
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950">
+        <h1 className="veramed-display mt-4 text-4xl md:text-5xl">
           Términos de uso
         </h1>
-        <div className="mt-6 space-y-6 rounded-[2rem] border border-slate-200 bg-white p-6 text-sm leading-7 text-slate-700">
+        <div className="mt-8 space-y-7 rounded-[2rem] border border-slate-200 bg-white p-7 text-sm leading-7 text-slate-700 shadow-[0_24px_70px_-52px_rgba(15,23,42,0.35)] md:p-10">
           <p>
             Bienvenido a Veramed. Estos términos y condiciones (“Términos”) regulan tu acceso y
             uso de la plataforma digital disponible en{" "}

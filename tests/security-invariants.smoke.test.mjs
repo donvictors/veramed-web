@@ -80,6 +80,48 @@ test("síntomas exige consentimiento y limita los datos enviados a IA", () => {
   assert.match(client, /No se envían mi nombre, RUT ni/);
 });
 
+test("la interpretación de síntomas se persiste en servidor antes del pago", () => {
+  const interpretRoute = read("app/api/sintomas/interpret/route.ts");
+  const paymentRoute = read("app/api/sintomas/payments/create/route.ts");
+  assert.match(interpretRoute, /createOrUpdateSymptomsDraft/);
+  assert.match(interpretRoute, /requestId: draft\.id/);
+  assert.doesNotMatch(paymentRoute, /data\.draft/);
+  assert.match(paymentRoute, /getSymptomsRequest\(data\.orderId\)/);
+});
+
+test("la entrevista por síntomas es adaptativa y persiste cada turno en servidor", () => {
+  const interviewRoute = read("app/api/sintomas/interview/turn/route.ts");
+  const flowPage = read("app/sintomas/flujo/page.tsx");
+  const orderRoute = read("app/api/sintomas/orders/build/route.ts");
+  const openai = read("lib/server/symptoms-openai.ts");
+
+  assert.match(interviewRoute, /continueSymptomsInterviewWithOpenAI/);
+  assert.match(interviewRoute, /saveSymptomsInterviewTurn/);
+  assert.match(interviewRoute, /findDeterministicUrgency/);
+  assert.match(interviewRoute, /symptoms:interview-turn/);
+  assert.match(flowPage, /\/api\/sintomas\/interview\/turn/);
+  assert.match(flowPage, /quickReplies/);
+  assert.doesNotMatch(orderRoute, /parsed\.data\.answers/);
+  assert.match(orderRoute, /requestRecord\.followUpAnswers/);
+  assert.match(openai, /openai\.responses/);
+  assert.match(openai, /store:\s*false/);
+});
+
+test("la preorden por síntomas queda identificada visualmente como borrador", () => {
+  const orderPage = read("app/sintomas/orden/page.tsx");
+  assert.match(orderPage, /Borrador — no válido como orden médica/);
+  assert.match(orderPage, /VISTA PREVIA — NO VÁLIDA/);
+  assert.match(orderPage, /showSignature=\{isValidated\}/);
+});
+
+test("el portal médico permite expandir la historia clínica completa", () => {
+  const reviewPage = read("app/portal-medicos/orden/[id]/ReviewSymptomsOrderClient.tsx");
+  assert.match(reviewPage, /showClinicalDetails/);
+  assert.match(reviewPage, /Relato original/);
+  assert.match(reviewPage, /Antecedentes declarados/);
+  assert.match(reviewPage, /Entrevista de seguimiento/);
+});
+
 test("las rutas críticas cuentan con protección de origen, tamaño y rate limit", () => {
   const security = read("lib/server/http-security.ts");
   assert.match(security, /requireSameOrigin/);

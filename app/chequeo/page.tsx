@@ -308,7 +308,7 @@ export default function CheckupPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
+    <main className="veramed-page min-h-screen bg-slate-50 text-slate-900">
       <div className="mx-auto max-w-6xl px-6 py-10 md:py-12">
         <div className="max-w-3xl">
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -727,14 +727,6 @@ export default function CheckupPage() {
                 </button>
               </div>
 
-              <div className="rounded-3xl border border-rose-200 bg-rose-50 p-5">
-                <p className="text-sm font-semibold text-rose-900">
-                  No usar en casos de urgencia.
-                </p>
-                <p className="mt-2 text-sm leading-6 text-rose-800">
-                  Ante síntomas de alarma busca evaluación médica directa.
-                </p>
-              </div>
             </div>
           </section>
 

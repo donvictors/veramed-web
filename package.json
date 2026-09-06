@@ -20,9 +20,11 @@
     "storage:migrate-private": "node scripts/migrate-order-pdfs-private.mjs"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.109",
     "@prisma/client": "^6.19.3",
     "@sparticuz/chromium": "^147.0.0",
     "@vercel/blob": "^2.8.0",
+    "ai": "^6.0.277",
     "next": "16.3.1",
     "next-auth": "^4.24.15",
     "pdf-lib": "^1.17.1",

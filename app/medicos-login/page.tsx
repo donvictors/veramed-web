@@ -47,7 +47,7 @@ export default function MedicosLoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
+    <main className="veramed-page min-h-screen bg-slate-50 text-slate-900">
       <div className="mx-auto grid min-h-screen w-full max-w-6xl items-center gap-8 px-6 py-12 lg:grid-cols-[1fr_0.9fr]">
         <section className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-[0_24px_80px_-50px_rgba(15,23,42,0.5)]">
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">

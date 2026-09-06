@@ -121,7 +121,7 @@ export default function AccountPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-slate-50 text-slate-900">
+      <main className="veramed-page min-h-screen bg-slate-50 text-slate-900">
         <div className="mx-auto max-w-5xl px-6 py-10 md:py-12">
           <HistorySkeleton />
         </div>
@@ -137,7 +137,7 @@ export default function AccountPage() {
   const formattedPhone = formatPhone(user.profile.phone);
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
+    <main className="veramed-page min-h-screen bg-slate-50 text-slate-900">
       <div className="mx-auto max-w-5xl px-6 py-10 md:py-12">
         <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_22px_70px_-48px_rgba(15,23,42,0.45)]">
           <div className="flex flex-wrap items-start justify-between gap-4">

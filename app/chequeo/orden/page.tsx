@@ -78,7 +78,7 @@ export default function OrderPage() {
 
   if (!data) {
     return (
-      <main className="min-h-screen bg-slate-50 text-slate-900">
+      <main className="veramed-page min-h-screen bg-slate-50 text-slate-900">
         <div className="mx-auto max-w-2xl px-6 py-10">
           <h1 className="text-2xl font-semibold">No hay datos del chequeo</h1>
           <p className="mt-2 text-slate-600">Vuelve a generar un chequeo primero.</p>
@@ -132,7 +132,7 @@ export default function OrderPage() {
 
   if (!paid) {
     return (
-      <main className="min-h-screen bg-slate-50 text-slate-900">
+      <main className="veramed-page min-h-screen bg-slate-50 text-slate-900">
         <div className="mx-auto max-w-3xl px-6 py-12">
           <div className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-[0_22px_70px_-48px_rgba(15,23,42,0.45)]">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -166,7 +166,7 @@ export default function OrderPage() {
 
   if (!approved) {
     return (
-      <main className="min-h-screen bg-slate-50 text-slate-900">
+      <main className="veramed-page min-h-screen bg-slate-50 text-slate-900">
         <div className="mx-auto max-w-3xl px-6 py-12">
           <div className="rounded-[2rem] border border-amber-200 bg-amber-50 p-8">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-700">
@@ -191,7 +191,7 @@ export default function OrderPage() {
   }
 
   return (
-    <main className="veramed-order-root min-h-screen bg-slate-50 text-slate-900 print:bg-white">
+    <main className="veramed-page veramed-order-root min-h-screen bg-slate-50 text-slate-900 print:bg-white">
       <div className="mx-auto max-w-5xl px-6 py-10 print:max-w-none print:px-0 print:py-0">
         <div className="mb-6 flex items-center justify-between gap-4 print:hidden">
           <div className="rounded-2xl border border-slate-300 bg-slate-100 px-5 py-4 shadow-sm">

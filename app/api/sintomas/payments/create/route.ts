@@ -3,24 +3,16 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { AUTH_SESSION_COOKIE } from "@/lib/auth";
-import { calculateAgeFromBirthDate } from "@/lib/checkup";
 import { calculateDiscountedAmount } from "@/lib/discount-pricing";
 import {
   getDiscountByCode,
   normalizeDiscountCode,
 } from "@/lib/server/discount-codes";
-import type { SymptomsInterpretation } from "@/lib/symptoms-intake";
-import {
-  EMPTY_SYMPTOMS_ANTECEDENTS,
-  SYMPTOMS_PRICE_CLP,
-  type SymptomsAntecedents,
-} from "@/lib/symptoms-order";
+import { SYMPTOMS_PRICE_CLP } from "@/lib/symptoms-order";
 import { getUserFromSession } from "@/lib/server/auth-store";
 import { parseCreateResponse } from "@/lib/server/transbank/normalize";
 import { buildTransbankTransaction, getAppUrl } from "@/lib/server/transbank/config";
 import {
-  buildSymptomsCachedInput,
-  createOrUpdateSymptomsDraft,
   getSymptomsRequest,
   markSymptomsPaymentPending,
 } from "@/lib/server/symptoms-store";
@@ -28,7 +20,6 @@ import { upsertSymptomsPaymentTransaction } from "@/lib/server/symptoms-payment"
 import {
   getRequestAccessCookieName,
   hasValidRequestAccessCookie,
-  upsertRequestAccessCookie,
 } from "@/lib/server/request-access";
 import {
   enforceRateLimit,
@@ -36,46 +27,19 @@ import {
   readJsonBody,
   requireSameOrigin,
 } from "@/lib/server/http-security";
-import { patientSchema, symptomsAntecedentsSchema } from "@/lib/server/request-schemas";
 
 export const runtime = "nodejs";
 const BUY_ORDER_PATTERN = /^[A-Za-z0-9_-]+$/;
 const MAX_BUY_ORDER_LENGTH = 26;
 const MAX_SESSION_ID_LENGTH = 61;
 
-const payloadSchema = z.object({
-  orderId: z.string().min(1).max(MAX_BUY_ORDER_LENGTH),
-  sessionId: z.string().min(1).max(MAX_SESSION_ID_LENGTH),
-  discountCode: z.string().optional(),
-  draft: z.object({
-    input: z.string().trim().min(12).max(4_000),
-    engineVersion: z.string().trim().min(1).max(100),
-    aiConsentVersion: z.literal("ai-health-data-v1"),
-    aiConsentAt: z.iso.datetime(),
-    patientSex: z.enum(["female", "male", ""]).optional().default(""),
-    patient: patientSchema,
-    antecedents: symptomsAntecedentsSchema.partial().default({}),
-    output: z.object({
-      flowId: z.string().max(100).optional(),
-      oneLinerSummary: z.string().min(1).max(2_000),
-      primarySymptom: z.string().min(1).max(500),
-      secondarySymptoms: z.array(z.string().max(500)).max(30).default([]),
-      followUpQuestions: z.array(z.string().max(1_000)).max(30).default([]),
-      probableContext: z.string().min(1).max(2_000),
-      consultationFrame: z.string().min(1).max(2_000),
-      tags: z.array(z.string().max(100)).max(30).default([]),
-      urgencyWarning: z.boolean(),
-      guidanceText: z.string().min(1).max(4_000),
-    }),
-  }),
-});
-
-function normalizeAntecedents(raw: Partial<SymptomsAntecedents>): SymptomsAntecedents {
-  return {
-    ...EMPTY_SYMPTOMS_ANTECEDENTS,
-    ...raw,
-  };
-}
+const payloadSchema = z
+  .object({
+    orderId: z.string().min(1).max(MAX_BUY_ORDER_LENGTH),
+    sessionId: z.string().min(1).max(MAX_SESSION_ID_LENGTH),
+    discountCode: z.string().optional(),
+  })
+  .strict();
 
 function mapCreatePaymentError(error: unknown): { status: number; message: string } {
   if (error instanceof Prisma.PrismaClientInitializationError) {
@@ -117,7 +81,7 @@ export async function POST(request: Request) {
       limit: 8,
       windowMs: 15 * 60 * 1000,
     });
-    const parsed = payloadSchema.safeParse(await readJsonBody(request, 48_000));
+    const parsed = payloadSchema.safeParse(await readJsonBody(request, 8_000));
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Payload inválido para pago de síntomas.", details: parsed.error.issues },
@@ -146,77 +110,46 @@ export async function POST(request: Request) {
     const currentAccessCookie = cookieStore.get(getRequestAccessCookieName())?.value;
 
     const existing = await getSymptomsRequest(data.orderId);
-    if (existing) {
-      if (existing.reviewStatus === "validated" || existing.reviewStatus === "rejected") {
-        return NextResponse.json(
-          { error: "Esta solicitud ya fue cerrada y no se puede modificar." },
-          { status: 409 },
-        );
-      }
-      if (existing.payment?.status === "paid") {
-        return NextResponse.json(
-          { error: "Esta solicitud ya tiene un pago confirmado." },
-          { status: 409 },
-        );
-      }
-
-      if (existing.userId) {
-        if (!user || user.id !== existing.userId) {
-          return NextResponse.json(
-            { error: "No tienes acceso a esta solicitud." },
-            { status: 403 },
-          );
-        }
-      } else {
-        const hasGuestAccess = hasValidRequestAccessCookie(currentAccessCookie, {
-          requestType: "symptoms",
-          requestId: existing.id,
-          createdAtMs: existing.createdAt,
-        });
-        if (!hasGuestAccess) {
-          return NextResponse.json(
-            { error: "No tienes acceso a esta solicitud." },
-            { status: 403 },
-          );
-        }
-      }
+    if (!existing) {
+      return NextResponse.json(
+        { error: "La interpretación clínica no existe o ya no está disponible." },
+        { status: 404 },
+      );
     }
 
-    const age = calculateAgeFromBirthDate(data.draft.patient.birthDate);
-    const antecedents = normalizeAntecedents(data.draft.antecedents);
-    const cachedInput = buildSymptomsCachedInput({
-      sex:
-        data.draft.patientSex === "female"
-          ? "Femenino"
-          : data.draft.patientSex === "male"
-            ? "Masculino"
-            : "",
-      age,
-      symptomsText: data.draft.input,
-      antecedents,
-    });
+    if (existing.reviewStatus === "validated" || existing.reviewStatus === "rejected") {
+      return NextResponse.json(
+        { error: "Esta solicitud ya fue cerrada y no se puede modificar." },
+        { status: 409 },
+      );
+    }
+    if (existing.payment?.status === "paid") {
+      return NextResponse.json(
+        { error: "Esta solicitud ya tiene un pago confirmado." },
+        { status: 409 },
+      );
+    }
+    if (!existing.aiConsentAt || existing.aiConsentVersion !== "ai-health-data-v1") {
+      return NextResponse.json(
+        { error: "La solicitud no tiene un consentimiento clínico válido registrado." },
+        { status: 409 },
+      );
+    }
 
-    const draft = await createOrUpdateSymptomsDraft({
-      id: data.orderId,
-      userId: user?.id,
-      symptomsText: data.draft.input.trim(),
-      patient: {
-        fullName: data.draft.patient.fullName.trim(),
-        rut: data.draft.patient.rut.trim(),
-        birthDate: data.draft.patient.birthDate.trim(),
-        sex: data.draft.patientSex,
-        email: data.draft.patient.email.trim(),
-        phone: data.draft.patient.phone.trim(),
-        address: data.draft.patient.address.trim(),
-      },
-      interpretation: data.draft.output as SymptomsInterpretation,
-      antecedents,
-      engineVersion: data.draft.engineVersion.trim(),
-      cachedInput,
-      aiConsentAt: new Date(data.draft.aiConsentAt),
-      aiConsentVersion: data.draft.aiConsentVersion,
-      aiProvider: data.draft.engineVersion.startsWith("openai-") ? "openai" : "local",
-    });
+    if (existing.userId) {
+      if (!user || user.id !== existing.userId) {
+        return NextResponse.json({ error: "No tienes acceso a esta solicitud." }, { status: 403 });
+      }
+    } else {
+      const hasGuestAccess = hasValidRequestAccessCookie(currentAccessCookie, {
+        requestType: "symptoms",
+        requestId: existing.id,
+        createdAtMs: existing.createdAt,
+      });
+      if (!hasGuestAccess) {
+        return NextResponse.json({ error: "No tienes acceso a esta solicitud." }, { status: 403 });
+      }
+    }
 
     const returnUrl = `${getAppUrl()}/api/sintomas/payments/return`;
     const transaction = buildTransbankTransaction();
@@ -246,22 +179,6 @@ export async function POST(request: Request) {
       currency: "CLP",
       paymentId: created.token,
     });
-
-    if (!user?.id) {
-      const nextAccessCookie = upsertRequestAccessCookie(currentAccessCookie, {
-        requestType: "symptoms",
-        requestId: draft.id,
-        createdAtMs: draft.createdAt,
-      });
-
-      cookieStore.set(getRequestAccessCookieName(), nextAccessCookie, {
-        httpOnly: true,
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
-        path: "/",
-        maxAge: 60 * 60 * 24 * 30,
-      });
-    }
 
     return NextResponse.json({
       requestId: data.orderId,

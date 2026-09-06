@@ -1,154 +1,156 @@
 import Link from "next/link";
 
+const services = [
+  {
+    title: "Chequeo preventivo",
+    description:
+      "Una recomendación orientada según tu edad, sexo biológico y tus antecedentes para cuidar tu salud antes de que aparezcan problemas.",
+    href: "/chequeo",
+    price: "$1.990",
+    previousPrice: "$2.990",
+    action: "Solicitar chequeo",
+    points: [
+      "Panel sugerido según tu perfil",
+      "Preparación de cada examen",
+      "Validación médica antes de emitir",
+    ],
+    highlighted: false,
+  },
+  {
+    title: "Control de enfermedades",
+    description:
+      "Exámenes de seguimiento para condiciones crónicas, pensados para acompañar tu próximo control con tu médico tratante.",
+    href: "/control-cronico",
+    price: "$3.990",
+    action: "Solicitar control",
+    points: [
+      "Selección según cada condición",
+      "Antecedentes relevantes ordenados",
+      "Orden médica digital validada",
+    ],
+    highlighted: false,
+  },
+  {
+    title: "Evaluación de síntomas",
+    description:
+      "Describe lo que sientes y nuestro asistente de IA te entrevista para que te podamos sugerir los exámenes que necesitas antes de tu consulta médica.",
+    href: "/sintomas",
+    price: "$5.990",
+    action: "Solicitar evaluación",
+    points: [
+      "Análisis estructurado de síntomas",
+      "Sugerencia con contexto clínico",
+      "Revisión médica antes de emitir",
+    ],
+    highlighted: true,
+  },
+];
+
 export default function Services() {
   return (
-    <section id="servicios" className="border-b border-slate-200 bg-slate-50">
-      <div className="mx-auto max-w-6xl px-6 py-16 md:py-20">
-        <div className="max-w-2xl">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
-            Servicios
-          </p>
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-            El punto de entrada
-            <br />
-            a los exámenes que tú necesitas. 🧭
-          </h2>
-          <p className="mt-3 text-sm leading-7 text-slate-600">
+    <section id="servicios" className="border-y border-slate-200/80 bg-white/65">
+      <div className="mx-auto max-w-6xl px-6 py-20 md:py-24">
+        <div className="grid items-end gap-6 lg:grid-cols-[1fr_0.72fr]">
+          <div>
+            <p className="veramed-kicker">Servicios</p>
+            <h2 className="mt-4 max-w-3xl text-4xl font-semibold tracking-tight text-slate-950 md:text-5xl">
+              <span className="block">El punto de entrada</span>
+              <span className="block">a los exámenes que tú necesitas.</span>
+            </h2>
+          </div>
+          <p className="max-w-xl text-sm leading-7 text-slate-600 lg:pb-1">
             Diseñado para personas que necesitan ordenar un chequeo preventivo, controlar una
             enfermedad o llegar con exámenes a consultar a su médico por síntomas nuevos. De forma
             clara y precisa.
           </p>
         </div>
 
-        <div className="mt-10 grid gap-6 lg:grid-cols-3">
-          <article className="flex h-full flex-col rounded-[2rem] border border-slate-200 bg-white p-7 shadow-[0_18px_60px_-44px_rgba(15,23,42,0.45)]">
-            <div className="flex min-h-[16rem] flex-col">
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  Activo hoy
-                </p>
-                <h3 className="mt-2 text-2xl font-semibold text-slate-950">Chequeo preventivo</h3>
-                <p className="mt-3 text-sm leading-7 text-slate-600">
-                  Recomendación orientada por edad, sexo biológico y antecedentes básicos, con
-                  orden imprimible y preparación sugerida.
-                </p>
+        <div className="mt-10 grid gap-5 lg:grid-cols-3">
+          {services.map((service, index) => (
+            <article
+              key={service.title}
+              className={`group flex h-full flex-col overflow-hidden rounded-[2rem] border p-7 transition duration-300 hover:-translate-y-1 ${
+                service.highlighted
+                  ? "border-amber-300 bg-gradient-to-b from-amber-50/70 to-white text-slate-950 shadow-[0_28px_80px_-48px_rgba(180,125,28,0.55)] hover:border-amber-400"
+                  : "border-slate-200 bg-white text-slate-950 shadow-[0_24px_70px_-50px_rgba(15,23,42,0.4)] hover:border-emerald-200"
+              }`}
+            >
+              <div className="flex items-center justify-between gap-4">
+                <span
+                  className={`text-xs font-semibold uppercase tracking-[0.18em] ${
+                    service.highlighted ? "text-amber-700" : "text-emerald-700"
+                  }`}
+                >
+                  Disponible
+                </span>
+                <span
+                  className={`inline-flex h-10 w-10 items-center justify-center rounded-2xl text-xs font-bold ${
+                    service.highlighted
+                      ? "border border-amber-200 bg-amber-100 text-amber-800"
+                      : "bg-emerald-50 text-emerald-700"
+                  }`}
+                >
+                  {String(index + 1).padStart(2, "0")}
+                </span>
               </div>
-              <Link
-                href="/chequeo"
-                className="mt-auto inline-flex w-fit items-center gap-2 rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
-                aria-label="Ir a solicitar chequeo preventivo"
-              >
-                <span className="text-white/60 line-through">$2.990</span>
-                <span>$1.990</span>
-              </Link>
-            </div>
 
-            <div className="mt-6 grid flex-1 gap-3 text-sm text-slate-700">
-              <ServicePoint text="Resumen clínico del panel sugerido." />
-              <ServicePoint text="Ficha de orden con exámenes, muestra y preparación." />
-              <ServicePoint text="Validación clínica antes de la emisión de la orden." />
-            </div>
+              <h3 className="mt-8 text-2xl font-semibold tracking-tight text-slate-950">
+                {service.title}
+              </h3>
+              <p className="mt-4 text-sm leading-7 text-slate-600">
+                {service.description}
+              </p>
 
-            <div className="mt-8">
-              <Link
-                href="/chequeo"
-                className="mt-4 inline-flex rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-              >
-                Solicitar chequeo
-              </Link>
-            </div>
-          </article>
+              <div className={`my-7 h-px ${service.highlighted ? "bg-amber-200/70" : "bg-slate-100"}`} />
 
-          <article className="flex h-full flex-col rounded-[2rem] border border-slate-200 bg-white p-7 shadow-[0_18px_60px_-44px_rgba(15,23,42,0.45)]">
-            <div className="flex min-h-[16rem] flex-col">
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  Activo hoy
-                </p>
-                <h3 className="mt-2 text-2xl font-semibold text-slate-950">
-                  Control de enfermedades
-                </h3>
-                <p className="mt-3 text-sm leading-7 text-slate-600">
-                  Si tienes alguna enfermedad crónica, acá podrás conseguir los exámenes que
-                  requieres para el control crónico con tu médico tratante.
-                </p>
+              <div className="space-y-3">
+                {service.points.map((point) => (
+                  <ServicePoint key={point} text={point} highlighted={service.highlighted} />
+                ))}
               </div>
-              <Link
-                href="/control-cronico"
-                className="mt-auto inline-flex w-fit rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
-                aria-label="Ir a solicitar control crónico"
-              >
-                $3.990
-              </Link>
-            </div>
 
-            <div className="mt-6 grid flex-1 gap-3 text-sm text-slate-700">
-              <ServicePoint text="Selección de exámenes de control según enfermedad o condición crónica." />
-              <ServicePoint text="Solicitud adaptada a antecedentes relevantes y seguimiento periódico." />
-              <ServicePoint text="Orden médica digital con validación clínica antes de su emisión." />
-            </div>
-
-            <div className="mt-8">
-              <Link
-                href="/control-cronico"
-                className="mt-4 inline-flex rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-              >
-                Solicitar control
-              </Link>
-            </div>
-          </article>
-
-          <article className="flex h-full flex-col rounded-[2rem] border border-slate-200 bg-white p-7">
-            <div className="flex min-h-[16rem] flex-col">
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  Activo hoy
-                </p>
-                <h3 className="mt-2 text-2xl font-semibold text-slate-950">
-                  Evaluación de síntomas
-                </h3>
-                <p className="mt-3 text-sm leading-7 text-slate-600">
-                  Usamos inteligencia artifical para contrastar lo que sientes con bases de datos
-                  de diagnóstico de última generación.
-                </p>
+              <div className="mt-auto flex items-end justify-between gap-4 pt-10">
+                <div>
+                  {service.previousPrice ? (
+                    <p className="text-xs text-slate-400 line-through">
+                      {service.previousPrice}
+                    </p>
+                  ) : null}
+                  <p className="text-xl font-semibold text-slate-950">
+                    {service.price}
+                  </p>
+                </div>
+                <Link
+                  href={service.href}
+                  className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+                    service.highlighted
+                      ? "bg-amber-600 text-white hover:bg-amber-700"
+                      : "bg-slate-950 text-white hover:bg-emerald-700"
+                  }`}
+                  aria-label={service.action}
+                >
+                  Comenzar <span aria-hidden="true">→</span>
+                </Link>
               </div>
-              <Link
-                href="/sintomas"
-                className="mt-auto inline-flex w-fit rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
-                aria-label="Ir a evaluación de síntomas"
-              >
-                $5.990
-              </Link>
-            </div>
-
-            <div className="mt-6 grid flex-1 gap-3 text-sm text-slate-700">
-              <ServicePoint text="Ingresa tus síntomas en nuestro motor de búsqueda con IA." />
-              <ServicePoint text="Cotejamos tus síntomas con bases médicas actualizadas y te sugerimos los exámenes para tu consulta médica." />
-              <ServicePoint text="Esta orden es revisada y firmada por un médico de neustro equipo dentro de 12 horas." />
-            </div>
-
-            <div className="mt-8">
-              <Link
-                href="/sintomas"
-                className="mt-4 inline-flex rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-              >
-                Solicitar evaluación
-              </Link>
-            </div>
-          </article>
+            </article>
+          ))}
         </div>
       </div>
     </section>
   );
 }
 
-function ServicePoint({ text }: { text: string }) {
+function ServicePoint({ text, highlighted }: { text: string; highlighted: boolean }) {
   return (
-    <div className="flex gap-3 rounded-2xl bg-slate-50 p-4">
-      <span className="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-[11px] font-bold text-emerald-700">
+    <div className="flex items-start gap-3 text-sm">
+      <span
+        className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+          highlighted ? "bg-amber-100 text-amber-800" : "bg-emerald-50 text-emerald-700"
+        }`}
+      >
         ✓
       </span>
-      <span>{text}</span>
+      <span className="text-slate-700">{text}</span>
     </div>
   );
 }

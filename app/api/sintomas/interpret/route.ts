@@ -1,7 +1,13 @@
+import { randomUUID } from "node:crypto";
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { AUTH_SESSION_COOKIE } from "@/lib/auth";
+import { calculateAgeFromBirthDate } from "@/lib/checkup";
 import { interpretSymptomsText } from "@/lib/symptoms-intake";
 import { interpretSymptomsWithOpenAI } from "@/lib/server/symptoms-openai";
+import { ADAPTIVE_INTERVIEW_VERSION } from "@/lib/server/symptoms-interview";
 import { EMPTY_SYMPTOMS_ANTECEDENTS, type SymptomsAntecedents } from "@/lib/symptoms-order";
+import { getUserFromSession } from "@/lib/server/auth-store";
 import {
   enforceRateLimit,
   httpErrorResponse,
@@ -9,8 +15,23 @@ import {
   requireSameOrigin,
 } from "@/lib/server/http-security";
 import { interpretSymptomsSchema } from "@/lib/server/request-schemas";
+import {
+  buildSymptomsCachedInput,
+  createOrUpdateSymptomsDraft,
+} from "@/lib/server/symptoms-store";
+import {
+  getRequestAccessCookieName,
+  upsertRequestAccessCookie,
+} from "@/lib/server/request-access";
 
-const ENGINE_VERSION_FALLBACK = "sintomas-intake-local-v1";
+const ENGINE_VERSION_FALLBACK = `sintomas-intake-local-v1+${ADAPTIVE_INTERVIEW_VERSION}`;
+const AI_CONSENT_VERSION = "ai-health-data-v1";
+
+export const runtime = "nodejs";
+
+function createSymptomsRequestId() {
+  return `sym_${randomUUID().replaceAll("-", "").slice(0, 22)}`;
+}
 
 export async function POST(request: Request) {
   try {
@@ -21,7 +42,7 @@ export async function POST(request: Request) {
       limit: 10,
       windowMs: 15 * 60 * 1000,
     });
-    const parsed = interpretSymptomsSchema.safeParse(await readJsonBody(request, 16_000));
+    const parsed = interpretSymptomsSchema.safeParse(await readJsonBody(request, 24_000));
     if (!parsed.success) {
       return NextResponse.json(
         {
@@ -38,6 +59,8 @@ export async function POST(request: Request) {
       ...EMPTY_SYMPTOMS_ANTECEDENTS,
       ...body.antecedents,
     };
+    const patientAge = calculateAgeFromBirthDate(body.patient.birthDate);
+    const patientSex = body.patientContext?.sex ?? "";
 
     let interpretation = interpretSymptomsText(symptomsText);
     let engineVersion = ENGINE_VERSION_FALLBACK;
@@ -47,10 +70,10 @@ export async function POST(request: Request) {
         const openAIResult = await interpretSymptomsWithOpenAI(
           symptomsText,
           antecedents,
-          body.patientContext,
+          { sex: patientSex, age: patientAge },
         );
         interpretation = openAIResult.interpretation;
-        engineVersion = `openai-${openAIResult.model}`;
+        engineVersion = `openai-${openAIResult.model}+${ADAPTIVE_INTERVIEW_VERSION}`;
       }
     } catch (error) {
       console.error("OpenAI síntomas: fallback a motor local", {
@@ -58,11 +81,62 @@ export async function POST(request: Request) {
       });
     }
 
+    const requestId = createSymptomsRequestId();
+    const consentAt = new Date();
+    const cachedInput = buildSymptomsCachedInput({
+      sex:
+        patientSex === "female"
+          ? "Femenino"
+          : patientSex === "male"
+            ? "Masculino"
+            : "",
+      age: patientAge,
+      symptomsText,
+      antecedents,
+    });
+    const cookieStore = await cookies();
+    const sessionToken = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
+    const user = await getUserFromSession(sessionToken);
+    const draft = await createOrUpdateSymptomsDraft({
+      id: requestId,
+      userId: user?.id,
+      symptomsText,
+      patient: {
+        ...body.patient,
+        sex: patientSex,
+      },
+      interpretation,
+      antecedents,
+      engineVersion,
+      cachedInput,
+      aiConsentAt: consentAt,
+      aiConsentVersion: AI_CONSENT_VERSION,
+      aiProvider: engineVersion.startsWith("openai-") ? "openai" : "local",
+    });
+
+    if (!user?.id) {
+      const accessCookieName = getRequestAccessCookieName();
+      const currentAccessCookie = cookieStore.get(accessCookieName)?.value;
+      const nextAccessCookie = upsertRequestAccessCookie(currentAccessCookie, {
+        requestType: "symptoms",
+        requestId: draft.id,
+        createdAtMs: draft.createdAt,
+      });
+      cookieStore.set(accessCookieName, nextAccessCookie, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 30,
+      });
+    }
+
     return NextResponse.json({
+      requestId: draft.id,
       interpretation,
       engineVersion,
-      aiConsentVersion: "ai-health-data-v1",
-      createdAt: new Date().toISOString(),
+      aiConsentVersion: AI_CONSENT_VERSION,
+      createdAt: new Date(draft.createdAt).toISOString(),
       nextStep: {
         route: "/sintomas/pago",
         storageKey: "veramed_symptoms_intake_v1",

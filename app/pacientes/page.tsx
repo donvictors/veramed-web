@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 type ResourceItem = {
@@ -53,30 +54,34 @@ const videoResources: ResourceItem[] = [
   },
 ];
 
-function ResourceCard({ item }: { item: ResourceItem }) {
+function ResourceCard({ item, index }: { item: ResourceItem; index: number }) {
   const isAvailable = item.status !== "coming_soon" && Boolean(item.href);
 
   return (
-    <article className="rounded-[1.5rem] border border-slate-200 bg-white p-6">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="text-lg font-semibold text-slate-950">{item.title}</h3>
-        <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600">
+    <article className="veramed-panel group flex h-full flex-col p-6 transition duration-300 hover:-translate-y-1 hover:border-emerald-200 hover:shadow-[0_24px_70px_-44px_rgba(15,118,110,0.45)]">
+      <div className="flex items-start justify-between gap-4">
+        <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-sm font-bold text-emerald-700">
+          {String(index + 1).padStart(2, "0")}
+        </span>
+        <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.13em] text-slate-600">
           {item.type}
         </span>
       </div>
-      <p className="mt-3 text-sm leading-7 text-slate-600">{item.description}</p>
+
+      <h3 className="mt-8 text-xl font-semibold tracking-tight text-slate-950">{item.title}</h3>
+      <p className="mt-3 flex-1 text-sm leading-7 text-slate-600">{item.description}</p>
 
       {isAvailable ? (
         <Link
           href={item.href!}
           target={item.type === "Video externo" ? "_blank" : undefined}
           rel={item.type === "Video externo" ? "noreferrer" : undefined}
-          className="mt-4 inline-flex rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-900 transition hover:border-slate-400 hover:bg-slate-50"
+          className="veramed-secondary-button mt-6 w-fit group-hover:border-emerald-300"
         >
-          Abrir recurso
+          Abrir recurso <span aria-hidden="true">↗</span>
         </Link>
       ) : (
-        <span className="mt-4 inline-flex rounded-xl border border-slate-200 bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-500">
+        <span className="mt-6 inline-flex w-fit rounded-xl border border-slate-200 bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-500">
           Próximamente
         </span>
       )}
@@ -86,52 +91,82 @@ function ResourceCard({ item }: { item: ResourceItem }) {
 
 export default function PacientesPage() {
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
-      <div className="mx-auto max-w-6xl px-6 py-12 md:py-16">
-        <section className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-[0_22px_70px_-48px_rgba(15,23,42,0.45)]">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
-            Pacientes
-          </p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950">
-            Recursos para pacientes
-          </h1>
-          <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-600">
-            Esta sección reúne material útil para que puedas entender, preparar y acompañar tus
-            controles de salud de forma simple.
-          </p>
+    <main className="veramed-page min-h-screen text-slate-900">
+      <div className="mx-auto max-w-6xl px-6 py-16 md:py-24">
+        <section className="grid items-center gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+          <div>
+            <p className="veramed-kicker">Pacientes</p>
+            <h1 className="veramed-display mt-5 max-w-3xl text-4xl md:text-6xl">
+              Herramientas para entender y acompañar tu salud.
+            </h1>
+            <p className="mt-6 max-w-2xl text-base leading-8 text-slate-600 md:text-lg">
+              Recursos simples para preparar tus controles, registrar información importante y
+              conversar con tu médico con mayor claridad.
+            </p>
+          </div>
+
+          <div className="veramed-grid-surface relative min-h-[22rem] overflow-hidden p-7">
+            <div className="relative z-10 max-w-xs rounded-3xl border border-white/70 bg-white/80 p-5 backdrop-blur">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                Material educativo
+              </p>
+              <p className="mt-3 text-sm leading-7 text-slate-700">
+                Descarga guías, revisa videos y encuentra contenidos creados para apoyar decisiones
+                informadas.
+              </p>
+            </div>
+            <Image
+              src="/brand/voxel-patient-v2.png"
+              alt="Paciente de Veramed revisando información de salud"
+              width={360}
+              height={360}
+              className="absolute -bottom-14 -right-12 h-auto w-72 object-contain md:w-80"
+              priority
+            />
+          </div>
         </section>
 
-        <section className="mt-8 rounded-[1.75rem] border border-slate-200 bg-white p-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-            Lectura recomendada
-          </p>
-          <h2 className="mt-2 text-2xl font-semibold text-slate-950">Blog de Veramed</h2>
-          <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
-            Artículos en lenguaje claro sobre prevención, exámenes de salud y decisiones clínicas
-            frecuentes.
-          </p>
-          <Link
-            href="/blog"
-            className="mt-4 inline-flex rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-900 transition hover:border-slate-400 hover:bg-slate-50"
-          >
-            Ir al blog
-          </Link>
-        </section>
-
-        <section className="mt-8">
-          <h2 className="text-xl font-semibold text-slate-950">Recursos en PDF</h2>
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            {pdfResources.map((item) => (
-              <ResourceCard key={item.title} item={item} />
+        <section className="mt-20">
+          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+            <div>
+              <p className="veramed-kicker">Para descargar</p>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
+                Recursos en PDF
+              </h2>
+            </div>
+            <p className="max-w-md text-sm leading-7 text-slate-600">
+              Documentos prácticos que puedes guardar, completar y compartir en tu próximo control.
+            </p>
+          </div>
+          <div className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {pdfResources.map((item, index) => (
+              <ResourceCard key={item.title} item={item} index={index} />
             ))}
           </div>
         </section>
 
-        <section className="mt-8">
-          <h2 className="text-xl font-semibold text-slate-950">Videos externos recomendados</h2>
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            {videoResources.map((item) => (
-              <ResourceCard key={item.title} item={item} />
+        <section className="mt-20 grid gap-6 lg:grid-cols-[0.78fr_1.22fr]">
+          <div className="veramed-dark-panel relative overflow-hidden p-8 md:p-10">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300">
+              Lectura recomendada
+            </p>
+            <h2 className="mt-4 text-3xl font-semibold tracking-tight text-white">
+              Salud explicada sin complicaciones.
+            </h2>
+            <p className="mt-4 text-sm leading-7 text-slate-300">
+              Artículos sobre prevención, exámenes de salud y decisiones clínicas frecuentes.
+            </p>
+            <Link
+              href="/blog"
+              className="mt-7 inline-flex items-center gap-2 rounded-xl bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
+            >
+              Explorar el blog <span aria-hidden="true">→</span>
+            </Link>
+          </div>
+
+          <div className="grid gap-5 md:grid-cols-2">
+            {videoResources.map((item, index) => (
+              <ResourceCard key={item.title} item={item} index={index} />
             ))}
           </div>
         </section>

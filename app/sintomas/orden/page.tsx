@@ -109,7 +109,7 @@ function SymptomsOrderPageContent() {
 
   if (!order && !loading) {
     return (
-      <main className="min-h-screen bg-slate-50 text-slate-900">
+      <main className="veramed-page min-h-screen bg-slate-50 text-slate-900">
         <div className="mx-auto max-w-2xl px-6 py-10">
           <h1 className="text-2xl font-semibold">No hay orden para mostrar</h1>
           <p className="mt-2 text-slate-600">
@@ -128,7 +128,7 @@ function SymptomsOrderPageContent() {
 
   if (!order) {
     return (
-      <main className="min-h-screen bg-slate-50 text-slate-900">
+      <main className="veramed-page min-h-screen bg-slate-50 text-slate-900">
         <div className="mx-auto max-w-2xl px-6 py-10">
           <h1 className="text-2xl font-semibold">Cargando orden...</h1>
         </div>
@@ -171,15 +171,15 @@ function SymptomsOrderPageContent() {
   }
 
   return (
-    <main className="veramed-order-root min-h-screen bg-slate-50 text-slate-900 print:bg-white">
+    <main className="veramed-page veramed-order-root min-h-screen bg-slate-50 text-slate-900 print:bg-white">
       <div className="mx-auto max-w-5xl px-6 py-10 print:max-w-none print:px-0 print:py-0">
         <div className="mb-6 flex items-center justify-between gap-4 print:hidden">
           <div className="rounded-2xl border border-slate-300 bg-slate-100 px-5 py-4 shadow-sm">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
-              Orden clínica imprimible
+              {isValidated ? "Orden clínica aprobada" : "Vista previa clínica"}
             </p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-              Tus órdenes de exámenes ➡️
+              {isValidated ? "Tus órdenes de exámenes" : "Tu preorden de exámenes"} ➡️
             </h1>
             <p className="mt-1 text-base text-slate-600">
               Te enviaremos las órdenes a tu correo (recuerda revisar tu bandeja de spam) una vez
@@ -232,6 +232,16 @@ function SymptomsOrderPageContent() {
         </div>
 
         <section className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-[0_22px_70px_-48px_rgba(15,23,42,0.45)] print:hidden">
+          {!isValidated ? (
+            <div className="mb-6 rounded-2xl border-2 border-dashed border-amber-300 bg-amber-50 px-5 py-4 text-center">
+              <p className="text-sm font-bold uppercase tracking-[0.18em] text-amber-900">
+                Borrador — no válido como orden médica
+              </p>
+              <p className="mt-1 text-xs leading-5 text-amber-800">
+                Esta vista no tiene firma médica y solo permite revisar los exámenes propuestos.
+              </p>
+            </div>
+          ) : null}
           <div className="flex flex-wrap items-start justify-between gap-6 border-b border-slate-200 pb-6">
             <div>
               <BrandLogo className="h-28 w-auto" />
@@ -478,7 +488,7 @@ function SymptomsOrderPageContent() {
 
 function SymptomsOrderLoadingFallback() {
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
+    <main className="veramed-page min-h-screen bg-slate-50 text-slate-900">
       <div className="mx-auto max-w-2xl px-6 py-10">
         <h1 className="text-2xl font-semibold">Cargando orden...</h1>
       </div>
@@ -567,8 +577,25 @@ function PrintOrderPage({
   signatureUrl: string;
 }) {
   return (
-    <article className="veramed-order-page">
-      <OrderHeader categoryMeta={categoryMeta} patient={patient} issuedAt={issuedAt} />
+    <article className="veramed-order-page relative overflow-hidden">
+      {!showSignature ? (
+        <div
+          className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center"
+          aria-hidden="true"
+        >
+          <div className="-rotate-[28deg] whitespace-nowrap rounded-2xl border-[5px] border-rose-500/25 px-8 py-5 text-center text-[38px] font-black uppercase leading-tight tracking-[0.18em] text-rose-600/25">
+            Borrador
+            <br />
+            No válida
+          </div>
+        </div>
+      ) : null}
+      <OrderHeader
+        categoryMeta={categoryMeta}
+        patient={patient}
+        issuedAt={issuedAt}
+        isValidated={showSignature}
+      />
       <BodyExams
         pageTests={pageTests}
         category={category}
@@ -591,10 +618,12 @@ function OrderHeader({
   categoryMeta,
   patient,
   issuedAt,
+  isValidated,
 }: {
   categoryMeta: ReturnType<typeof getOrderCategoryMeta>;
   patient: SymptomsOrderDraft["patient"];
   issuedAt: string;
+  isValidated: boolean;
 }) {
   const age = calculateAgeFromBirthDate(patient?.birthDate || "");
   return (
@@ -610,7 +639,9 @@ function OrderHeader({
           className="veramed-print-logo h-20 w-auto object-contain"
         />
         <div className="text-right text-[12px] leading-5">
-          <p className="font-semibold text-slate-900">ORDEN MÉDICA DIGITAL</p>
+          <p className="font-semibold text-slate-900">
+            {isValidated ? "ORDEN MÉDICA DIGITAL" : "VISTA PREVIA — NO VÁLIDA"}
+          </p>
           <p>{issuedAt}</p>
         </div>
       </div>

@@ -11,33 +11,33 @@ const trustCards = [
   },
   {
     title: "Privacidad",
-    body: "Cada solicitud mantiene tus datos seguros y anónimos. Tu información de salud no es almacenada en nuestros servidores posterior a la emisión de la orden.",
+    body: "Los documentos clínicos se entregan mediante accesos autorizados y enlaces temporales, con controles diseñados para proteger tu información de salud.",
     tone: "slate",
   },
 ];
 
 export default function Trust() {
   return (
-    <section id="confianza" className="bg-white">
-      <div className="mx-auto max-w-6xl px-6 py-16 md:py-20">
+    <section id="confianza" className="border-y border-slate-200/80 bg-white/65">
+      <div className="mx-auto max-w-6xl px-6 py-20 md:py-24">
         <div className="max-w-3xl">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
-            Confianza clínica
-          </p>
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-            Tú salud en nuestras manos. 🙌
+          <p className="veramed-kicker">Confianza clínica</p>
+          <h2 className="mt-4 text-4xl font-semibold tracking-tight text-slate-950 md:text-5xl">
+            Tu salud merece procesos confiables.
           </h2>
           <p className="mt-4 text-sm leading-7 text-slate-600">
-            Veramed busca construir confianza desde la claridad: qué hace, qué no hace y bajo qué
-            condiciones una orden puede considerarse lista para uso.
+            Veramed busca construir confianza desde la claridad:{" "}
+            <br className="hidden sm:block" />
+            qué hace, qué no hace y bajo qué condiciones una orden puede considerarse lista para
+            uso.
           </p>
         </div>
 
-        <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-12 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {trustCards.map((card) => (
             <article
               key={card.title}
-              className={`rounded-[1.75rem] border p-5 ${
+              className={`rounded-[2rem] border p-7 shadow-[0_24px_70px_-54px_rgba(15,23,42,0.4)] ${
                 card.tone === "rose"
                   ? "border-rose-200 bg-rose-50"
                   : card.tone === "emerald"
@@ -45,10 +45,10 @@ export default function Trust() {
                     : "border-slate-200 bg-slate-50"
               }`}
             >
-              <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white">
+              <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/70 bg-white shadow-sm">
                 <TrustIcon tone={card.tone} />
               </div>
-              <p className="mt-4 text-sm font-semibold text-slate-950">{card.title}</p>
+              <p className="mt-6 text-lg font-semibold tracking-tight text-slate-950">{card.title}</p>
               {card.title === "Órdenes validadas por médicos registrados en SIS" ? (
                 <p className="mt-3 text-sm leading-6 text-slate-600">
                   Todas las órdenes son validadas previo a su emisión por médicos registrados en la

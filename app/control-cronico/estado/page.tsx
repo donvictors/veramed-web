@@ -63,7 +63,7 @@ export default function ChronicControlStatusPage() {
   }, [requestId, resolved, router]);
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
+    <main className="veramed-page min-h-screen bg-slate-50 text-slate-900">
       <div className="mx-auto max-w-4xl px-6 py-10 md:py-12">
         <div className="max-w-3xl">
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">

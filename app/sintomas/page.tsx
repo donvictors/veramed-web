@@ -37,6 +37,7 @@ type AntecedentMessage = {
 };
 
 type InterpretationPayload = {
+  requestId: string;
   interpretation: SymptomsInterpretation;
   engineVersion: string;
   aiConsentVersion: string;
@@ -69,7 +70,7 @@ const PROCESSING_BASE_DELAYS_MS = [1200, 1450, 1300, 1550, 1200];
 const ANTECEDENT_QUESTIONS: Array<{ key: AntecedentKey; prompt: string }> = [
   {
     key: "medicalHistory",
-    prompt: "¿Tienes alguna enfermedad?",
+    prompt: "¿Tienes alguna enfermedad? ¿cuál?",
   },
   {
     key: "surgicalHistory",
@@ -77,7 +78,7 @@ const ANTECEDENT_QUESTIONS: Array<{ key: AntecedentKey; prompt: string }> = [
   },
   {
     key: "chronicMedication",
-    prompt: "¿Tomas algún medicamento de forma crónica?",
+    prompt: "¿Tomas algún medicamento de forma crónica? ¿cual/cuales?",
   },
   {
     key: "smoking",
@@ -93,7 +94,7 @@ const ANTECEDENT_QUESTIONS: Array<{ key: AntecedentKey; prompt: string }> = [
   },
 ];
 const ANTECEDENT_INTRO_MESSAGE =
-  "Antes de continuar, te haré unas preguntas para conocer tus antecedentes médicos.";
+  "Te haré unas preguntas para conocer tus antecedentes primero 😊.";
 const ANTECEDENT_INTRO_FIRST_DELAY_MS = 360;
 const ANTECEDENT_INTRO_SECOND_DELAY_MS = 1150;
 
@@ -118,12 +119,6 @@ function normalizeBirthDateInput(nextValue: string) {
   }
 
   return `${year.slice(-4)}-${month}-${day}`;
-}
-
-function createSymptomsRequestId(timestamp = Date.now()) {
-  const now = timestamp.toString(36);
-  const rand = Math.random().toString(36).slice(2, 8);
-  return `sym_${now}${rand}`.slice(0, 26);
 }
 
 function buildAntecedentMessagesForIndex(
@@ -185,6 +180,7 @@ export default function SintomasPage() {
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [consentToAiProcessing, setConsentToAiProcessing] = useState(false);
+  const [urgencyAcknowledged, setUrgencyAcknowledged] = useState(false);
   const [status, setStatus] = useState<ProcessingState>("idle");
   const [progress, setProgress] = useState(0);
   const [messageIndex, setMessageIndex] = useState(0);
@@ -327,6 +323,7 @@ export default function SintomasPage() {
     setProgress(8);
     setMessageIndex(0);
     setResult(null);
+    setUrgencyAcknowledged(false);
     setError("");
 
     try {
@@ -337,6 +334,14 @@ export default function SintomasPage() {
         },
         body: JSON.stringify({
           symptomsText: symptomsText.trim(),
+          patient: {
+            fullName: joinPatientFullName(nameFields),
+            rut,
+            birthDate,
+            email,
+            phone,
+            address,
+          },
           antecedents: antecedentAnswers,
           patientContext: {
             sex,
@@ -370,11 +375,10 @@ export default function SintomasPage() {
       }
 
       const finalizedPayload: InterpretationPayload = payload;
-      const requestId = createSymptomsRequestId();
       window.sessionStorage.setItem(
         finalizedPayload.nextStep?.storageKey ?? STORAGE_KEY,
         JSON.stringify({
-          requestId,
+          requestId: finalizedPayload.requestId,
           input: symptomsText.trim(),
           patient: {
             fullName: joinPatientFullName(nameFields),
@@ -556,6 +560,9 @@ export default function SintomasPage() {
   }
 
   function handleContinue() {
+    if (result?.interpretation.urgencyWarning && !urgencyAcknowledged) {
+      return;
+    }
     router.push("/sintomas/pago");
   }
 
@@ -569,6 +576,7 @@ export default function SintomasPage() {
     setProgress(0);
     setMessageIndex(0);
     setResult(null);
+    setUrgencyAcknowledged(false);
     setError("");
     setAntecedentMessages([]);
     setAntecedentInput("");
@@ -589,7 +597,7 @@ export default function SintomasPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
+    <main className="veramed-page min-h-screen bg-slate-50 text-slate-900">
       <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
         <div className="absolute inset-x-0 top-0 h-[28rem] bg-[radial-gradient(circle_at_top,_rgba(15,23,42,0.08),_transparent_60%)]" />
         <div className="absolute left-[-8rem] top-40 h-64 w-64 rounded-full bg-emerald-100/60 blur-3xl" />
@@ -638,7 +646,7 @@ export default function SintomasPage() {
 
               <div className="mt-6 rounded-3xl bg-slate-50 p-5">
                 <p className="text-sm font-semibold text-slate-900">
-                  Y rellena tus datos para poder emitir tu receta
+                  Y completa tus datos para poder emitir tu orden
                 </p>
 
                 <div className="mt-5 grid gap-5">
@@ -749,9 +757,10 @@ export default function SintomasPage() {
                   className="mt-1 h-4 w-4 rounded border-slate-300"
                 />
                 <span>
-                  Autorizo que Veramed envíe mi relato, antecedentes, edad y sexo a OpenAI para
-                  obtener una orientación inicial asistida por IA. No se envían mi nombre, RUT ni
-                  datos de contacto; la orden final será revisada por un médico.
+                  Autorizo a Veramed a usar mi relato, antecedentes, edad y sexo mediante su modelo
+                  propietario de LLM para obtener una orientación clínica inicial. Entiendo que la
+                  orden final será revisada por un médico, pero esto no reemplaza la atención
+                  clínica directa realizada por un profesional de la salud.
                 </span>
               </label>
 
@@ -771,7 +780,9 @@ export default function SintomasPage() {
             </form>
           ) : status === "antecedents" ? (
             <div>
-              <p className="text-sm font-semibold text-slate-700">Antecedentes clínicos</p>
+              <p className="text-sm font-semibold text-slate-700">
+                Antes de continuar, cuéntanos un poco de tus antecedentes...
+              </p>
               <div className="mt-4 rounded-3xl border border-slate-200 bg-slate-50 p-4">
                 <div
                   ref={antecedentChatViewportRef}
@@ -944,10 +955,25 @@ export default function SintomasPage() {
               <p className="mt-4 text-sm leading-7 text-slate-700">{result?.interpretation.guidanceText}</p>
 
               {result?.interpretation.urgencyWarning ? (
-                <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                  Detectamos términos que podrían corresponder a síntomas de alarma. Si te sientes en
-                  riesgo o con empeoramiento rápido, busca atención presencial de urgencia.
-                </p>
+                <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-4 text-sm text-amber-950">
+                  <p className="font-semibold">Tu relato contiene posibles señales de alarma.</p>
+                  <p className="mt-1 leading-6">
+                    Te recomendamos consultar con un médico a la brevedad. Si te sientes en riesgo o
+                    empeoras rápidamente, acude a un servicio de urgencia. Puedes continuar y solicitar
+                    una orden de exámenes si así lo decides.
+                  </p>
+                  <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-lg border border-amber-300 bg-white/70 p-3 font-medium">
+                    <input
+                      type="checkbox"
+                      checked={urgencyAcknowledged}
+                      onChange={(event) => setUrgencyAcknowledged(event.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-amber-400"
+                    />
+                    <span>
+                      Entiendo esta advertencia y deseo continuar con la solicitud de todas formas.
+                    </span>
+                  </label>
+                </div>
               ) : null}
 
               <p className="mt-4 rounded-2xl border-2 border-emerald-200 bg-emerald-50/60 px-4 py-3 text-sm text-slate-700 ring-1 ring-emerald-100">
@@ -961,7 +987,8 @@ export default function SintomasPage() {
                 <button
                   type="button"
                   onClick={handleContinue}
-                  className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  disabled={Boolean(result?.interpretation.urgencyWarning && !urgencyAcknowledged)}
+                  className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
                 >
                   Continuar con evaluación
                 </button>

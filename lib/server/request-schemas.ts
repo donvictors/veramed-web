@@ -100,6 +100,7 @@ export const symptomsAntecedentsSchema = z
 export const interpretSymptomsSchema = z
   .object({
     symptomsText: trimmed(12, 4_000),
+    patient: patientSchema,
     antecedents: symptomsAntecedentsSchema.partial().optional().default({}),
     patientContext: z
       .object({

@@ -309,6 +309,7 @@ export async function createOrUpdateSymptomsDraft(input: {
   aiProvider: string;
 }) {
   const symptomsRequest = getSymptomsRequestDelegate();
+  const initialFollowUpQuestions = input.interpretation.followUpQuestions.slice(0, 1);
   const created = await (symptomsRequest.upsert as (args: unknown) => Promise<unknown>)({
     where: { id: input.id },
     update: {
@@ -321,7 +322,7 @@ export async function createOrUpdateSymptomsDraft(input: {
       ...serializePatient(input.patient),
       antecedents: input.antecedents,
       interpretation: input.interpretation,
-      followUpQuestions: input.interpretation.followUpQuestions,
+      followUpQuestions: initialFollowUpQuestions,
       engineVersion: input.engineVersion,
       cachedInput: input.cachedInput,
       aiConsentAt: input.aiConsentAt,
@@ -340,7 +341,7 @@ export async function createOrUpdateSymptomsDraft(input: {
       ...serializePatient(input.patient),
       antecedents: input.antecedents,
       interpretation: input.interpretation,
-      followUpQuestions: input.interpretation.followUpQuestions,
+      followUpQuestions: initialFollowUpQuestions,
       followUpAnswers: {},
       suggestedTests: [],
       selectedTests: [],
@@ -475,6 +476,103 @@ export async function markSymptomsInFlow(requestId: string) {
   });
   if (!updated) throw new Error("Solicitud de síntomas no encontrada.");
   return toRecord(updated);
+}
+
+export async function saveSymptomsInterviewTurn(input: {
+  requestId: string;
+  expectedQuestionIndex: number;
+  answer: string;
+  nextQuestion: string;
+  oneLinerSummary: string;
+  urgencyWarning: boolean;
+  urgencyGuidance: string;
+}) {
+  return prisma.$transaction(async (tx) => {
+    const current = await tx.symptomsRequest.findUnique({
+      where: { id: input.requestId },
+      include: { payment: true },
+    });
+    if (!current) throw new Error("Solicitud de síntomas no encontrada.");
+    if (current.payment?.status !== PaymentStatusDb.paid) {
+      throw new Error("La solicitud aún no tiene pago confirmado.");
+    }
+    if (
+      current.reviewStatus !== SymptomsRequestStatusDb.paid &&
+      current.reviewStatus !== SymptomsRequestStatusDb.in_flow
+    ) {
+      throw new Error("La entrevista ya fue cerrada y no admite nuevas respuestas.");
+    }
+
+    const questions = asStringArray(current.followUpQuestions);
+    const answers = asAnswers(current.followUpAnswers);
+    const answerKey = `q_${input.expectedQuestionIndex}`;
+    const normalizedAnswer = input.answer.trim();
+    const existingAnswer = answers[answerKey]?.trim();
+
+    if (existingAnswer) {
+      if (existingAnswer === normalizedAnswer) {
+        return toRecord(current);
+      }
+      throw new Error("Esta pregunta ya fue respondida.");
+    }
+
+    const nextUnansweredIndex = questions.findIndex((_, index) => !answers[`q_${index}`]?.trim());
+    if (
+      nextUnansweredIndex < 0 ||
+      nextUnansweredIndex !== input.expectedQuestionIndex ||
+      !questions[input.expectedQuestionIndex]
+    ) {
+      throw new Error("La entrevista cambió en otra sesión. Recarga para continuar.");
+    }
+
+    const nextAnswers = {
+      ...answers,
+      [answerKey]: normalizedAnswer,
+    };
+    const nextQuestions = questions.slice(0, input.expectedQuestionIndex + 1);
+    const cleanNextQuestion = input.nextQuestion.trim();
+    if (cleanNextQuestion) {
+      nextQuestions.push(cleanNextQuestion);
+    }
+
+    const currentInterpretation = asInterpretation(current.interpretation);
+    const urgencyWarning = currentInterpretation.urgencyWarning || input.urgencyWarning;
+    const updatedInterpretation: SymptomsInterpretation = {
+      ...currentInterpretation,
+      oneLinerSummary: input.oneLinerSummary.trim() || currentInterpretation.oneLinerSummary,
+      urgencyWarning,
+      guidanceText:
+        urgencyWarning && input.urgencyGuidance.trim()
+          ? input.urgencyGuidance.trim()
+          : currentInterpretation.guidanceText,
+    };
+
+    const changed = await tx.symptomsRequest.updateMany({
+      where: {
+        id: input.requestId,
+        updatedAt: current.updatedAt,
+        reviewStatus: { in: [SymptomsRequestStatusDb.paid, SymptomsRequestStatusDb.in_flow] },
+        payment: { is: { status: PaymentStatusDb.paid } },
+      },
+      data: {
+        followUpQuestions: nextQuestions,
+        followUpAnswers: nextAnswers,
+        oneLinerSummary: updatedInterpretation.oneLinerSummary,
+        interpretation: updatedInterpretation,
+        reviewStatus: SymptomsRequestStatusDb.in_flow,
+      },
+    });
+    if (changed.count !== 1) {
+      throw new Error("La entrevista cambió en otra sesión. Recarga para continuar.");
+    }
+
+    const updated = await tx.symptomsRequest.findUnique({
+      where: { id: input.requestId },
+      include: { payment: true },
+    });
+    if (!updated) throw new Error("Solicitud de síntomas no encontrada.");
+    return toRecord(updated);
+  });
 }
 
 export async function saveSymptomsOrderDraft(input: {

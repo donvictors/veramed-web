@@ -61,17 +61,17 @@ export default function PreventiveCheckupArticlePage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
-      <div className="mx-auto max-w-4xl px-6 py-12">
+    <main className="veramed-page min-h-screen bg-slate-50 text-slate-900">
+      <div className="mx-auto max-w-4xl px-6 py-16 md:py-24">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(medicalWebPageJsonLd) }}
         />
-        <article className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-[0_22px_70px_-48px_rgba(15,23,42,0.45)]">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
+        <article className="veramed-panel overflow-hidden p-7 md:p-10">
+          <p className="veramed-kicker">
             Prevención
           </p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950">
+          <h1 className="veramed-display mt-4 text-4xl md:text-5xl">
             Chequeo preventivo: qué exámenes hacerte según tú edad
           </h1>
           <p className="mt-4 text-sm text-slate-500">04 marzo 2026</p>

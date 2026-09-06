@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { TestItem } from "@/lib/checkup";
 
 type RequestDetailPayload = {
@@ -17,6 +17,7 @@ type RequestDetailPayload = {
       fullName: string;
       rut: string;
       birthDate: string;
+      sex: "female" | "male" | "";
       email: string;
       phone: string;
       address: string;
@@ -26,6 +27,16 @@ type RequestDetailPayload = {
     selectedTests: TestItem[];
     followUpQuestions: string[];
     followUpAnswers: Record<string, string>;
+    interpretation: {
+      probableContext: string;
+      consultationFrame: string;
+      tags: string[];
+      urgencyWarning: boolean;
+      guidanceText: string;
+    };
+    engineVersion: string;
+    aiProvider?: string;
+    notes: string[];
     validatedByEmail?: string;
     validatedAt?: number;
     signedPdfLinks?: Array<{
@@ -42,6 +53,19 @@ type RequestDetailPayload = {
 };
 
 const EMPTY_EXAM_CATALOG: RequestDetailPayload["examCatalog"] = [];
+
+const ANTECEDENT_LABELS: Array<[string, string]> = [
+  ["medicalHistory", "Antecedentes médicos"],
+  ["surgicalHistory", "Antecedentes quirúrgicos"],
+  ["chronicMedication", "Medicamentos crónicos"],
+  ["allergies", "Alergias"],
+  ["smoking", "Tabaco"],
+  ["alcoholUse", "Alcohol"],
+  ["drugUse", "Drogas"],
+  ["sexualActivity", "Actividad sexual"],
+  ["firstDegreeFamilyHistory", "Antecedentes familiares"],
+  ["occupation", "Ocupación"],
+];
 
 function formatDateTime(value?: number) {
   if (!value) return "No informado";
@@ -67,6 +91,7 @@ export default function ReviewSymptomsOrderClient({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedNames, setSelectedNames] = useState<Set<string>>(new Set());
   const [catalogFilter, setCatalogFilter] = useState("");
+  const [showClinicalDetails, setShowClinicalDetails] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -226,7 +251,126 @@ export default function ReviewSymptomsOrderClient({
         <p>
           <span className="font-semibold text-slate-800">Resumen:</span> {request.oneLinerSummary}
         </p>
+        <div className="flex items-center justify-between gap-3 border-t border-slate-200 pt-3 md:col-span-2">
+          <p className="text-xs text-slate-500">
+            La ficha completa incluye relato, antecedentes y entrevista clínica.
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowClinicalDetails((current) => !current)}
+            aria-expanded={showClinicalDetails}
+            aria-controls="clinical-request-details"
+            className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 transition hover:border-emerald-300 hover:text-emerald-800"
+          >
+            <EyeIcon open={showClinicalDetails} />
+            {showClinicalDetails ? "Ocultar información" : "Ver toda la información"}
+          </button>
+        </div>
       </div>
+
+      {showClinicalDetails ? (
+        <section
+          id="clinical-request-details"
+          className="mt-4 space-y-5 rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4 md:p-5"
+        >
+          {request.interpretation.urgencyWarning ? (
+            <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+              <p className="font-semibold">La interpretación inicial detectó una posible alerta.</p>
+              <p className="mt-1 leading-6">
+                Revisa especialmente el relato original y las respuestas antes de validar.
+              </p>
+            </div>
+          ) : null}
+
+          <ClinicalDetailBlock title="Datos del paciente">
+            <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+              <ClinicalDatum label="Nombre" value={request.patient.fullName} />
+              <ClinicalDatum label="RUT" value={request.patient.rut} />
+              <ClinicalDatum label="Fecha de nacimiento" value={request.patient.birthDate} />
+              <ClinicalDatum
+                label="Sexo"
+                value={
+                  request.patient.sex === "female"
+                    ? "Femenino"
+                    : request.patient.sex === "male"
+                      ? "Masculino"
+                      : "No informado"
+                }
+              />
+              <ClinicalDatum label="Correo" value={request.patient.email || "No informado"} />
+              <ClinicalDatum label="Teléfono" value={request.patient.phone || "No informado"} />
+              <ClinicalDatum label="Dirección" value={request.patient.address || "No informada"} />
+            </dl>
+          </ClinicalDetailBlock>
+
+          <ClinicalDetailBlock title="Relato original">
+            <p className="whitespace-pre-wrap text-sm leading-7 text-slate-800">
+              {request.symptomsText}
+            </p>
+          </ClinicalDetailBlock>
+
+          <ClinicalDetailBlock title="Interpretación inicial">
+            <dl className="grid gap-3 text-sm md:grid-cols-2">
+              <ClinicalDatum label="Contexto probable" value={request.interpretation.probableContext} />
+              <ClinicalDatum label="Marco de consulta" value={request.interpretation.consultationFrame} />
+              <ClinicalDatum
+                label="Síntomas secundarios"
+                value={request.secondarySymptoms.join(", ") || "No reportados"}
+              />
+              <ClinicalDatum
+                label="Etiquetas"
+                value={request.interpretation.tags.join(", ") || "Sin etiquetas"}
+              />
+              <ClinicalDatum label="Motor" value={request.engineVersion || "No informado"} />
+              <ClinicalDatum label="Proveedor" value={request.aiProvider || "Motor local"} />
+            </dl>
+            <p className="mt-3 text-sm leading-7 text-slate-700">
+              {request.interpretation.guidanceText}
+            </p>
+          </ClinicalDetailBlock>
+
+          <ClinicalDetailBlock title="Antecedentes declarados">
+            <dl className="grid gap-3 text-sm md:grid-cols-2">
+              {ANTECEDENT_LABELS.map(([key, label]) => (
+                <ClinicalDatum
+                  key={key}
+                  label={label}
+                  value={request.antecedents[key]?.trim() || "No reportado"}
+                />
+              ))}
+            </dl>
+          </ClinicalDetailBlock>
+
+          <ClinicalDetailBlock title="Entrevista de seguimiento">
+            <ol className="space-y-3">
+              {request.followUpQuestions.map((question, index) => (
+                <li key={`${index}-${question}`} className="rounded-xl border border-slate-200 bg-white p-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                    Pregunta {index + 1}
+                  </p>
+                  <p className="mt-1 text-sm font-medium text-slate-900">{question}</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-700">
+                    {request.followUpAnswers[`q_${index}`]?.trim() || "Sin respuesta"}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          </ClinicalDetailBlock>
+
+          {request.notes.length > 0 ? (
+            <ClinicalDetailBlock title="Notas del motor">
+              <ul className="space-y-2 text-sm leading-6 text-slate-700">
+                {request.notes.map((note, index) => (
+                  <li key={`${index}-${note}`} className="flex gap-2">
+                    <span aria-hidden="true">•</span>
+                    <span>{note}</span>
+                  </li>
+                ))}
+              </ul>
+            </ClinicalDetailBlock>
+          ) : null}
+        </section>
+      ) : null}
 
       <div className="mt-6 rounded-2xl border border-slate-200 p-4">
         <p className="text-sm font-semibold text-slate-900">Exámenes sugeridos por IA</p>
@@ -386,5 +530,37 @@ export default function ReviewSymptomsOrderClient({
         </p>
       ) : null}
     </section>
+  );
+}
+
+function EyeIcon({ open }: { open: boolean }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d={open ? "M4 4l16 16M10.6 10.7a2 2 0 0 0 2.7 2.7M9.9 4.3A10.9 10.9 0 0 1 12 4c5 0 8.5 4.3 9.5 6-.5.9-1.7 2.5-3.4 3.8M6.6 6.6C4.5 8 3.1 10 2.5 11c1 1.7 4.5 6 9.5 6 1.2 0 2.3-.2 3.3-.6" : "M2.5 12S6 6 12 6s9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Zm9.5 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"}
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ClinicalDetailBlock({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white/85 p-4">
+      <h2 className="text-sm font-semibold text-slate-950">{title}</h2>
+      <div className="mt-3">{children}</div>
+    </div>
+  );
+}
+
+function ClinicalDatum({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">{label}</dt>
+      <dd className="mt-1 break-words text-sm leading-6 text-slate-800">{value}</dd>
+    </div>
   );
 }

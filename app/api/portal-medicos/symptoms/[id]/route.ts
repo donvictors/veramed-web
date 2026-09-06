@@ -82,6 +82,10 @@ export async function GET(request: Request, context: Params) {
       selectedTests: record.selectedTests.length > 0 ? record.selectedTests : record.suggestedTests,
       followUpQuestions: record.followUpQuestions,
       followUpAnswers: record.followUpAnswers,
+      interpretation: record.interpretation,
+      engineVersion: record.engineVersion,
+      aiProvider: record.aiProvider,
+      notes: record.notes,
       validatedByEmail: record.validatedByEmail,
       validatedAt: record.validatedAt,
       signedPdfLinks: signedLinks.map((asset) => ({

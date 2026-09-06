@@ -112,7 +112,7 @@ export default function AccountProfileEditPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-slate-50 text-slate-900">
+      <main className="veramed-page min-h-screen bg-slate-50 text-slate-900">
         <div className="mx-auto max-w-4xl px-6 py-10 md:py-12">
           <p className="text-sm text-slate-600">Cargando datos...</p>
         </div>
@@ -121,7 +121,7 @@ export default function AccountProfileEditPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
+    <main className="veramed-page min-h-screen bg-slate-50 text-slate-900">
       <div className="mx-auto max-w-4xl px-6 py-10 md:py-12">
         <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_22px_70px_-48px_rgba(15,23,42,0.45)]">
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">

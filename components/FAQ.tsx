@@ -60,21 +60,21 @@ export default function FAQ() {
   }, []);
 
   return (
-    <section id="faq" className="border-t border-slate-200 bg-slate-50">
-      <div className="mx-auto max-w-6xl px-6 py-16 md:py-20">
+    <section id="faq">
+      <div className="mx-auto max-w-6xl px-6 py-20 md:py-24">
         <div className="max-w-3xl">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">FAQ</p>
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-            Preguntas frecuentes. ❓
+          <p className="veramed-kicker">Preguntas frecuentes</p>
+          <h2 className="mt-4 text-4xl font-semibold tracking-tight text-slate-950 md:text-5xl">
+            Respuestas antes de comenzar.
           </h2>
         </div>
 
-        <div className="mt-10 grid gap-4">
+        <div className="mt-12 grid gap-3">
           {faqs.map((faq) => (
             <details
               key={faq.id}
               id={faq.id}
-              className="group rounded-[1.5rem] border border-slate-200 bg-white p-5"
+              className="group rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-[0_18px_60px_-52px_rgba(15,23,42,0.4)] open:border-emerald-200 md:px-6"
             >
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-left text-base font-semibold text-slate-950">
                 {faq.question}

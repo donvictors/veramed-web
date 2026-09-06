@@ -10,6 +10,7 @@ import {
   hasValidRequestAccessCookie,
 } from "@/lib/server/request-access";
 import { buildSymptomsOrderFromEngine } from "@/lib/server/symptoms-order-engine";
+import { MIN_INTERVIEW_TURNS } from "@/lib/server/symptoms-interview";
 import { toSymptomsOrderDraftFromRecord } from "@/lib/server/symptoms-order-mapper";
 import { suggestSymptomsExamsWithOpenAI } from "@/lib/server/symptoms-openai";
 import { getSymptomsRequest, saveSymptomsOrderDraft } from "@/lib/server/symptoms-store";
@@ -24,11 +25,7 @@ import {
 
 const buildOrderBodySchema = z.object({
   requestId: z.string().min(1).max(100),
-  answers: z.record(z.string().max(100), z.string().max(2_000)).refine(
-    (answers) => Object.keys(answers).length <= 30,
-    "Demasiadas respuestas.",
-  ).default({}),
-});
+}).strict();
 
 function mapFollowUpToPairs(questions: string[], answers: SymptomsFlowAnswerMap) {
   return questions.map((question, index) => ({
@@ -135,7 +132,18 @@ export async function POST(request: Request) {
     );
   }
 
-  const followUpAnswers = parsed.data.answers;
+  const followUpAnswers = requestRecord.followUpAnswers;
+  const interviewComplete =
+    requestRecord.followUpQuestions.length >= MIN_INTERVIEW_TURNS &&
+    requestRecord.followUpQuestions.every(
+      (_, index) => Boolean(followUpAnswers[`q_${index}`]?.trim()),
+    );
+  if (!interviewComplete) {
+    return NextResponse.json(
+      { error: "Completa la entrevista clínica antes de generar la orden." },
+      { status: 409 },
+    );
+  }
   const followUpQA = mapFollowUpToPairs(requestRecord.followUpQuestions, followUpAnswers);
 
   try {
