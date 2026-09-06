@@ -77,7 +77,8 @@ test("síntomas exige consentimiento y limita los datos enviados a IA", () => {
   assert.match(schema, /consentToAiProcessing:\s*z\.literal\(true\)/);
   assert.match(schema, /symptomsText:\s*trimmed\(12,\s*4_000\)/);
   assert.match(route, /symptoms:interpret/);
-  assert.match(client, /No se envían mi nombre, RUT ni/);
+  assert.match(client, /modelo\s+propietario de LLM/);
+  assert.match(client, /no reemplaza la atención\s+clínica directa/);
 });
 
 test("la interpretación de síntomas se persiste en servidor antes del pago", () => {
