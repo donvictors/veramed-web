@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -8,7 +9,6 @@ export default function MedicosLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [totpCode, setTotpCode] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -26,7 +26,6 @@ export default function MedicosLoginPage() {
         body: JSON.stringify({
           email,
           password,
-          totpCode: totpCode || undefined,
         }),
       });
 
@@ -74,20 +73,6 @@ export default function MedicosLoginPage() {
             </label>
 
             <label className="grid gap-2">
-              <span className="text-sm font-medium text-slate-800">
-                Código de autenticación <span className="font-normal text-slate-500">(si está activado)</span>
-              </span>
-              <input
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                value={totpCode}
-                onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                placeholder="000000"
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
-              />
-            </label>
-
-            <label className="grid gap-2">
               <span className="text-sm font-medium text-slate-800">Contraseña</span>
               <input
                 type="password"
@@ -106,6 +91,13 @@ export default function MedicosLoginPage() {
             >
               {isSubmitting ? "Ingresando..." : "Ingresar al portal"}
             </button>
+
+            <Link
+              href="/medicos-login/recuperar-contrasena"
+              className="inline-flex w-full items-center justify-center rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-800 transition hover:border-slate-400 hover:bg-slate-50"
+            >
+              Recuperar contraseña
+            </Link>
 
             {error ? <p className="text-sm font-medium text-rose-600">{error}</p> : null}
           </form>

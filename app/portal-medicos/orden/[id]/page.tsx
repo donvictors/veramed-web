@@ -21,11 +21,5 @@ export default async function ReviewSymptomsOrderPage(context: Params) {
 
   const { id } = await context.params;
 
-  return (
-    <main className="veramed-page min-h-screen bg-slate-50 text-slate-900">
-      <div className="mx-auto max-w-5xl px-6 py-12 md:py-16">
-        <ReviewSymptomsOrderClient requestId={id} doctorEmail={session.email} />
-      </div>
-    </main>
-  );
+  return <ReviewSymptomsOrderClient requestId={id} doctorEmail={session.email} />;
 }

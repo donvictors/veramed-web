@@ -98,11 +98,11 @@ export default function PortalMedicosClient({ doctorEmail }: { doctorEmail: stri
   const rows = tab === "pending" ? payload?.pending ?? [] : payload?.validated ?? [];
 
   return (
-    <section className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-[0_22px_70px_-48px_rgba(15,23,42,0.45)]">
+    <section className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-[0_22px_70px_-48px_rgba(15,23,42,0.45)] sm:p-8">
       <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
         Portal médicos
       </p>
-      <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950">
+      <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
         Consola de validación clínica
       </h1>
       <p className="mt-2 text-sm text-slate-600">Sesión activa: {doctorEmail}</p>
@@ -181,7 +181,7 @@ export default function PortalMedicosClient({ doctorEmail }: { doctorEmail: stri
         </p>
       ) : (
         <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200">
-          <div className="grid grid-cols-[1.1fr_1.1fr_1.2fr_0.9fr_0.7fr] gap-3 bg-slate-100 px-4 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">
+          <div className="hidden grid-cols-[1.1fr_1.1fr_1.2fr_0.9fr_0.7fr] gap-3 bg-slate-100 px-4 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-slate-600 md:grid">
             <p>Código</p>
             <p>Paciente</p>
             <p>Síntoma principal</p>
@@ -195,7 +195,7 @@ export default function PortalMedicosClient({ doctorEmail }: { doctorEmail: stri
               return (
                 <div
                   key={row.id}
-                  className="grid grid-cols-[1.1fr_1.1fr_1.2fr_0.9fr_0.7fr] gap-3 px-4 py-4 text-sm"
+                  className="grid gap-3 px-4 py-4 text-sm md:grid-cols-[1.1fr_1.1fr_1.2fr_0.9fr_0.7fr]"
                 >
                   <div>
                     <p className="font-semibold text-slate-900">{row.id}</p>
@@ -209,8 +209,8 @@ export default function PortalMedicosClient({ doctorEmail }: { doctorEmail: stri
                       )}
                     </p>
                   </div>
-                  <p className="text-slate-800">{row.patientName}</p>
-                  <p className="text-slate-700">{row.primarySymptom}</p>
+                  <p className="text-slate-800"><span className="mr-2 text-xs font-semibold uppercase tracking-wide text-slate-400 md:hidden">Paciente</span>{row.patientName}</p>
+                  <p className="text-slate-700"><span className="mr-2 text-xs font-semibold uppercase tracking-wide text-slate-400 md:hidden">Síntoma</span>{row.primarySymptom}</p>
                   <div
                     className={`inline-flex h-fit items-center rounded-full px-3 py-1 text-xs font-semibold ${
                       isPending

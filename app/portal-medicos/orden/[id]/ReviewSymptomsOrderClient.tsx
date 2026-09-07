@@ -184,7 +184,7 @@ export default function ReviewSymptomsOrderClient({
         router.refresh();
         return;
       }
-      router.push("/portal-medicos");
+      router.push("/portal-medicos/validar-ordenes");
       router.refresh();
     } catch (validationError) {
       setSubmitError(
@@ -207,7 +207,7 @@ export default function ReviewSymptomsOrderClient({
     return (
       <section className="rounded-[2rem] border border-slate-200 bg-white p-8">
         <p className="text-sm text-rose-600">{error || "No encontramos la orden solicitada."}</p>
-        <Link href="/portal-medicos" className="mt-4 inline-flex text-sm font-semibold underline">
+        <Link href="/portal-medicos/validar-ordenes" className="mt-4 inline-flex text-sm font-semibold underline">
           Volver al portal
         </Link>
       </section>

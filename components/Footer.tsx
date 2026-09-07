@@ -1,7 +1,16 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import BrandLogo from "./BrandLogo";
 
 export default function Footer() {
+  const pathname = usePathname();
+
+  if (pathname === "/portal-medicos" || pathname.startsWith("/portal-medicos/")) {
+    return null;
+  }
+
   return (
     <footer className="border-t border-white/10 bg-slate-950 text-white print:hidden">
       <div className="mx-auto max-w-6xl px-6 py-14 md:py-16">

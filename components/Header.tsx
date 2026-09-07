@@ -49,6 +49,10 @@ export default function Header() {
     };
   }, []);
 
+  if (pathname === "/portal-medicos" || pathname.startsWith("/portal-medicos/")) {
+    return null;
+  }
+
   if (isCompactFlowHeader) {
     return (
       <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 shadow-[0_12px_34px_-30px_rgba(15,23,42,0.5)] backdrop-blur-xl print:hidden">

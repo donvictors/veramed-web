@@ -4,7 +4,10 @@ type ResetPayload = {
   uid: string;
   exp: number;
   pf: string;
+  purpose?: PasswordResetPurpose;
 };
+
+export type PasswordResetPurpose = "patient" | "medical";
 
 const RESET_VERSION = "v1";
 const RESET_TTL_MS = 1000 * 60 * 30;
@@ -29,11 +32,16 @@ function sign(payloadPart: string) {
   return createHmac("sha256", getSecret()).update(payloadPart).digest("base64url");
 }
 
-export function createPasswordResetToken(input: { userId: string; passwordHash: string }) {
+export function createPasswordResetToken(input: {
+  userId: string;
+  passwordHash: string;
+  purpose?: PasswordResetPurpose;
+}) {
   const payload: ResetPayload = {
     uid: input.userId,
     exp: Date.now() + RESET_TTL_MS,
     pf: input.passwordHash.slice(0, 16),
+    purpose: input.purpose ?? "patient",
   };
   const payloadPart = toBase64Url(JSON.stringify(payload));
   const signature = sign(payloadPart);
@@ -43,6 +51,7 @@ export function createPasswordResetToken(input: { userId: string; passwordHash: 
 export function verifyPasswordResetToken(
   token: string,
   currentPasswordHash: string,
+  expectedPurpose: PasswordResetPurpose = "patient",
 ): { ok: true; userId: string } | { ok: false } {
   const [payloadPart, signature] = token.split(".");
   if (!payloadPart || !signature) return { ok: false };
@@ -68,6 +77,8 @@ export function verifyPasswordResetToken(
   if (!payload?.uid || !payload?.exp || !payload?.pf) return { ok: false };
   if (Date.now() > payload.exp) return { ok: false };
   if (payload.pf !== currentPasswordHash.slice(0, 16)) return { ok: false };
+  // Tokens antiguos no incluían propósito y solo son válidos para pacientes.
+  if ((payload.purpose ?? "patient") !== expectedPurpose) return { ok: false };
 
   return { ok: true, userId: payload.uid };
 }

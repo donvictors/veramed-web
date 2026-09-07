@@ -57,6 +57,24 @@ test("las sesiones se guardan como hash y el portal médico usa sesiones revocab
   assert.doesNotMatch(medicalAuth, /veramed-medicos-dev-secret/);
 });
 
+test("la recuperación médica usa tokens aislados, temporales y revoca sesiones", () => {
+  const loginPage = read("app/medicos-login/page.tsx");
+  const forgotRoute = read("app/api/medicos-auth/password/forgot/route.ts");
+  const resetRoute = read("app/api/medicos-auth/password/reset/route.ts");
+  const tokenService = read("lib/server/password-reset.ts");
+
+  assert.doesNotMatch(loginPage, /Código de autenticación/);
+  assert.match(loginPage, /\/medicos-login\/recuperar-contrasena/);
+  assert.match(forgotRoute, /purpose: "medical"/);
+  assert.match(forgotRoute, /GENERIC_RESPONSE/);
+  assert.match(forgotRoute, /enforceRateLimit/);
+  assert.match(resetRoute, /"medical"/);
+  assert.match(resetRoute, /medicalPortalSession\.updateMany/);
+  assert.match(resetRoute, /medical\.password_recovered/);
+  assert.match(tokenService, /Date\.now\(\) \+ RESET_TTL_MS/);
+  assert.match(tokenService, /expectedPurpose/);
+});
+
 test("las lecturas de órdenes no aprueban ni envían correos", () => {
   for (const path of [
     "lib/server/checkup-store.ts",
@@ -121,6 +139,23 @@ test("el portal médico permite expandir la historia clínica completa", () => {
   assert.match(reviewPage, /Relato original/);
   assert.match(reviewPage, /Antecedentes declarados/);
   assert.match(reviewPage, /Entrevista de seguimiento/);
+});
+
+test("el portal médico reutiliza el validador y aísla los nuevos borradores clínicos", () => {
+  const shell = read("app/portal-medicos/_components/MedicalPortalShell.tsx");
+  const validatorPage = read("app/portal-medicos/validar-ordenes/page.tsx");
+  const examPage = read("app/portal-medicos/indicaciones/examenes/page.tsx");
+  const prescription = read("app/portal-medicos/_components/PrescriptionBuilder.tsx");
+  const vaccines = read("app/portal-medicos/_components/VaccineOrderBuilder.tsx");
+
+  assert.match(validatorPage, /PortalMedicosClient/);
+  assert.match(shell, /\/portal-medicos\/orden\//);
+  assert.match(shell, /target="_blank"/);
+  assert.match(shell, /rel="noopener noreferrer"/);
+  assert.match(examPage, /EXAM_MASTER_CATALOG/);
+  assert.match(prescription, /Backend de emisión pendiente/);
+  assert.match(vaccines, /VACCINE_CATALOG/);
+  assert.doesNotMatch(vaccines, /fetch\(/);
 });
 
 test("las rutas críticas cuentan con protección de origen, tamaño y rate limit", () => {
