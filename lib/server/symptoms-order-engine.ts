@@ -233,7 +233,7 @@ export function buildSymptomsOrderFromEngine(input: BuildSymptomsOrderInput): Bu
     },
     engineAnswers: normalizedAnswers,
     nextStep: evaluation.nextStep,
-    hardStopTriggered: false,
+    hardStopTriggered: evaluation.hardStopTriggered,
   };
 }
 

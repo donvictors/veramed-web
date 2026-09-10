@@ -3,6 +3,7 @@
 import { Fragment, Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { CARE_LABELS } from "@/lib/symptoms-exam-assessment";
 import BrandLogo from "@/components/BrandLogo";
 import {
   calculateAgeFromBirthDate,
@@ -47,7 +48,7 @@ function readOrderFromStorage() {
 
 function SymptomsOrderPageContent() {
   const searchParams = useSearchParams();
-  const [order, setOrder] = useState<SymptomsOrderDraft | null>(() => readOrderFromStorage());
+  const [order, setOrder] = useState<SymptomsOrderDraft | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<OrderCategory>("laboratory");
 
@@ -66,11 +67,15 @@ function SymptomsOrderPageContent() {
     : "";
 
   useEffect(() => {
+    let cancelled = false;
     if (!requestIdFromUrl) {
-      return;
+      // Restore only after hydration: server and first client render must agree.
+      queueMicrotask(() => {
+        if (!cancelled) setOrder(readOrderFromStorage());
+      });
+      return () => { cancelled = true; };
     }
 
-    let cancelled = false;
     void (async () => {
       try {
         setLoading(true);
@@ -152,7 +157,12 @@ function SymptomsOrderPageContent() {
   );
   const printOrderDetails = inferOrderDetails(printTests);
   const printCategoryMeta = getOrderCategoryMeta(printCategory);
-  const printPages = chunkTestsForPrint(printTests, printCategory, LETTER_PRINT_CONFIG);
+  const printWarning = order.careDecision?.care_level === "emergency"
+    ? "Acude a urgencias ahora. No esperes la firma, la toma de exámenes ni sus resultados para acudir."
+    : order.careDecision?.care_level === "presencial_priority" || order.interpretation.urgencyWarning
+      ? "Busca evaluación presencial prioritaria. No retrases la consulta esperando los exámenes ni sus resultados."
+      : "";
+  const printPages = chunkTestsForPrint(printTests, printCategory, { bodyHeightMm: LETTER_PRINT_CONFIG.bodyHeightMm - (printWarning ? 18 : 0) });
   const issuedAt = new Intl.DateTimeFormat("es-CL", {
     dateStyle: "medium",
     timeStyle: "short",
@@ -173,20 +183,29 @@ function SymptomsOrderPageContent() {
   return (
     <main className="veramed-page veramed-order-root min-h-screen bg-slate-50 text-slate-900 print:bg-white">
       <div className="mx-auto max-w-5xl px-6 py-10 print:max-w-none print:px-0 print:py-0">
+        {order.careDecision ? (
+          <aside role={order.careDecision.care_level === "emergency" ? "alert" : "status"} className={`mb-6 rounded-2xl border-2 p-5 print:hidden ${order.careDecision.care_level === "emergency" ? "border-red-400 bg-red-50 text-red-950" : "border-amber-300 bg-amber-50 text-slate-950"}`}>
+            <h2 className="text-xl font-semibold">{CARE_LABELS[order.careDecision.care_level]}</h2>
+            <p className="mt-2 text-sm leading-6">{order.careDecision.patient_guidance}</p>
+          </aside>
+        ) : order.flow.nextStep === "show_urgent_warning" || order.flow.nextStep === "show_emergency_warning" ? (
+          <aside role="alert" className="mb-6 rounded-2xl border-2 border-red-300 bg-red-50 p-5 print:hidden">
+            Busca evaluación médica presencial. No esperes la firma de la orden ni los resultados para consultar.
+          </aside>
+        ) : null}
         <div className="mb-6 flex items-center justify-between gap-4 print:hidden">
           <div className="rounded-2xl border border-slate-300 bg-slate-100 px-5 py-4 shadow-sm">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
               {isValidated ? "Orden clínica aprobada" : "Vista previa clínica"}
             </p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-              {isValidated ? "Tus órdenes de exámenes" : "Tu preorden de exámenes"} ➡️
+              {allTests.length === 0 ? "Tu evaluación clínica" : isValidated ? "Tus órdenes de exámenes" : "Tu preorden de exámenes"}
             </h1>
             <p className="mt-1 text-base text-slate-600">
-              Te enviaremos las órdenes a tu correo (recuerda revisar tu bandeja de spam) una vez
-              que un médico de nuestro equipo las valide y firme.
-              <br />
-              Por mientras, puedes verlas (sin firmar) haciendo clic en los recuadros de la
-              derecha . 😉
+              {allTests.length === 0
+                ? isValidated ? "La revisión médica concluyó sin indicar exámenes en esta etapa. Sigue las indicaciones de evaluación y seguimiento."
+                  : "No se agregaron exámenes automáticamente. Un médico revisará tu evaluación y podrá confirmar o ajustar esta propuesta."
+                : "Te enviaremos las órdenes a tu correo cuando un médico las revise y firme. Puedes revisar aquí los exámenes propuestos."}
             </p>
             <p className="mt-1 text-right text-[11px] text-slate-600">
               ID de referencia: {order.verificationCode}
@@ -246,7 +265,7 @@ function SymptomsOrderPageContent() {
             <div>
               <BrandLogo className="h-28 w-auto" />
               <p className="mt-4 text-3xl font-bold tracking-tight text-slate-950">
-                Orden médica de exámenes
+                {allTests.length ? "Orden médica de exámenes" : "Evaluación sin exámenes propuestos"}
               </p>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
                 Documento generado mediante tecnología de flujo de síntomas de Veramed © y
@@ -423,7 +442,7 @@ function SymptomsOrderPageContent() {
           Cada botón imprime o guarda un PDF independiente según la categoría seleccionada.
         </p>
 
-        <section className="veramed-print-shell hidden print:block">
+        {allTests.length > 0 ? <section className="veramed-print-shell hidden print:block">
           {printPages.map((pageTests, pageIndex) => (
             <PrintOrderPage
               key={`${printCategory}-${pageIndex}`}
@@ -438,9 +457,10 @@ function SymptomsOrderPageContent() {
               totalPages={printPages.length}
               showSignature={isValidated}
               signatureUrl={signatureUrl}
+              warning={printWarning}
             />
           ))}
-        </section>
+        </section> : null}
       </div>
 
       <style jsx global>{`
@@ -563,6 +583,7 @@ function PrintOrderPage({
   totalPages,
   showSignature,
   signatureUrl,
+  warning,
 }: {
   category: OrderCategory;
   categoryMeta: ReturnType<typeof getOrderCategoryMeta>;
@@ -575,6 +596,7 @@ function PrintOrderPage({
   totalPages: number;
   showSignature: boolean;
   signatureUrl: string;
+  warning: string;
 }) {
   return (
     <article className="veramed-order-page relative overflow-hidden">
@@ -596,6 +618,7 @@ function PrintOrderPage({
         issuedAt={issuedAt}
         isValidated={showSignature}
       />
+      {warning ? <p className="my-2 border-2 border-slate-800 p-2 text-[11px] font-semibold">{warning}</p> : null}
       <BodyExams
         pageTests={pageTests}
         category={category}
@@ -701,6 +724,7 @@ function BodyExams({
                 <p className="text-slate-700">
                   Observaciones: {getPreparationNote(test.name, needsFasting, category)}
                 </p>
+                <p className="text-slate-700">Indicación: {test.why}</p>
                 <p className="text-slate-700">Fecha: {issuedAt.split(",")[0] ?? issuedAt}</p>
                 <p className="text-slate-700">
                   Códigos FONASA: {getFonasaCodeByExamName(test.name)}
@@ -747,7 +771,8 @@ function estimatePrintItemHeightMm(test: TestItem, category: OrderCategory) {
   const note = getPreparationNote(test.name, false, category);
   const titleLines = Math.max(1, Math.ceil(test.name.length / 40));
   const noteLines = Math.max(1, Math.ceil(`Observaciones: ${note}`.length / 60));
-  return 8 + titleLines * 4.5 + noteLines * 4 + 8;
+  const indicationLines = Math.max(1, Math.ceil(`Indicación: ${test.why}`.length / 75));
+  return 8 + titleLines * 4.5 + noteLines * 4 + indicationLines * 5.3 + 8;
 }
 
 function OrderFooter({

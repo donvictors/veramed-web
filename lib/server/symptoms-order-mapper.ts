@@ -4,7 +4,8 @@ import type { SymptomsRequestRecord } from "@/lib/server/symptoms-store";
 
 export function toSymptomsOrderDraftFromRecord(record: SymptomsRequestRecord): SymptomsOrderDraft {
   const issuedAtMs = record.validatedAt ?? record.updatedAt ?? record.createdAt;
-  const tests = record.selectedTests.length > 0 ? record.selectedTests : record.suggestedTests;
+  const tests = record.selectedTests;
+  const decision = record.interviewMetadata?.examDecision;
   const statusLabel = record.reviewStatus === "validated" ? "Aprobada" : "Pendiente";
 
   const summary =
@@ -14,6 +15,7 @@ export function toSymptomsOrderDraftFromRecord(record: SymptomsRequestRecord): S
 
   return {
     id: record.id,
+    careDecision: decision ? { care_level: decision.care_level, patient_guidance: decision.patient_guidance, status: decision.status } : undefined,
     issuedAtMs,
     verificationCode: createVerificationCode(record.patient.rut, issuedAtMs),
     summary,
@@ -39,9 +41,11 @@ export function toSymptomsOrderDraftFromRecord(record: SymptomsRequestRecord): S
     flow: {
       flowId: record.flowId || record.interpretation.flowId || "fatigue_weight_loss_general_symptoms",
       label: record.interpretation.probableContext || "Evaluación por síntomas",
-      nextStep: "continue_flow",
+      nextStep: decision?.care_level === "emergency" ? "show_emergency_warning"
+        : decision?.care_level === "presencial_priority" ? "show_urgent_warning"
+        : record.interpretation.urgencyWarning ? "show_urgent_warning" : "continue_flow",
       clinicianReviewRequired: true,
-      triggeredRedFlags: [],
+      triggeredRedFlags: decision?.red_flags ?? record.clinicalState?.redFlags.filter(flag => flag.status === "present").map(flag => flag.label) ?? [],
     },
   };
 }

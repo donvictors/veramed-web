@@ -12,6 +12,14 @@ import {
   type SymptomsFlowAnswerMap,
 } from "@/lib/symptoms-order";
 import type { SymptomsInterpretation } from "@/lib/symptoms-intake";
+import {
+  parseClinicalState,
+  parseInterviewMetadata,
+  parseQuestionQueue,
+  type InterviewQuestionCandidate,
+  type SymptomsClinicalState,
+  type SymptomsInterviewMetadata,
+} from "@/lib/server/symptoms-clinical-state";
 
 type SymptomsPaymentInfo = {
   amount: number;
@@ -36,6 +44,9 @@ export type SymptomsRequestRecord = {
   interpretation: SymptomsInterpretation;
   followUpQuestions: string[];
   followUpAnswers: SymptomsFlowAnswerMap;
+  clinicalState?: SymptomsClinicalState;
+  questionQueue: InterviewQuestionCandidate[];
+  interviewMetadata?: SymptomsInterviewMetadata;
   suggestedTests: TestItem[];
   selectedTests: TestItem[];
   notes: string[];
@@ -187,6 +198,9 @@ function toRecord(row: {
   interpretation: unknown;
   followUpQuestions: unknown;
   followUpAnswers: unknown;
+  clinicalState: unknown | null;
+  questionQueue: unknown | null;
+  interviewMetadata: unknown | null;
   suggestedTests: unknown;
   selectedTests: unknown;
   notes: unknown;
@@ -241,6 +255,9 @@ function toRecord(row: {
     interpretation: asInterpretation(row.interpretation),
     followUpQuestions: asStringArray(row.followUpQuestions),
     followUpAnswers: asAnswers(row.followUpAnswers),
+    clinicalState: parseClinicalState(row.clinicalState) ?? undefined,
+    questionQueue: parseQuestionQueue(row.questionQueue),
+    interviewMetadata: parseInterviewMetadata(row.interviewMetadata) ?? undefined,
     suggestedTests: asTests(row.suggestedTests),
     selectedTests: asTests(row.selectedTests),
     notes: asStringArray(row.notes),
@@ -307,9 +324,14 @@ export async function createOrUpdateSymptomsDraft(input: {
   aiConsentAt: Date;
   aiConsentVersion: string;
   aiProvider: string;
+  clinicalState: SymptomsClinicalState;
+  candidateQuestions: InterviewQuestionCandidate[];
+  interviewMetadata: SymptomsInterviewMetadata;
 }) {
   const symptomsRequest = getSymptomsRequestDelegate();
-  const initialFollowUpQuestions = input.interpretation.followUpQuestions.slice(0, 1);
+  const currentQuestion = input.candidateQuestions[0] ?? null;
+  const initialFollowUpQuestions = currentQuestion ? [currentQuestion.question] : [];
+  const questionQueue = input.candidateQuestions.slice(1, 3);
   const created = await (symptomsRequest.upsert as (args: unknown) => Promise<unknown>)({
     where: { id: input.id },
     update: {
@@ -323,6 +345,9 @@ export async function createOrUpdateSymptomsDraft(input: {
       antecedents: input.antecedents,
       interpretation: input.interpretation,
       followUpQuestions: initialFollowUpQuestions,
+      clinicalState: input.clinicalState,
+      questionQueue,
+      interviewMetadata: input.interviewMetadata,
       engineVersion: input.engineVersion,
       cachedInput: input.cachedInput,
       aiConsentAt: input.aiConsentAt,
@@ -343,6 +368,9 @@ export async function createOrUpdateSymptomsDraft(input: {
       interpretation: input.interpretation,
       followUpQuestions: initialFollowUpQuestions,
       followUpAnswers: {},
+      clinicalState: input.clinicalState,
+      questionQueue,
+      interviewMetadata: input.interviewMetadata,
       suggestedTests: [],
       selectedTests: [],
       notes: [],
@@ -486,6 +514,9 @@ export async function saveSymptomsInterviewTurn(input: {
   oneLinerSummary: string;
   urgencyWarning: boolean;
   urgencyGuidance: string;
+  clinicalState: SymptomsClinicalState;
+  questionQueue: InterviewQuestionCandidate[];
+  interviewMetadata: SymptomsInterviewMetadata;
 }) {
   return prisma.$transaction(async (tx) => {
     const current = await tx.symptomsRequest.findUnique({
@@ -559,6 +590,9 @@ export async function saveSymptomsInterviewTurn(input: {
         followUpAnswers: nextAnswers,
         oneLinerSummary: updatedInterpretation.oneLinerSummary,
         interpretation: updatedInterpretation,
+        clinicalState: input.clinicalState,
+        questionQueue: input.questionQueue,
+        interviewMetadata: input.interviewMetadata,
         reviewStatus: SymptomsRequestStatusDb.in_flow,
       },
     });
@@ -581,6 +615,7 @@ export async function saveSymptomsOrderDraft(input: {
   suggestedTests: TestItem[];
   notes: string[];
   oneLinerSummary?: string;
+  interviewMetadata?: SymptomsInterviewMetadata;
 }) {
   const changed = await prisma.symptomsRequest.updateMany({
     where: {
@@ -593,6 +628,7 @@ export async function saveSymptomsOrderDraft(input: {
       suggestedTests: input.suggestedTests,
       selectedTests: input.suggestedTests,
       notes: input.notes,
+      interviewMetadata: input.interviewMetadata,
       oneLinerSummary: input.oneLinerSummary || undefined,
       reviewStatus: SymptomsRequestStatusDb.pending_validation,
     },

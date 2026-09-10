@@ -517,6 +517,9 @@ export function inferOrderDetails(tests: TestItem[]) {
   if (sampleTypeSet.has("Orina 2da micción muestra aislada")) {
     sampleTypes.push("Orina 2da micción muestra aislada");
   }
+  for (const sample of sampleTypeSet) {
+    if (sample && !sampleTypes.includes(sample)) sampleTypes.push(sample);
+  }
   if (sampleTypes.length === 0) sampleTypes.push("Según evaluación clínica");
   const sampleTypeLabel = sampleTypes
     .map((sampleType) => sampleType.charAt(0).toLowerCase() + sampleType.slice(1))

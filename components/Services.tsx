@@ -48,28 +48,28 @@ const services = [
 
 export default function Services() {
   return (
-    <section id="servicios" className="border-y border-slate-200/80 bg-white/65">
-      <div className="mx-auto max-w-6xl px-6 py-20 md:py-24">
-        <div className="grid items-end gap-6 lg:grid-cols-[1fr_0.72fr]">
+    <section id="servicios" className="scroll-mt-20 border-y border-slate-200/80 bg-white/65">
+      <div className="mx-auto max-w-6xl px-6 pb-10 pt-5 md:pb-12 md:pt-6">
+        <div className="grid items-end gap-4 lg:grid-cols-[1.65fr_1fr] lg:gap-6">
           <div>
             <p className="veramed-kicker">Servicios</p>
-            <h2 className="mt-4 max-w-3xl text-4xl font-semibold tracking-tight text-slate-950 md:text-5xl">
+            <h2 className="mt-2 text-3xl font-semibold leading-[1.1] tracking-tight text-slate-950 md:text-4xl lg:text-[clamp(2rem,3vw,2.75rem)]">
               <span className="block">El punto de entrada</span>
-              <span className="block">a los exámenes que tú necesitas.</span>
+              <span className="block lg:whitespace-nowrap">a los exámenes que tú necesitas.</span>
             </h2>
           </div>
-          <p className="max-w-xl text-sm leading-7 text-slate-600 lg:pb-1">
+          <p className="max-w-xl text-sm leading-6 text-slate-600 lg:pb-1">
             Diseñado para personas que necesitan ordenar un chequeo preventivo, controlar una
             enfermedad o llegar con exámenes a consultar a su médico por síntomas nuevos. De forma
             clara y precisa.
           </p>
         </div>
 
-        <div className="mt-10 grid gap-5 lg:grid-cols-3">
+        <div className="mt-6 grid gap-4 lg:grid-cols-3">
           {services.map((service, index) => (
             <article
               key={service.title}
-              className={`group flex h-full flex-col overflow-hidden rounded-[2rem] border p-7 transition duration-300 hover:-translate-y-1 ${
+              className={`group flex h-full flex-col overflow-hidden rounded-[2rem] border p-5 transition duration-300 hover:-translate-y-1 ${
                 service.highlighted
                   ? "border-amber-300 bg-gradient-to-b from-amber-50/70 to-white text-slate-950 shadow-[0_28px_80px_-48px_rgba(180,125,28,0.55)] hover:border-amber-400"
                   : "border-slate-200 bg-white text-slate-950 shadow-[0_24px_70px_-50px_rgba(15,23,42,0.4)] hover:border-emerald-200"
@@ -84,7 +84,7 @@ export default function Services() {
                   Disponible
                 </span>
                 <span
-                  className={`inline-flex h-10 w-10 items-center justify-center rounded-2xl text-xs font-bold ${
+                  className={`inline-flex h-8 w-8 items-center justify-center rounded-2xl text-xs font-bold ${
                     service.highlighted
                       ? "border border-amber-200 bg-amber-100 text-amber-800"
                       : "bg-emerald-50 text-emerald-700"
@@ -94,22 +94,22 @@ export default function Services() {
                 </span>
               </div>
 
-              <h3 className="mt-8 text-2xl font-semibold tracking-tight text-slate-950">
+              <h3 className="mt-3 text-xl font-semibold tracking-tight text-slate-950">
                 {service.title}
               </h3>
-              <p className="mt-4 text-sm leading-7 text-slate-600">
+              <p className="mt-2 text-sm leading-6 text-slate-600">
                 {service.description}
               </p>
 
-              <div className={`my-7 h-px ${service.highlighted ? "bg-amber-200/70" : "bg-slate-100"}`} />
+              <div className={`my-3 h-px ${service.highlighted ? "bg-amber-200/70" : "bg-slate-100"}`} />
 
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {service.points.map((point) => (
                   <ServicePoint key={point} text={point} highlighted={service.highlighted} />
                 ))}
               </div>
 
-              <div className="mt-auto flex items-end justify-between gap-4 pt-10">
+              <div className="mt-auto flex items-end justify-between gap-4 pt-4">
                 <div>
                   {service.previousPrice ? (
                     <p className="text-xs text-slate-400 line-through">
@@ -142,7 +142,7 @@ export default function Services() {
 
 function ServicePoint({ text, highlighted }: { text: string; highlighted: boolean }) {
   return (
-    <div className="flex items-start gap-3 text-sm">
+    <div className="flex items-start gap-2 text-sm leading-5">
       <span
         className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
           highlighted ? "bg-amber-100 text-amber-800" : "bg-emerald-50 text-emerald-700"

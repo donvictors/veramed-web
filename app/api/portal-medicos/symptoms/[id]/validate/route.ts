@@ -4,6 +4,7 @@ import { z } from "zod";
 import { type TestItem } from "@/lib/checkup";
 import { getExamMetadataByName } from "@/lib/exam-master-catalog";
 import {
+  canValidateMedicalOrders,
   MEDICAL_PORTAL_SESSION_COOKIE,
   recordMedicalAudit,
   verifyMedicalPortalSessionToken,
@@ -19,7 +20,7 @@ type Params = {
 };
 
 const bodySchema = z.object({
-  selectedExamNames: z.array(z.string().min(1)).default([]),
+  selectedExamNames: z.array(z.string().min(1)).max(100),
 });
 
 function uniqueByName(tests: TestItem[]) {
@@ -51,6 +52,9 @@ export async function POST(request: Request, context: Params) {
     const session = await verifyMedicalPortalSessionToken(token);
     if (!session) {
       return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+    }
+    if (!canValidateMedicalOrders(session)) {
+      return NextResponse.json({ error: "No tienes permisos para validar órdenes." }, { status: 403 });
     }
     if (!session.medicalRut || !session.sisRegistration) {
       return NextResponse.json(
@@ -92,18 +96,14 @@ export async function POST(request: Request, context: Params) {
     const pool = record.suggestedTests.length > 0 ? record.suggestedTests : record.selectedTests;
     const requestedNames = new Set(parsedBody.data.selectedExamNames.map((name) => name.trim()));
     const poolByName = new Map(pool.map((test) => [test.name, test] as const));
+    if (Array.from(requestedNames).some(name => !poolByName.has(name) && !getExamMetadataByName(name))) {
+      return NextResponse.json({ error: "Hay exámenes que no pertenecen al catálogo." }, { status: 400 });
+    }
     const selected = uniqueByName(
       Array.from(requestedNames)
         .map((name) => poolByName.get(name) ?? buildManualTestFromCatalog(name))
         .filter((item): item is TestItem => Boolean(item)),
     );
-
-    if (selected.length === 0) {
-      return NextResponse.json(
-        { error: "Debes mantener al menos un examen para validar la orden." },
-        { status: 400 },
-      );
-    }
 
     const validated = await validateSymptomsOrder({
       requestId,
@@ -119,7 +119,7 @@ export async function POST(request: Request, context: Params) {
     let assets: Awaited<ReturnType<typeof ensureSymptomsSignedPdfAssets>> = [];
 
     try {
-      assets = await ensureSymptomsSignedPdfAssets({
+      assets = selected.length ? await ensureSymptomsSignedPdfAssets({
         requestId: validated.id,
         patient: {
           fullName: validated.patient.fullName,
@@ -131,7 +131,7 @@ export async function POST(request: Request, context: Params) {
         },
         tests: selected,
         issuedAtMs: validated.validatedAt ?? Date.now(),
-      });
+      }) : [];
     } catch (error) {
       console.error("Error generando PDFs firmados en validación de síntomas", {
         requestId: validated.id,

@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import {
+  canValidateMedicalOrders,
   MEDICAL_PORTAL_SESSION_COOKIE,
   recordMedicalAudit,
   verifyMedicalPortalSessionToken,
@@ -26,6 +27,9 @@ export async function GET(request: Request) {
   const session = await verifyMedicalPortalSessionToken(token);
   if (!session) {
     return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+  }
+  if (!canValidateMedicalOrders(session)) {
+    return NextResponse.json({ error: "No tienes permisos para validar órdenes." }, { status: 403 });
   }
 
   const { searchParams } = new URL(request.url);

@@ -1,55 +1,20 @@
 import Image from "next/image";
 import Link from "next/link";
 
-const posts = [
-  {
-    title: "Pólipos de colon: la montaña silenciosa",
-    summary:
-      "¿Te hiciste una colonoscopía y encontraron pólipos? Te explicamos qué son y qué seguimiento podrías necesitar.",
-    category: "Screening de cáncer",
-    date: "27 marzo 2026",
-    publishedAt: "2026-03-27",
-    readTime: "5 min",
-    href: "/blog/polipos-de-colon-la-montana-silenciosa",
-    image: "/brand/blog-polyps.png",
-  },
-  {
-    title: "Chequeo preventivo: qué exámenes hacerte según tu edad",
-    summary:
-      "Una guía simple para entender qué se solicita por edad, sexo y factores de riesgo, y por qué no existe un panel único para todas las personas.",
-    category: "Prevención",
-    date: "04 marzo 2026",
-    publishedAt: "2026-03-04",
-    readTime: "6 min",
-    href: "/blog/examenes-chequeo-preventivo",
-    image: "/brand/voxel-check_up.png",
-  },
-  {
-    title: "Cascadas diagnósticas: cuándo más exámenes no es mejor",
-    summary:
-      "Qué son las cascadas diagnósticas, por qué ocurren tras hallazgos incidentales y cómo evitar estudios innecesarios en prevención.",
-    category: "Decisiones clínicas",
-    date: "13 marzo 2026",
-    publishedAt: "2026-03-13",
-    readTime: "6 min",
-    href: "/blog/cascadas-diagnosticas-sobrediagnostico",
-    image: "/brand/voxel-cascadas_dg.png",
-  },
-  {
-    title: "Colonoscopía: qué es, cómo prepararse y qué esperar",
-    summary:
-      "Te explicamos de forma simple cómo este examen ayuda a detectar problemas a tiempo e incluso prevenir el cáncer de colon.",
-    category: "Screening de cáncer",
-    date: "20 marzo 2026",
-    publishedAt: "2026-03-20",
-    readTime: "5 min",
-    href: "/blog/colonoscopia-que-es-como-prepararse-y-que-esperar-del-examen",
-    image: "/brand/blog-colon.png",
-  },
-];
+import { listPublishedBlogPosts } from "@/lib/server/blog-store";
+import { blogDate, blogReadTime } from "@/lib/blog";
 
-export default function BlogPage() {
-  const sortedPosts = [...posts].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+export const dynamic = "force-dynamic";
+
+export default async function BlogPage() {
+  const posts = await listPublishedBlogPosts();
+  const sortedPosts = posts.map(post => ({
+    ...post,
+    image: post.coverImage,
+    href: `/blog/${post.slug}`,
+    date: blogDate(post.publishedAt ?? post.createdAt),
+    readTime: blogReadTime(post.content),
+  }));
   const [featuredPost, ...otherPosts] = sortedPosts;
 
   return (
@@ -94,8 +59,9 @@ export default function BlogPage() {
             </div>
             <div className="veramed-grid-surface relative min-h-[22rem] overflow-hidden border-0 bg-emerald-50 lg:min-h-[32rem] lg:rounded-none">
               <Image
+                unoptimized
                 src={featuredPost.image}
-                alt="Ilustración del artículo sobre pólipos de colon"
+                alt={featuredPost.title}
                 fill
                 sizes="(min-width: 1024px) 42vw, 100vw"
                 className="object-cover"
@@ -116,6 +82,7 @@ export default function BlogPage() {
             <span className="hidden text-sm text-slate-500 md:block">Información para cuidarte mejor</span>
           </div>
 
+          {!featuredPost ? <p className="mt-8 text-slate-600">Pronto compartiremos nuevos artículos sobre salud y prevención.</p> : null}
           <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {otherPosts.map((post) => (
               <article
@@ -124,6 +91,7 @@ export default function BlogPage() {
               >
                 <div className="relative aspect-[16/10] overflow-hidden bg-emerald-50">
                   <Image
+                    unoptimized
                     src={post.image}
                     alt=""
                     fill

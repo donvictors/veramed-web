@@ -1,5 +1,7 @@
 "use client";
 
+import { CARE_LABELS, type SavedExamDecision } from "@/lib/symptoms-exam-assessment";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -33,6 +35,39 @@ type RequestDetailPayload = {
       tags: string[];
       urgencyWarning: boolean;
       guidanceText: string;
+    };
+    clinicalState?: {
+      updatedSummary: string;
+      readyToComplete: boolean;
+      activeSyndromes: Array<{
+        id: string;
+        label: string;
+        likelihood: "primary" | "secondary" | "possible";
+        basis: string[];
+      }>;
+      redFlags: Array<{
+        id: string;
+        label: string;
+        status: "present" | "absent" | "uncertain";
+        priority: "critical" | "high" | "moderate";
+      }>;
+      pendingDomains: Array<{ id: string; label: string; priority: number }>;
+    };
+    interviewMetadata?: {
+      examDecision?: SavedExamDecision;
+      version: string;
+      turns: number;
+      lastOrigin: string;
+      lastModel: string;
+      queueInvalidations: number;
+      stopReason: string;
+      warningActive: boolean;
+      questionHistory: Array<{
+        turn: number;
+        question: string;
+        targetDomain: string;
+        origin: "llm" | "fallback";
+      }>;
     };
     engineVersion: string;
     aiProvider?: string;
@@ -109,9 +144,7 @@ export default function ReviewSymptomsOrderClient({
         }
         if (cancelled) return;
         setPayload(data);
-        const baseTests = data.request.selectedTests.length
-          ? data.request.selectedTests
-          : data.request.suggestedTests;
+        const baseTests = data.request.selectedTests;
         setSelectedNames(new Set(baseTests.map((test) => test.name)));
       } catch (loadError) {
         if (cancelled) return;
@@ -155,11 +188,6 @@ export default function ReviewSymptomsOrderClient({
 
   async function handleValidate() {
     if (!request || isSubmitting) return;
-    if (selectedNames.size === 0) {
-      setSubmitError("Debes mantener al menos un examen antes de validar.");
-      return;
-    }
-
     try {
       setIsSubmitting(true);
       setSubmitError("");
@@ -352,11 +380,80 @@ export default function ReviewSymptomsOrderClient({
                   <p className="mt-2 text-sm leading-6 text-slate-700">
                     {request.followUpAnswers[`q_${index}`]?.trim() || "Sin respuesta"}
                   </p>
+                  {request.interviewMetadata?.questionHistory[index] ? (
+                    <p className="mt-2 text-xs text-slate-500">
+                      Dominio: {request.interviewMetadata.questionHistory[index].targetDomain} ·
+                      origen: {request.interviewMetadata.questionHistory[index].origin}
+                    </p>
+                  ) : null}
                 </li>
               ))}
             </ol>
           </ClinicalDetailBlock>
 
+          {request.clinicalState ? (
+            <ClinicalDetailBlock title="Estado clínico estructurado (uso médico)">
+              <p className="text-sm leading-7 text-slate-800">
+                {request.clinicalState.updatedSummary}
+              </p>
+              <div className="mt-4 grid gap-4 md:grid-cols-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                    Síndromes activos
+                  </p>
+                  <ul className="mt-2 space-y-1 text-sm text-slate-700">
+                    {request.clinicalState.activeSyndromes.map((syndrome) => (
+                      <li key={syndrome.id}>• {syndrome.label} ({syndrome.likelihood})</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                    Alarmas registradas
+                  </p>
+                  <ul className="mt-2 space-y-1 text-sm text-slate-700">
+                    {request.clinicalState.redFlags.length
+                      ? request.clinicalState.redFlags.map((flag) => (
+                          <li key={flag.id}>• {flag.label} ({flag.status})</li>
+                        ))
+                      : <li>Sin alarmas estructuradas.</li>}
+                  </ul>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                    Dominios aún pendientes
+                  </p>
+                  <ul className="mt-2 space-y-1 text-sm text-slate-700">
+                    {request.clinicalState.pendingDomains.length
+                      ? request.clinicalState.pendingDomains.map((domain) => (
+                          <li key={domain.id}>• {domain.label}</li>
+                        ))
+                      : <li>Ninguno.</li>}
+                  </ul>
+                </div>
+              </div>
+              {request.interviewMetadata ? (
+                <p className="mt-4 border-t border-slate-200 pt-3 text-xs leading-6 text-slate-500">
+                  {request.interviewMetadata.version} · {request.interviewMetadata.turns} turnos ·
+                  origen final {request.interviewMetadata.lastOrigin} ·
+                  {" "}{request.interviewMetadata.queueInvalidations} repriorizaciones ·
+                  parada: {request.interviewMetadata.stopReason}
+                </p>
+              ) : null}
+            </ClinicalDetailBlock>
+          ) : null}
+
+          {request.interviewMetadata?.examDecision ? (
+            <section className="mb-5 rounded-2xl border border-amber-300 bg-amber-50 p-4">
+              <h3 className="font-semibold">{CARE_LABELS[request.interviewMetadata.examDecision.care_level]}</h3>
+              <p className="mt-2 text-sm">{request.interviewMetadata.examDecision.patient_guidance}</p>
+              <p className="mt-2 text-xs">La advertencia no bloquea la orden. Selecciona solo estudios justificados; también puedes validar una evaluación sin exámenes.</p>
+              <details className="mt-3">
+                <summary className="cursor-pointer text-sm font-semibold">Evaluación estructurada y auditoría de exámenes</summary>
+                <pre className="mt-2 max-h-96 overflow-auto whitespace-pre-wrap break-words text-xs">{JSON.stringify(request.interviewMetadata.examDecision, null, 2)}</pre>
+              </details>
+            </section>
+          ) : null}
           {request.notes.length > 0 ? (
             <ClinicalDetailBlock title="Notas del motor">
               <ul className="space-y-2 text-sm leading-6 text-slate-700">
@@ -508,7 +605,7 @@ export default function ReviewSymptomsOrderClient({
             disabled={isSubmitting}
             className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
           >
-            {isSubmitting ? "Validando y firmando..." : "Validar y firmar orden"}
+            {isSubmitting ? "Validando..." : selectedNames.size ? "Validar y firmar orden" : "Validar evaluación sin exámenes"}
           </button>
           <Link
             href="/portal-medicos"

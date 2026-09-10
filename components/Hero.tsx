@@ -25,7 +25,6 @@ export default function Hero() {
       <div className="grid items-stretch gap-8 lg:grid-cols-[1.12fr_0.88fr]">
         <div className="flex flex-col justify-center">
           <p className="veramed-kicker">
-            <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
             Medicina preventiva, más simple
           </p>
 
@@ -71,9 +70,6 @@ export default function Hero() {
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">
                 Tu recorrido
               </p>
-              <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-semibold text-amber-800 shadow-sm ring-1 ring-amber-100/80">
-                100% online
-              </span>
             </div>
             <h2 className="mt-4 max-w-md text-3xl font-semibold tracking-tight text-slate-950">
               Una orden preparada con contexto.

@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import MedicalPortalShell from "@/app/portal-medicos/_components/MedicalPortalShell";
 import {
+  isPrimaryMedicalAdmin,
   MEDICAL_PORTAL_SESSION_COOKIE,
   verifyMedicalPortalSessionToken,
 } from "@/lib/server/medical-portal-auth";
@@ -20,6 +21,7 @@ export default async function PortalMedicosLayout({ children }: { children: Reac
         name: session.name,
         email: session.email,
         role: session.role,
+        isPrimaryAdmin: isPrimaryMedicalAdmin(session.email),
         specialty: null,
       }}
     >

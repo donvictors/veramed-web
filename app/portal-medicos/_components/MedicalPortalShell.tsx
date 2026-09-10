@@ -9,7 +9,8 @@ import PortalIcon, { type PortalIconName } from "@/app/portal-medicos/_component
 type Doctor = {
   name: string;
   email: string;
-  role: "doctor" | "admin";
+  role: "portal" | "doctor" | "admin";
+  isPrimaryAdmin: boolean;
   specialty: string | null;
 };
 
@@ -132,7 +133,7 @@ export default function MedicalPortalShell({ doctor, children }: { doctor: Docto
     <div className="min-h-screen bg-[#f4f7f6] text-slate-900">
       <header className="relative z-40 border-b border-slate-200 bg-white">
         <div className="flex h-[72px] items-center justify-between px-4 sm:px-6 lg:px-8">
-          <Link href="/portal-medicos" aria-label="Ir al inicio del portal médico"><BrandLogo /></Link>
+          <Link href="/portal-medicos" aria-label="Ir al escritorio del portal médico"><BrandLogo /></Link>
           <p className="hidden text-xs font-semibold uppercase tracking-[0.18em] text-slate-400 sm:block">Portal médico</p>
         </div>
       </header>
@@ -146,7 +147,7 @@ export default function MedicalPortalShell({ doctor, children }: { doctor: Docto
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/12 text-sm font-bold">{initials(doctor.name)}</span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-semibold">{doctor.name}</span>
-              <span className="block truncate text-[11px] uppercase tracking-[0.12em] text-emerald-100">{doctor.specialty || "Especialidad no configurada"}</span>
+              <span className="block truncate text-[11px] uppercase tracking-[0.12em] text-emerald-100">{doctor.isPrimaryAdmin ? "Administrador principal" : doctor.specialty || "Especialidad no configurada"}</span>
             </span>
             <PortalIcon name="chevron" className={`h-4 w-4 shrink-0 transition ${profileOpen ? "rotate-180" : ""}`} />
           </button>
@@ -163,8 +164,16 @@ export default function MedicalPortalShell({ doctor, children }: { doctor: Docto
           ) : null}
         </div>
         <nav className="flex flex-1 items-center gap-1 overflow-x-auto px-2 sm:px-4" aria-label="Navegación principal médica">
-          <TopLink href="/portal-medicos" label="Inicio" icon="home" active={pathname === "/portal-medicos"} />
-          <TopLink href="/portal-medicos/validar-ordenes" label="Validar órdenes" icon="document" active={pathname.startsWith("/portal-medicos/validar-ordenes") || pathname.startsWith("/portal-medicos/orden/")} />
+          <TopLink href="/portal-medicos" label="Escritorio" icon="home" active={pathname === "/portal-medicos"} />
+          {doctor.role !== "portal" ? (
+            <TopLink href="/portal-medicos/validar-ordenes" label="Validar órdenes" icon="document" active={pathname.startsWith("/portal-medicos/validar-ordenes") || pathname.startsWith("/portal-medicos/orden/")} />
+          ) : null}
+          {doctor.role === "admin" ? (
+            <TopLink href="/portal-medicos/blog" label="Blog" icon="blog" active={pathname.startsWith("/portal-medicos/blog")} />
+          ) : null}
+          {doctor.role === "admin" ? (
+            <TopLink href="/portal-medicos/administrar-usuarios" label="Administrar usuarios" icon="users" active={pathname.startsWith("/portal-medicos/administrar-usuarios")} />
+          ) : null}
         </nav>
       </div>
 
@@ -192,7 +201,7 @@ export default function MedicalPortalShell({ doctor, children }: { doctor: Docto
 
 function TopLink({ href, label, icon, active }: { href: string; label: string; icon: PortalIconName; active: boolean }) {
   return (
-    <Link href={href} className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${active ? "bg-white text-emerald-950 shadow-sm" : "text-emerald-50 hover:bg-white/10"}`}>
+    <Link href={href} aria-label={label} title={label} aria-current={active ? "page" : undefined} className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${active ? "bg-white text-emerald-950 shadow-sm" : "text-emerald-50 hover:bg-white/10"}`}>
       <PortalIcon name={icon} className="h-5 w-5" />
       <span className="hidden sm:inline">{label}</span>
     </Link>

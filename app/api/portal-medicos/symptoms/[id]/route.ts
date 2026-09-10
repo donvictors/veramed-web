@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import {
+  canValidateMedicalOrders,
   MEDICAL_PORTAL_SESSION_COOKIE,
   recordMedicalAudit,
   verifyMedicalPortalSessionToken,
@@ -20,6 +21,9 @@ export async function GET(request: Request, context: Params) {
   const session = await verifyMedicalPortalSessionToken(token);
   if (!session) {
     return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+  }
+  if (!canValidateMedicalOrders(session)) {
+    return NextResponse.json({ error: "No tienes permisos para validar órdenes." }, { status: 403 });
   }
 
   const { id } = await context.params;
@@ -79,10 +83,12 @@ export async function GET(request: Request, context: Params) {
       patient: record.patient,
       antecedents: record.antecedents,
       suggestedTests: record.suggestedTests,
-      selectedTests: record.selectedTests.length > 0 ? record.selectedTests : record.suggestedTests,
+      selectedTests: record.selectedTests,
       followUpQuestions: record.followUpQuestions,
       followUpAnswers: record.followUpAnswers,
       interpretation: record.interpretation,
+      clinicalState: record.clinicalState,
+      interviewMetadata: record.interviewMetadata,
       engineVersion: record.engineVersion,
       aiProvider: record.aiProvider,
       notes: record.notes,

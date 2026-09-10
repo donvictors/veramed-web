@@ -50,7 +50,20 @@ export async function GET(_request: Request, context: Params) {
     }
   }
 
+  const internalFields = new Set([
+    "clinicalState",
+    "questionQueue",
+    "interviewMetadata",
+    "cachedInput",
+  ]);
+  const patientSafeRecord = Object.fromEntries(
+    Object.entries(record).filter(([key]) => !internalFields.has(key)),
+  );
+
   return NextResponse.json({
-    request: record,
+    request: {
+      ...patientSafeRecord,
+      currentQuickReplies: record.interviewMetadata?.currentQuestion?.quickReplies ?? [],
+    },
   });
 }

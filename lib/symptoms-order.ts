@@ -39,6 +39,7 @@ export type SymptomsOrderFlowSummary = {
 };
 
 export type SymptomsOrderDraft = {
+  careDecision?: { care_level: import("@/lib/symptoms-exam-assessment").CareLevel; patient_guidance: string; status: "audited" | "review_required" };
   id: string;
   issuedAtMs: number;
   verificationCode: string;

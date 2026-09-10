@@ -14,7 +14,7 @@ import {
 } from "@/lib/checkup";
 import type { SymptomsInterpretation } from "@/lib/symptoms-intake";
 
-type ProcessingState = "idle" | "antecedents" | "processing" | "ready";
+type ProcessingState = "idle" | "antecedents" | "processing" | "processing_error" | "ready";
 
 type AntecedentKey =
   | "medicalHistory"
@@ -70,33 +70,23 @@ const PROCESSING_BASE_DELAYS_MS = [1200, 1450, 1300, 1550, 1200];
 const ANTECEDENT_QUESTIONS: Array<{ key: AntecedentKey; prompt: string }> = [
   {
     key: "medicalHistory",
-    prompt: "¿Tienes alguna enfermedad? ¿cuál?",
-  },
-  {
-    key: "surgicalHistory",
-    prompt: "¿Te han operado de algo? ¿De qué?",
+    prompt: "¿Tienes alguna enfermedad o cirugía importante? ¿cuál?",
   },
   {
     key: "chronicMedication",
     prompt: "¿Tomas algún medicamento de forma crónica? ¿cual/cuales?",
-  },
-  {
-    key: "smoking",
-    prompt: "¿Fumas? Si tu respuesta es si, di más o menos cuánto",
-  },
-  {
-    key: "drugUse",
-    prompt: "¿Consumes alguna droga? Si tu respuesta es si, di cuales y cada cuanto",
-  },
-  {
-    key: "sexualActivity",
-    prompt: "¿Eres activ@ sexualmente?",
   },
 ];
 const ANTECEDENT_INTRO_MESSAGE =
   "Te haré unas preguntas para conocer tus antecedentes primero 😊.";
 const ANTECEDENT_INTRO_FIRST_DELAY_MS = 360;
 const ANTECEDENT_INTRO_SECOND_DELAY_MS = 1150;
+
+function formatClinicalSentence(value?: string) {
+  const text = value?.trim().replace(/[.\u2026]+$/u, "").trimEnd() ?? "";
+  if (!text) return "";
+  return /[!?]$/.test(text) ? text : `${text}.`;
+}
 
 function sleep(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -180,6 +170,7 @@ export default function SintomasPage() {
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [consentToAiProcessing, setConsentToAiProcessing] = useState(false);
+  const [acknowledgesMedicalReview, setAcknowledgesMedicalReview] = useState(false);
   const [urgencyAcknowledged, setUrgencyAcknowledged] = useState(false);
   const [status, setStatus] = useState<ProcessingState>("idle");
   const [progress, setProgress] = useState(0);
@@ -208,6 +199,7 @@ export default function SintomasPage() {
   const antecedentChatEndRef = useRef<HTMLDivElement | null>(null);
   const antecedentInputRef = useRef<HTMLInputElement | null>(null);
   const rutInputRef = useRef<HTMLInputElement | null>(null);
+  const interpretationInFlightRef = useRef(false);
 
   const hasEnoughRutInput = rutNormalized.length >= 8;
   const rutIsValid = rutNormalized ? isValidRut(rutNormalized) : false;
@@ -229,8 +221,16 @@ export default function SintomasPage() {
       status !== "processing" &&
       missingRequiredFields.length === 0 &&
       rutIsValid &&
+      consentToAiProcessing &&
+      acknowledgesMedicalReview,
+    [
+      symptomsText,
+      status,
+      missingRequiredFields.length,
+      rutIsValid,
       consentToAiProcessing,
-    [symptomsText, status, missingRequiredFields.length, rutIsValid, consentToAiProcessing],
+      acknowledgesMedicalReview,
+    ],
   );
   const patientAge = useMemo(() => calculateAgeFromBirthDate(birthDate), [birthDate]);
 
@@ -268,16 +268,16 @@ export default function SintomasPage() {
       return;
     }
     const rafId = window.requestAnimationFrame(() => {
-      antecedentInputRef.current?.focus();
+      antecedentInputRef.current?.focus({ preventScroll: true });
     });
     return () => window.cancelAnimationFrame(rafId);
   }, [status, isAntecedentBotTyping, antecedentQuestionIndex, antecedentMessages.length]);
 
   useEffect(() => {
-    if (status !== "processing") {
+    if (status === "idle") {
       return;
     }
-    window.scrollTo({ top: 0, behavior: "auto" });
+    window.scrollTo({ top: 0, behavior: "instant" });
   }, [status]);
 
   function clearIntroTimeouts() {
@@ -318,7 +318,9 @@ export default function SintomasPage() {
     });
   }
 
-  async function runInterpretation() {
+  async function runInterpretation(answers: AntecedentAnswerMap) {
+    if (interpretationInFlightRef.current) return;
+    interpretationInFlightRef.current = true;
     setStatus("processing");
     setProgress(8);
     setMessageIndex(0);
@@ -342,12 +344,12 @@ export default function SintomasPage() {
             phone,
             address,
           },
-          antecedents: antecedentAnswers,
+          antecedents: answers,
           patientContext: {
             sex,
             age: patientAge,
           },
-          consentToAiProcessing,
+          consentToAiProcessing: consentToAiProcessing && acknowledgesMedicalReview,
         }),
       });
 
@@ -389,7 +391,7 @@ export default function SintomasPage() {
             address,
           },
           patientSex: sex,
-          antecedents: antecedentAnswers,
+          antecedents: answers,
           output: finalizedPayload.interpretation,
           engineVersion: finalizedPayload.engineVersion,
           aiConsentVersion: finalizedPayload.aiConsentVersion,
@@ -408,7 +410,9 @@ export default function SintomasPage() {
           ? submitError.message
           : "No pudimos interpretar tu relato por ahora.";
       setError(message);
-      setStatus("antecedents");
+      setStatus("processing_error");
+    } finally {
+      interpretationInFlightRef.current = false;
     }
   }
 
@@ -497,10 +501,11 @@ export default function SintomasPage() {
       return;
     }
 
-    setAntecedentAnswers((current) => ({
-      ...current,
+    const nextAnswers = {
+      ...antecedentAnswers,
       [currentQuestion.key]: answer,
-    }));
+    };
+    setAntecedentAnswers(nextAnswers);
 
     setAntecedentMessages((current) => [
       ...current,
@@ -532,7 +537,7 @@ export default function SintomasPage() {
         return;
       }
 
-      void runInterpretation();
+      void runInterpretation(nextAnswers);
     }, 650);
   }
 
@@ -749,20 +754,34 @@ export default function SintomasPage() {
                 </div>
               </div>
 
-              <label className="mt-5 flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
-                <input
-                  type="checkbox"
-                  checked={consentToAiProcessing}
-                  onChange={(event) => setConsentToAiProcessing(event.target.checked)}
-                  className="mt-1 h-4 w-4 rounded border-slate-300"
-                />
-                <span>
-                  Autorizo a Veramed a usar mi relato, antecedentes, edad y sexo mediante su modelo
-                  propietario de LLM para obtener una orientación clínica inicial. Entiendo que la
-                  orden final será revisada por un médico, pero esto no reemplaza la atención
-                  clínica directa realizada por un profesional de la salud.
-                </span>
-              </label>
+              <div className="mt-5 space-y-3" aria-label="Consentimientos requeridos">
+                <label className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={consentToAiProcessing}
+                    onChange={(event) => setConsentToAiProcessing(event.target.checked)}
+                    className="mt-1 h-4 w-4 rounded border-slate-300"
+                  />
+                  <span>
+                    Autorizo a Veramed a usar mi relato y antecedentes mediante un modelo
+                    propietario de LLM que permite obtener una orientación clínica inicial de
+                    exámenes.
+                  </span>
+                </label>
+
+                <label className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={acknowledgesMedicalReview}
+                    onChange={(event) => setAcknowledgesMedicalReview(event.target.checked)}
+                    className="mt-1 h-4 w-4 rounded border-slate-300"
+                  />
+                  <span>
+                    Entiendo que la orden final será revisada por un médico, pero esto no reemplaza
+                    la atención clínica directa realizada por un profesional de la salud.
+                  </span>
+                </label>
+              </div>
 
               <button
                 type="submit"
@@ -862,6 +881,22 @@ export default function SintomasPage() {
                 </div>
               </form>
             </div>
+          ) : status === "processing_error" ? (
+            <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-5">
+              <p className="font-semibold text-slate-900">No pudimos completar el procesamiento</p>
+              <p className="mt-2 text-sm text-rose-700">{error}</p>
+              <p className="mt-2 text-sm text-slate-700">
+                Tus respuestas se conservan en esta pantalla. Puedes reintentar sin volver a
+                completar los antecedentes.
+              </p>
+              <button
+                type="button"
+                onClick={() => void runInterpretation(antecedentAnswers)}
+                className="mt-4 inline-flex items-center justify-center rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+              >
+                Reintentar procesamiento
+              </button>
+            </div>
           ) : status === "processing" ? (
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <div className="flex items-center justify-between text-xs font-medium uppercase tracking-[0.14em] text-slate-500">
@@ -884,44 +919,18 @@ export default function SintomasPage() {
             </div>
           ) : (
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                Interpretación inicial
-              </p>
-              <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-7 text-slate-700">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                  Tu relato
-                </p>
-                <p className="mt-2">Sexo: {formatSexLabel(sex)}</p>
-                <p>Edad: {patientAge > 0 ? `${patientAge} años` : "No reportada"}</p>
-                <p>Síntomas del paciente: {symptomsText.trim() || "No reportado"}</p>
-                <p className="mt-2 font-semibold text-slate-800">Antecedentes:</p>
-                <p>Antecedentes médicos: {antecedentAnswers.medicalHistory || "No reportado"}</p>
-                <p>Antecedentes quirúrgicos: {antecedentAnswers.surgicalHistory || "No reportado"}</p>
-                <p>Fármacos: {antecedentAnswers.chronicMedication || "No reportado"}</p>
-                <p>Alergias: {antecedentAnswers.allergies || "No reportado"}</p>
-                <p>Tabaco: {antecedentAnswers.smoking || "No reportado"}</p>
-                <p>Alcohol: {antecedentAnswers.alcoholUse || "No reportado"}</p>
-                <p>Drogas: {antecedentAnswers.drugUse || "No reportado"}</p>
-                <p>Actividad sexual: {antecedentAnswers.sexualActivity || "No reportado"}</p>
-                <p>
-                  Antecedentes familiares (1er grado):{" "}
-                  {antecedentAnswers.firstDegreeFamilyHistory || "No reportado"}
-                </p>
-                <p>Ocupación: {antecedentAnswers.occupation || "No reportado"}</p>
-              </div>
-              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+              <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
                 Resumimos tu consulta…
               </h2>
               <p className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-7 text-slate-700">
                 Para guiar mejor tu evaluación, hemos resumido tu historia como:{" "}
                 <span className="font-semibold text-slate-900">
-                  {result?.interpretation.oneLinerSummary ?? result?.interpretation.probableContext}
-                </span>
-                . Nos parece que podría ser compatible con{" "}
+                  {formatClinicalSentence(result?.interpretation.oneLinerSummary ?? result?.interpretation.probableContext)}
+                </span>{" "}
+                Nos parece que podría ser compatible con{" "}
                 <span className="font-semibold text-slate-900">
-                  {result?.interpretation.probableContext}
+                  {formatClinicalSentence(result?.interpretation.probableContext)}
                 </span>
-                ...
               </p>
 
               <div className="mt-5 grid gap-3 md:grid-cols-2">
@@ -951,6 +960,34 @@ export default function SintomasPage() {
                   ))}
                 </div>
               </div>
+
+              <details className="group mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg text-sm font-semibold text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-600 [&::-webkit-details-marker]:hidden">
+                  Interpretación inicial
+                  <span aria-hidden="true" className="transition-transform group-open:rotate-180">⌄</span>
+                </summary>
+                <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-7 text-slate-700">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                    Tu relato
+                  </p>
+                  <p className="mt-2">Sexo: {formatSexLabel(sex)}</p>
+                  <p>Edad: {patientAge > 0 ? `${patientAge} años` : "No reportada"}</p>
+                  <p>Síntomas del paciente: {symptomsText.trim() || "No reportado"}</p>
+                  <p className="mt-2 font-semibold text-slate-800">Antecedentes:</p>
+                  <p>Enfermedades o cirugías importantes: {antecedentAnswers.medicalHistory || "No reportado"}</p>
+                  <p>Fármacos: {antecedentAnswers.chronicMedication || "No reportado"}</p>
+                  <p>Alergias: {antecedentAnswers.allergies || "No reportado"}</p>
+                  <p>Tabaco: {antecedentAnswers.smoking || "No reportado"}</p>
+                  <p>Alcohol: {antecedentAnswers.alcoholUse || "No reportado"}</p>
+                  <p>Drogas: {antecedentAnswers.drugUse || "No reportado"}</p>
+                  <p>Actividad sexual: {antecedentAnswers.sexualActivity || "No reportado"}</p>
+                  <p>
+                    Antecedentes familiares (1er grado):{" "}
+                    {antecedentAnswers.firstDegreeFamilyHistory || "No reportado"}
+                  </p>
+                  <p>Ocupación: {antecedentAnswers.occupation || "No reportado"}</p>
+                </div>
+              </details>
 
               <p className="mt-4 text-sm leading-7 text-slate-700">{result?.interpretation.guidanceText}</p>
 

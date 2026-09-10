@@ -333,3 +333,19 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+### Administración del blog
+
+Los administradores del portal médico gestionan entradas en `/portal-medicos/blog`.
+El editor permite guardar borradores, previsualizar, publicar, editar y retirar artículos.
+La URL queda fija después del primer guardado. Los borradores no aparecen en el blog
+público ni pueden leerse mediante su URL directa. El contenido admite párrafos,
+subtítulos (`##` / `###`), listas (`-`), negritas y enlaces HTTPS; el HTML se muestra como texto.
+
+Antes de desplegar por primera vez esta versión, aplica las migraciones con
+`npm run db:deploy`, genera Prisma con `npx prisma generate` e importa los artículos
+existentes con `npm run db:import-blog`. Ejecuta los comandos contra la misma base de
+datos del despliegue. La importación conserva enlaces y fechas, y puede repetirse sin
+sobrescribir cambios editoriales. Reinicia el servidor de desarrollo después de regenerar Prisma.
+
+Pruebas del módulo: `node --test tests/blog-management.test.mjs`.

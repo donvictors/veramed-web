@@ -1,4 +1,5 @@
 export type PortalIconName =
+  | "blog"
   | "calendar"
   | "chevron"
   | "document"
@@ -10,10 +11,12 @@ export type PortalIconName =
   | "referral"
   | "syringe"
   | "user"
+  | "users"
   | "x";
 
 export default function PortalIcon({ name, className = "h-5 w-5" }: { name: PortalIconName; className?: string }) {
   const paths: Record<PortalIconName, React.ReactNode> = {
+    blog: <><path d="M4 4h12v16H4zM16 8h4v12H8" /><path d="M7 8h6M7 12h6M7 16h3" /></>,
     home: <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1V10Z" />,
     document: <><path d="M6 3h9l4 4v14H6V3Z" /><path d="M14 3v5h5M9 13l2 2 4-4" /></>,
     pill: <><path d="m8.5 4.5 11 11a4 4 0 0 1-5.7 5.7l-11-11a4 4 0 0 1 5.7-5.7Z" /><path d="m7 15 8-8" /></>,
@@ -21,6 +24,7 @@ export default function PortalIcon({ name, className = "h-5 w-5" }: { name: Port
     referral: <><path d="M5 4h10v6" /><path d="m11 6 4 4-4 4" /><path d="M19 20H9v-6" /></>,
     calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" /></>,
     user: <><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></>,
+    users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></>,
     logout: <><path d="M10 17l5-5-5-5M15 12H3" /><path d="M14 4h6a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-6" /></>,
     external: <><path d="M14 3h7v7M10 14 21 3" /><path d="M21 14v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h6" /></>,
     menu: <path d="M4 7h16M4 12h16M4 17h16" />,

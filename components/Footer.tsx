@@ -13,11 +13,11 @@ export default function Footer() {
 
   return (
     <footer className="border-t border-white/10 bg-slate-950 text-white print:hidden">
-      <div className="mx-auto max-w-6xl px-6 py-14 md:py-16">
-        <div className="grid gap-10 border-b border-white/10 pb-12 md:grid-cols-[1.2fr_0.8fr_0.8fr]">
+      <div className="mx-auto max-w-6xl px-6 py-8 md:py-10">
+        <div className="grid gap-7 border-b border-white/10 pb-7 md:grid-cols-[1.2fr_0.8fr_0.8fr]">
           <div className="max-w-md">
             <BrandLogo tone="light" />
-            <p className="mt-5 text-sm leading-7 text-slate-300">
+            <p className="mt-3 text-sm leading-6 text-slate-300">
               Órdenes médicas pensadas con criterio clínico, evidencia y una experiencia digital
               clara de principio a fin.
             </p>
@@ -27,7 +27,7 @@ export default function Footer() {
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
               Explora
             </p>
-            <div className="mt-4 grid gap-3 text-sm font-medium text-slate-300">
+            <div className="mt-3 grid gap-2 text-sm font-medium text-slate-300">
               <Link href="/nosotros" className="transition hover:text-white">
                 Nosotros
               </Link>
@@ -47,7 +47,7 @@ export default function Footer() {
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
               Información
             </p>
-            <div className="mt-4 grid gap-3 text-sm font-medium text-slate-300">
+            <div className="mt-3 grid gap-2 text-sm font-medium text-slate-300">
               <Link href="/medicos-login" className="transition hover:text-white">
                 Portal médico
               </Link>
@@ -61,9 +61,9 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-5 pt-7 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs leading-6 text-slate-400">
-            © {new Date().getFullYear()} Veramed, Vitaremu SpA. Todos los derechos reservados.
+            © {new Date().getFullYear()} Veramed, Vitaremu SpA 🌱. Todos los derechos reservados.
           </p>
           <div className="flex items-center gap-3">
             <a

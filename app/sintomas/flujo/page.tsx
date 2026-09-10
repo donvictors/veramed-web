@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState, type FormEvent } from "react";
 import type { SymptomsOrderDraft, StoredSymptomsIntakeDraft } from "@/lib/symptoms-order";
+import { VeramedAssistantAvatar } from "@/components/VeramedAssistantAvatar";
 
 type ChatMessage = {
   id: string;
@@ -17,6 +18,7 @@ type SymptomsRequestPayload = {
   primarySymptom: string;
   followUpQuestions: string[];
   followUpAnswers: Record<string, string>;
+  currentQuickReplies?: string[];
   reviewStatus: "draft" | "paid" | "in_flow" | "pending_validation" | "validated" | "rejected";
   interpretation: {
     probableContext: string;
@@ -207,6 +209,7 @@ function SintomasFlujoPageContent() {
         const interviewCompleted = firstUnanswered < 0;
         setRequestData(payload.request);
         setAnswers(payload.request.followUpAnswers);
+        setQuickReplies(interviewCompleted ? [] : payload.request.currentQuickReplies ?? []);
         setQuestionIndex(
           interviewCompleted ? payload.request.followUpQuestions.length - 1 : firstUnanswered,
         );
@@ -465,12 +468,7 @@ function SintomasFlujoPageContent() {
                   >
                     <div className={`flex max-w-[92%] items-start gap-2 ${message.role === "assistant" ? "" : "justify-end"}`}>
                       {message.role === "assistant" ? (
-                        <span
-                          aria-hidden="true"
-                          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-sm"
-                        >
-                          ✚
-                        </span>
+                        <VeramedAssistantAvatar />
                       ) : null}
                       <div
                         className={`rounded-2xl px-4 py-3 text-sm leading-7 ${
@@ -488,14 +486,9 @@ function SintomasFlujoPageContent() {
                 {isTyping ? (
                   <div className="flex justify-start">
                     <div className="flex items-start gap-2">
-                      <span
-                        aria-hidden="true"
-                        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-sm"
-                      >
-                        ✚
-                      </span>
+                      <VeramedAssistantAvatar thinking />
                       <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
-                        Analizando tu respuesta y eligiendo la siguiente pregunta…
+                        Revisando tu respuesta y priorizando lo clínicamente relevante…
                       </div>
                     </div>
                   </div>

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Field, inputClassName, IntegrationNotice, PageHeader } from "@/app/portal-medicos/_components/PortalUi";
 import { MEDICAL_SPECIALTIES } from "@/lib/medical-portal/specialties";
 
-type Doctor = { name: string; email: string; role: "doctor" | "admin"; specialty: string | null };
+type Doctor = { name: string; email: string; role: "portal" | "doctor" | "admin"; specialty: string | null };
 
 export default function ProfileSettings({ doctor }: { doctor: Doctor }) {
   const router = useRouter();
@@ -37,7 +37,7 @@ export default function ProfileSettings({ doctor }: { doctor: Doctor }) {
         <section className="rounded-[1.5rem] border border-slate-200 bg-white p-5 sm:p-6">
           <h2 className="text-lg font-semibold text-slate-950">Información profesional</h2>
           <div className="mt-5"><IntegrationNotice>El modelo médico actual no almacena especialidad ni avatar y no posee edición de nombre/correo. Estos controles quedan preparados sin persistencia para evitar crear un sistema paralelo.</IntegrationNotice></div>
-          <div className="mt-5 grid gap-5"><Field label="Nombre completo"><input value={doctor.name} className={inputClassName} disabled readOnly /></Field><Field label="Correo asociado"><input value={doctor.email} className={inputClassName} disabled readOnly /></Field><Field label="Especialidad"><select value={doctor.specialty ?? ""} className={inputClassName} disabled><option value="">Especialidad no configurada</option>{MEDICAL_SPECIALTIES.map((item) => <option key={item}>{item}</option>)}</select></Field><Field label="Rol"><input value={doctor.role === "admin" ? "Administrador" : "Médico"} className={inputClassName} disabled readOnly /></Field><button type="button" disabled className="rounded-xl bg-slate-300 px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed">Guardar perfil</button></div>
+          <div className="mt-5 grid gap-5"><Field label="Nombre completo"><input value={doctor.name} className={inputClassName} disabled readOnly /></Field><Field label="Correo asociado"><input value={doctor.email} className={inputClassName} disabled readOnly /></Field><Field label="Especialidad"><select value={doctor.specialty ?? ""} className={inputClassName} disabled><option value="">Especialidad no configurada</option>{MEDICAL_SPECIALTIES.map((item) => <option key={item}>{item}</option>)}</select></Field><Field label="Rol"><input value={doctor.role === "admin" ? "Coadministrador" : doctor.role === "doctor" ? "Validador de órdenes" : "Acceso al portal"} className={inputClassName} disabled readOnly /></Field><button type="button" disabled className="rounded-xl bg-slate-300 px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed">Guardar perfil</button></div>
         </section>
         <section className="rounded-[1.5rem] border border-slate-200 bg-white p-5 sm:p-6">
           <h2 className="text-lg font-semibold text-slate-950">Cambiar contraseña</h2><p className="mt-2 text-sm leading-6 text-slate-500">Este flujo utiliza la autenticación médica real y cerrará todas tus sesiones activas.</p>

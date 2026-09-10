@@ -1,3 +1,4 @@
+import { parseInterviewMetadata } from "@/lib/server/symptoms-clinical-state";
 import { Resend } from "resend";
 import { prisma } from "@/lib/prisma";
 import { listSymptomsSignedPdfAssets } from "@/lib/server/symptoms-order-pdf-assets";
@@ -102,11 +103,14 @@ export async function sendSymptomsValidatedOrderEmail(
           .join("")
       : `<li style="margin: 0 0 4px;"><a href="${escapeHtml(`${appUrl}/sintomas/orden?id=${request.id}`)}" style="color:#0f172a;font-weight:600;">Abrir orden en Veramed</a></li>`;
 
+  const hasTests = Array.isArray(request.selectedTests) && request.selectedTests.length > 0;
+  const decision = parseInterviewMetadata(request.interviewMetadata)?.examDecision;
   const html = `
     <div style="font-family: Arial, sans-serif; color: #0f172a; line-height: 1.6;">
       <p style="margin: 0 0 12px;">Hola ${escapeHtml(getFirstName(patientName))},</p>
-      <p style="margin: 0 0 12px;">Tu orden de exámenes por síntomas ya fue validada y firmada por un médico de Veramed.</p>
-      <p style="margin: 0 0 8px;">Puedes revisar tus órdenes en PDF:</p>
+      <p style="margin: 0 0 12px;">${hasTests ? "Tu orden de exámenes por síntomas ya fue validada y firmada por un médico de Veramed." : "Un médico de Veramed revisó tu evaluación y no indicó exámenes en esta etapa."}</p>
+      ${decision ? `<p style="padding:12px;border:2px solid #d97706;">${escapeHtml(decision.patient_guidance)}</p>` : ""}
+      <p style="margin: 0 0 8px;">${hasTests ? "Puedes revisar tus órdenes:" : "Puedes revisar tu evaluación:"}</p>
       <ul style="margin: 0 0 12px 18px; padding: 0;">
         ${links}
       </ul>
@@ -126,7 +130,7 @@ export async function sendSymptomsValidatedOrderEmail(
   const sent = await resend.emails.send({
     from: FROM_EMAIL,
     to: [request.patientEmail.trim().toLowerCase()],
-    subject: SUBJECT,
+    subject: hasTests ? SUBJECT : "Tu evaluación por síntomas fue revisada",
     html,
   });
 

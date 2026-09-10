@@ -13,11 +13,14 @@
     "lint": "eslint --max-warnings=0",
     "test:checkup-recommend": "node --test tests/checkup-recommend.smoke.test.mjs",
     "test:security": "node --test tests/security-invariants.smoke.test.mjs",
+    "test:symptoms-exams": "node --test tests/symptoms-exam-assessment.test.mjs",
+    "test:symptoms-interview": "node --test tests/symptoms-adaptive-interview.test.mjs",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:import-discounts": "node scripts/import-discount-codes.mjs",
-    "storage:migrate-private": "node scripts/migrate-order-pdfs-private.mjs"
+    "storage:migrate-private": "node scripts/migrate-order-pdfs-private.mjs",
+    "db:import-blog": "node scripts/import-blog-posts.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.109",

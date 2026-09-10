@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import BrandLogo from "./BrandLogo";
 
 const navItems = [
@@ -17,7 +17,6 @@ const COMPACT_FLOW_PREFIXES = ["/chequeo", "/control-cronico", "/sintomas"];
 
 export default function Header() {
   const pathname = usePathname();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const isCompactFlowHeader = useMemo(() => {
     if (!pathname) return false;
@@ -25,29 +24,6 @@ export default function Header() {
       pathname === prefix || pathname.startsWith(`${prefix}/`),
     );
   }, [pathname]);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const response = await fetch("/api/auth/me", { cache: "no-store" });
-        const data = (await response.json().catch(() => null)) as
-          | { authenticated?: boolean }
-          | null;
-        if (!cancelled) {
-          setIsAuthenticated(Boolean(response.ok && data?.authenticated));
-        }
-      } catch {
-        if (!cancelled) {
-          setIsAuthenticated(false);
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   if (pathname === "/portal-medicos" || pathname.startsWith("/portal-medicos/")) {
     return null;
@@ -92,29 +68,47 @@ export default function Header() {
         </nav>
 
         <div className="flex items-center gap-2">
-          {isAuthenticated ? (
-            <Link
-              href="/mi-cuenta"
-              className="hidden rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:border-slate-400 xl:inline-flex"
-            >
-              Mi cuenta
-            </Link>
-          ) : (
-            <>
+          <details className="group relative hidden xl:block">
+            <summary className="flex cursor-pointer list-none items-center gap-2 rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:border-emerald-300 hover:text-emerald-800">
+              Cuenta Paciente
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden="true"
+                className="transition-transform group-open:rotate-180"
+              >
+                <path
+                  d="m7 10 5 5 5-5"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </summary>
+            <div className="absolute right-0 top-12 z-40 w-52 rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl">
               <Link
                 href="/ingresar"
-                className="hidden rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:border-slate-400 xl:inline-flex"
+                className="block rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-emerald-50 hover:text-emerald-800"
               >
-                Ingresar
+                Iniciar sesión
               </Link>
               <Link
                 href="/crear-cuenta"
-                className="hidden rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:border-slate-400 xl:inline-flex"
+                className="block rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-emerald-50 hover:text-emerald-800"
               >
                 Crear cuenta
               </Link>
-            </>
-          )}
+            </div>
+          </details>
+          <Link
+            href="/medicos-login"
+            className="hidden rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:border-emerald-300 hover:text-emerald-800 xl:inline-flex"
+          >
+            Portal Médicos
+          </Link>
           <details className="group relative xl:hidden">
             <summary className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-700 transition hover:border-slate-400">
               <span className="sr-only">Abrir menú</span>
@@ -133,20 +127,34 @@ export default function Header() {
                 </Link>
               ))}
               <div className="my-2 border-t border-slate-200" />
+              <p className="px-4 pb-1 pt-2 text-xs font-bold uppercase tracking-[0.15em] text-slate-400">
+                Cuenta Paciente
+              </p>
               <Link
                 href="/ingresar"
-                className="block rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                className="block rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-800"
               >
-                Ingresar
+                Iniciar sesión
+              </Link>
+              <Link
+                href="/crear-cuenta"
+                className="block rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-800"
+              >
+                Crear cuenta
+              </Link>
+              <Link
+                href="/medicos-login"
+                className="mt-1 block rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-800"
+              >
+                Portal Médicos
               </Link>
             </div>
           </details>
           <Link
             href="/#servicios"
-            className="rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_12px_24px_-16px_rgba(15,23,42,0.8)] transition hover:-translate-y-0.5 hover:bg-slate-800"
+            className="rounded-2xl border border-emerald-400 bg-white px-3 py-2.5 text-xs font-semibold text-emerald-800 shadow-[0_0_0_3px_rgba(52,211,153,0.22),0_12px_24px_-16px_rgba(5,150,105,0.9)] transition hover:-translate-y-0.5 hover:border-emerald-500 hover:bg-emerald-50 hover:shadow-[0_0_0_4px_rgba(52,211,153,0.28),0_14px_28px_-16px_rgba(5,150,105,0.95)] sm:px-4 sm:text-sm"
           >
-            <span className="hidden sm:inline">Quiero mi orden</span>
-            <span className="sm:hidden">Comenzar</span>
+            Quiero mi orden
           </Link>
         </div>
       </div>

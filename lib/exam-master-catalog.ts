@@ -10,7 +10,8 @@ export type ExamSampleType =
   | "Deposiciones"
   | "Hisopado endocervical"
   | "Orina 2da micción muestra aislada"
-  | "Secreción endocervical / orina de primer chorro / secreción vaginal";
+  | "Secreción endocervical / orina de primer chorro / secreción vaginal"
+  | "Según sitio indicado: orina de primer chorro / secreción endocervical o vaginal / hisopado rectal (confirmar disponibilidad con laboratorio)";
 
 export type ExamMasterCatalogItem = {
   name: string;
@@ -275,7 +276,8 @@ export const EXAM_MASTER_CATALOG: readonly ExamMasterCatalogItem[] = [
     name: "PCR Chlamydia trachomatis y Neisseria gonorrhoeae",
     category: "laboratory",
     fonasaCode: "0306097",
-    sampleType: "Secreción endocervical / orina de primer chorro / secreción vaginal",
+    orderObservation: "La muestra debe obtenerse del sitio anatómico indicado en esta orden. Para proctitis se requiere hisopado rectal; la orina no lo sustituye. Confirmar toma disponible con el laboratorio.",
+    sampleType: "Según sitio indicado: orina de primer chorro / secreción endocervical o vaginal / hisopado rectal (confirmar disponibilidad con laboratorio)",
   },
   {
     name: "PCR de virus papiloma humano (VPH)",

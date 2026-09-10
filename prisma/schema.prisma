@@ -71,6 +71,7 @@ enum OrderPdfAccessOutcomeDb {
 }
 
 enum MedicalPortalRoleDb {
+  portal
   doctor
   admin
 }
@@ -216,6 +217,9 @@ model SymptomsRequest {
   interpretation         Json
   followUpQuestions      Json
   followUpAnswers        Json
+  clinicalState          Json?
+  questionQueue          Json?
+  interviewMetadata      Json?
   suggestedTests         Json
   selectedTests          Json
   notes                  Json
@@ -434,24 +438,43 @@ model RateLimitBucket {
 }
 
 model MedicalPortalUser {
-  id                  String                 @id @default(cuid())
-  email               String                 @unique
+  id                  String                    @id @default(cuid())
+  email               String                    @unique
   name                String
   medicalRut          String?
   sisRegistration     String?
-  role                MedicalPortalRoleDb    @default(doctor)
+  role                MedicalPortalRoleDb       @default(doctor)
   passwordHash        String
   passwordSalt        String
-  active              Boolean                @default(true)
-  mfaEnabled          Boolean                @default(false)
+  active              Boolean                   @default(true)
+  mfaEnabled          Boolean                   @default(false)
   totpSecretEncrypted String?
   lastLoginAt         DateTime?
-  createdAt           DateTime               @default(now())
-  updatedAt           DateTime               @updatedAt
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
   sessions            MedicalPortalSession[]
   auditLogs           MedicalAuditLog[]
+  invitations         MedicalPortalInvitation[] @relation("MedicalPortalInviter")
 
   @@index([active, role])
+}
+
+model MedicalPortalInvitation {
+  id              String              @id @default(cuid())
+  email           String
+  role            MedicalPortalRoleDb
+  tokenHash       String              @unique
+  expiresAt       DateTime
+  acceptedAt      DateTime?
+  revokedAt       DateTime?
+  invitedByUserId String
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  invitedBy       MedicalPortalUser   @relation("MedicalPortalInviter", fields: [invitedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([email, createdAt])
+  @@index([expiresAt, acceptedAt, revokedAt])
+  @@index([invitedByUserId, createdAt])
 }
 
 model MedicalPortalSession {
@@ -471,7 +494,7 @@ model MedicalPortalSession {
 }
 
 model MedicalAuditLog {
-  id          String                @id @default(cuid())
+  id          String                 @id @default(cuid())
   userId      String?
   actorEmail  String
   action      String
@@ -479,8 +502,8 @@ model MedicalAuditLog {
   requestId   String?
   metadata    Json?
   ipHash      String?
-  createdAt   DateTime              @default(now())
-  user        MedicalPortalUser?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt   DateTime               @default(now())
+  user        MedicalPortalUser?     @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt])
   @@index([requestType, requestId, createdAt])
@@ -505,4 +528,30 @@ model EventOutbox {
 
   @@index([status, nextAttemptAt])
   @@index([aggregateType, aggregateId])
+}
+
+enum BlogPostStatusDb {
+  draft
+  published
+}
+
+model BlogPost {
+  id             String           @id @default(cuid())
+  slug           String           @unique
+  title          String
+  summary        String
+  category       String
+  coverImage     String
+  content        String
+  authorName     String
+  seoTitle       String           @default("")
+  seoDescription String           @default("")
+  keywords       Json             @default("[]")
+  status         BlogPostStatusDb @default(draft)
+  publishedAt    DateTime?
+  version        Int              @default(1)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([status, publishedAt])
 }

@@ -1,42 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function GoogleCompletePage() {
   const router = useRouter();
   const [error, setError] = useState("");
+  const synchronization = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function syncSession() {
-      try {
-        const response = await fetch("/api/auth/google/sync", {
-          method: "POST",
-        });
-
-        const payload = (await response.json().catch(() => ({}))) as { error?: string };
-
-        if (!response.ok) {
-          throw new Error(payload.error || "No pudimos completar tu inicio de sesión con Google.");
-        }
-
-        if (!cancelled) {
-          router.replace("/mi-cuenta");
-        }
-      } catch (nextError) {
-        if (!cancelled) {
-          setError(
-            nextError instanceof Error
-              ? nextError.message
-              : "No pudimos completar tu inicio de sesión con Google.",
-          );
-        }
-      }
-    }
-
-    void syncSession();
+    // Strict Mode may mount the effect twice; share the same synchronization.
+    synchronization.current ??= (async () => {
+      const response = await fetch("/api/auth/google/sync", { method: "POST" });
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) throw new Error(payload.error || "No pudimos completar tu inicio de sesión con Google.");
+    })();
+    void synchronization.current.then(() => {
+      if (!cancelled) router.replace("/mi-cuenta");
+    }).catch((nextError) => {
+      if (!cancelled) setError(nextError instanceof Error ? nextError.message : "No pudimos completar tu inicio de sesión con Google.");
+    });
     return () => {
       cancelled = true;
     };
@@ -53,7 +39,7 @@ export default function GoogleCompletePage() {
             Validando inicio de sesión con Google…
           </h1>
           {error ? (
-            <p className="mt-4 text-sm text-rose-600">{error}</p>
+            <div role="alert"><p className="mt-4 text-sm text-rose-600">{error}</p><Link href="/ingresar" className="mt-4 inline-block underline">Volver a iniciar sesión</Link></div>
           ) : (
             <p className="mt-4 text-sm text-slate-600">
               Estamos completando tu ingreso. Serás redirigido en unos segundos.

@@ -2,20 +2,22 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { AUTH_SESSION_COOKIE } from "@/lib/auth";
-import { getExamMetadataByName } from "@/lib/exam-master-catalog";
+import { calculateAgeFromBirthDate } from "@/lib/checkup";
+import { EXAM_MASTER_CATALOG } from "@/lib/exam-master-catalog";
 import { getUserFromSession } from "@/lib/server/auth-store";
 import { hasValidInternalAccess } from "@/lib/server/internal-access";
 import {
   getRequestAccessCookieName,
   hasValidRequestAccessCookie,
 } from "@/lib/server/request-access";
-import { buildSymptomsOrderFromEngine } from "@/lib/server/symptoms-order-engine";
-import { MIN_INTERVIEW_TURNS } from "@/lib/server/symptoms-interview";
+import { finalizeExamDecision, unavailableExamAssessment, type ClinicalSource, type ExamAudit } from "@/lib/symptoms-exam-assessment";
+import { createInitialInterviewMetadata } from "@/lib/server/symptoms-clinical-state";
+import { LEGACY_MIN_INTERVIEW_TURNS } from "@/lib/server/symptoms-interview";
 import { toSymptomsOrderDraftFromRecord } from "@/lib/server/symptoms-order-mapper";
 import { suggestSymptomsExamsWithOpenAI } from "@/lib/server/symptoms-openai";
 import { getSymptomsRequest, saveSymptomsOrderDraft } from "@/lib/server/symptoms-store";
 import type { SymptomsFlowAnswerMap } from "@/lib/symptoms-order";
-import type { TestItem } from "@/lib/checkup";
+
 import {
   enforceRateLimit,
   httpErrorResponse,
@@ -32,52 +34,6 @@ function mapFollowUpToPairs(questions: string[], answers: SymptomsFlowAnswerMap)
     question,
     answer: answers[`q_${index}`] ?? "",
   }));
-}
-
-function normalizeSuggestedTests(examNames: string[], rationale: string): TestItem[] {
-  return examNames
-    .map((name) => {
-      const metadata = getExamMetadataByName(name);
-      if (!metadata) return null;
-      return {
-        name: metadata.name,
-        why: rationale,
-      };
-    })
-    .filter((item): item is TestItem => Boolean(item));
-}
-
-function fallbackNotesFromRecord() {
-  return ["Orden sugerida por motor clínico con respaldo determinista y revisión médica pendiente."];
-}
-
-function buildDeterministicFallback(requestRecord: {
-  symptomsText: string;
-  patient: {
-    fullName: string;
-    rut: string;
-    birthDate: string;
-    email: string;
-    phone: string;
-    address: string;
-  };
-  interpretation: Parameters<typeof buildSymptomsOrderFromEngine>[0]["interpretation"];
-  antecedents: Parameters<typeof buildSymptomsOrderFromEngine>[0]["antecedents"];
-}, followUpAnswers: SymptomsFlowAnswerMap) {
-  return buildSymptomsOrderFromEngine({
-    symptomsText: requestRecord.symptomsText,
-    patient: {
-      fullName: requestRecord.patient.fullName,
-      rut: requestRecord.patient.rut,
-      birthDate: requestRecord.patient.birthDate,
-      email: requestRecord.patient.email,
-      phone: requestRecord.patient.phone,
-      address: requestRecord.patient.address,
-    },
-    interpretation: requestRecord.interpretation,
-    antecedents: requestRecord.antecedents,
-    answers: followUpAnswers,
-  });
 }
 
 export async function POST(request: Request) {
@@ -133,11 +89,12 @@ export async function POST(request: Request) {
   }
 
   const followUpAnswers = requestRecord.followUpAnswers;
-  const interviewComplete =
-    requestRecord.followUpQuestions.length >= MIN_INTERVIEW_TURNS &&
-    requestRecord.followUpQuestions.every(
-      (_, index) => Boolean(followUpAnswers[`q_${index}`]?.trim()),
-    );
+  const allVisibleQuestionsAnswered = requestRecord.followUpQuestions.every(
+    (_, index) => Boolean(followUpAnswers[`q_${index}`]?.trim()),
+  );
+  const interviewComplete = requestRecord.interviewMetadata
+    ? requestRecord.interviewMetadata.stopReason !== "not_stopped" && allVisibleQuestionsAnswered
+    : requestRecord.followUpQuestions.length >= LEGACY_MIN_INTERVIEW_TURNS && allVisibleQuestionsAnswered;
   if (!interviewComplete) {
     return NextResponse.json(
       { error: "Completa la entrevista clínica antes de generar la orden." },
@@ -147,59 +104,49 @@ export async function POST(request: Request) {
   const followUpQA = mapFollowUpToPairs(requestRecord.followUpQuestions, followUpAnswers);
 
   try {
-    let suggestedTests: TestItem[] = [];
-    let notes: string[] = [];
+    const sources: ClinicalSource[] = [
+      { id: "initial", text: requestRecord.symptomsText },
+      { id: "patient_context", text: `Edad: ${calculateAgeFromBirthDate(requestRecord.patient.birthDate)} años; sexo informado: ${requestRecord.patient.sex || "no informado"}.` },
+      ...Object.entries(requestRecord.antecedents).filter(([, text]) => text.trim()).map(([id, text]) => ({ id: `antecedent_${id}`, text })),
+      ...followUpQA.map((item, index) => ({ id: `q_${index}`, text: item.answer, question: item.question })),
+    ];
+    let assessment = unavailableExamAssessment(requestRecord.primarySymptom || requestRecord.symptomsText);
+    let audit: ExamAudit | null = null;
     let oneLinerSummary = requestRecord.oneLinerSummary;
-    let usedOpenAI = false;
-
+    let suggestionEngine = "symptoms-exams-v3-review-required";
     if (
-      process.env.OPENAI_API_KEY?.trim() &&
-      requestRecord.aiConsentAt &&
+      process.env.OPENAI_API_KEY?.trim() && requestRecord.aiConsentAt &&
       requestRecord.aiConsentVersion === "ai-health-data-v1"
     ) {
       try {
-        const openAI = await suggestSymptomsExamsWithOpenAI({
-          cachedInput: requestRecord.cachedInput,
-          oneLinerSummary: requestRecord.oneLinerSummary,
-          primarySymptom: requestRecord.primarySymptom,
-          secondarySymptoms: requestRecord.secondarySymptoms,
-          followUpQA,
-        });
-        suggestedTests = normalizeSuggestedTests(openAI.suggestedExamNames, openAI.rationale);
-        oneLinerSummary = openAI.oneLinerSummary;
-        notes = [
-          "Orden sugerida por análisis de IA sobre historia clínica y preguntas de seguimiento.",
-          openAI.rationale,
-        ];
-        usedOpenAI = true;
-      } catch (openAIError) {
-        console.error("OpenAI suggestions fallback to deterministic engine", {
-          name: openAIError instanceof Error ? openAIError.name : "UnknownError",
-        });
+        const result = await suggestSymptomsExamsWithOpenAI({ sources, clinicalState: requestRecord.clinicalState });
+        assessment = result.assessment;
+        audit = result.audit;
+        oneLinerSummary = result.oneLinerSummary;
+        suggestionEngine = `openai-${result.model}-symptoms-exams-v3`;
+      } catch (error) {
+        console.error("Symptoms exam assessment requires physician review", { name: error instanceof Error ? error.name : "UnknownError" });
       }
     }
-
-    if (!usedOpenAI) {
-      const deterministic = buildDeterministicFallback(
-        {
-          symptomsText: requestRecord.symptomsText,
-          patient: {
-            fullName: requestRecord.patient.fullName,
-            rut: requestRecord.patient.rut,
-            birthDate: requestRecord.patient.birthDate,
-            email: requestRecord.patient.email,
-            phone: requestRecord.patient.phone,
-            address: requestRecord.patient.address,
-          },
-          interpretation: requestRecord.interpretation,
-          antecedents: requestRecord.antecedents,
-        },
-        followUpAnswers,
-      );
-      suggestedTests = deterministic.order.tests;
-      notes = fallbackNotesFromRecord();
-      oneLinerSummary = deterministic.order.interpretation.oneLinerSummary;
-    }
+    // Never feed adaptive q_N answers into fixed flow IDs. A failed assessment is
+    // explicitly sent for physician review, not converted into a broad fallback panel.
+    const flags = requestRecord.clinicalState?.redFlags.filter(flag => flag.status !== "absent") ?? [];
+    const emergency = flags.some(flag => flag.status === "present" && flag.priority === "critical");
+    const warning = flags.length > 0 || requestRecord.interpretation.urgencyWarning;
+    const examDecision = finalizeExamDecision({
+      assessment, audit, sources, catalogNames: EXAM_MASTER_CATALOG.map(exam => exam.name),
+      safety: {
+        care_level: emergency ? "emergency" : warning ? "presencial_priority" : "no_tests",
+        red_flags: flags.map(flag => flag.label),
+      },
+    });
+    const suggestedTests = examDecision.accepted_tests;
+    const notes = [examDecision.patient_guidance,
+      suggestedTests.length ? "Exámenes seleccionados por utilidad clínica individual; pendientes de revisión y firma médica." : "Sin exámenes automáticos para esta etapa; la revisión médica puede confirmar o modificar la propuesta."];
+    const interviewMetadata = {
+      ...(requestRecord.interviewMetadata ?? createInitialInterviewMetadata({ currentQuestion: null, origin: "fallback", warningActive: warning })),
+      examDecision,
+    };
 
     const saved = await saveSymptomsOrderDraft({
       requestId: requestRecord.id,
@@ -207,6 +154,7 @@ export async function POST(request: Request) {
       suggestedTests,
       notes,
       oneLinerSummary,
+      interviewMetadata,
     });
 
     const order = toSymptomsOrderDraftFromRecord(saved);
@@ -216,7 +164,7 @@ export async function POST(request: Request) {
         ...order,
         reviewStatus: saved.reviewStatus,
       },
-      engineVersion: "symptoms-openai-lab-suggestions-v1",
+      engineVersion: suggestionEngine,
       createdAt: new Date().toISOString(),
     });
   } catch (error) {

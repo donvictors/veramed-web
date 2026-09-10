@@ -5,7 +5,20 @@ import { AUTH_SESSION_COOKIE } from "@/lib/auth";
 import { calculateAgeFromBirthDate } from "@/lib/checkup";
 import { interpretSymptomsText } from "@/lib/symptoms-intake";
 import { interpretSymptomsWithOpenAI } from "@/lib/server/symptoms-openai";
-import { ADAPTIVE_INTERVIEW_VERSION } from "@/lib/server/symptoms-interview";
+import {
+  ADAPTIVE_INTERVIEW_VERSION,
+  createFallbackClinicalPlan,
+} from "@/lib/server/symptoms-interview";
+import {
+  createInitialInterviewMetadata,
+  type InterviewQuestionCandidate,
+  type SymptomsClinicalState,
+} from "@/lib/server/symptoms-clinical-state";
+import {
+  filterCandidatesForClinicalState,
+  filterQuestionCandidatesForContext,
+  mergeCandidateQueues,
+} from "@/lib/server/symptoms-interview-engine.mjs";
 import { EMPTY_SYMPTOMS_ANTECEDENTS, type SymptomsAntecedents } from "@/lib/symptoms-order";
 import { getUserFromSession } from "@/lib/server/auth-store";
 import {
@@ -64,6 +77,15 @@ export async function POST(request: Request) {
 
     let interpretation = interpretSymptomsText(symptomsText);
     let engineVersion = ENGINE_VERSION_FALLBACK;
+    let planOrigin: "llm" | "fallback" = "fallback";
+    let modelName = "deterministic-fallback";
+    let fallbackPlan = createFallbackClinicalPlan({
+      interpretation,
+      symptomsText,
+      sex: patientSex,
+    });
+    let clinicalState: SymptomsClinicalState = fallbackPlan.clinicalState;
+    let candidateQuestions: InterviewQuestionCandidate[] = fallbackPlan.queue;
 
     try {
       if (process.env.OPENAI_API_KEY?.trim()) {
@@ -73,6 +95,26 @@ export async function POST(request: Request) {
           { sex: patientSex, age: patientAge },
         );
         interpretation = openAIResult.interpretation;
+        fallbackPlan = createFallbackClinicalPlan({ interpretation, symptomsText, sex: patientSex });
+        clinicalState = openAIResult.clinicalState;
+        candidateQuestions = mergeCandidateQueues({
+          generated: filterCandidatesForClinicalState(
+            filterQuestionCandidatesForContext(openAIResult.candidateQuestions, {
+              sex: patientSex,
+              flowId: interpretation.flowId,
+            }),
+            openAIResult.clinicalState,
+          ),
+          retained: [],
+          askedQuestions: [],
+        }) as InterviewQuestionCandidate[];
+        if (candidateQuestions.length < 3) candidateQuestions = fallbackPlan.queue;
+        interpretation = {
+          ...interpretation,
+          followUpQuestions: candidateQuestions.map((candidate) => candidate.question),
+        };
+        planOrigin = "llm";
+        modelName = openAIResult.model;
         engineVersion = `openai-${openAIResult.model}+${ADAPTIVE_INTERVIEW_VERSION}`;
       }
     } catch (error) {
@@ -80,6 +122,23 @@ export async function POST(request: Request) {
         name: error instanceof Error ? error.name : "UnknownError",
       });
     }
+
+    if (planOrigin === "fallback") {
+      fallbackPlan = createFallbackClinicalPlan({ interpretation, symptomsText, sex: patientSex });
+      clinicalState = fallbackPlan.clinicalState;
+      candidateQuestions = fallbackPlan.queue;
+      interpretation = {
+        ...interpretation,
+        followUpQuestions: candidateQuestions.map((candidate) => candidate.question),
+      };
+    }
+
+    const interviewMetadata = createInitialInterviewMetadata({
+      currentQuestion: candidateQuestions[0] ?? null,
+      origin: planOrigin,
+      model: modelName,
+      warningActive: interpretation.urgencyWarning,
+    });
 
     const requestId = createSymptomsRequestId();
     const consentAt = new Date();
@@ -112,6 +171,9 @@ export async function POST(request: Request) {
       aiConsentAt: consentAt,
       aiConsentVersion: AI_CONSENT_VERSION,
       aiProvider: engineVersion.startsWith("openai-") ? "openai" : "local",
+      clinicalState,
+      candidateQuestions,
+      interviewMetadata,
     });
 
     if (!user?.id) {

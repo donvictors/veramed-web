@@ -15,7 +15,14 @@ import { hashPassword, verifyPassword } from "@/lib/server/password-hashing";
 import { getConfiguredMedicalSigner } from "@/lib/server/medical-approval";
 
 export const MEDICAL_PORTAL_SESSION_COOKIE = "veramed_medicos_session";
+export const PRIMARY_MEDICAL_ADMIN_EMAIL = (
+  process.env.PRIMARY_MEDICAL_ADMIN_EMAIL ?? "victorrebolledom@gmail.com"
+)
+  .trim()
+  .toLowerCase();
 const SESSION_TTL_SECONDS = 60 * 60 * 12;
+
+export type MedicalPortalRole = "portal" | "doctor" | "admin";
 
 export type MedicalPortalSessionIdentity = {
   sessionId: string;
@@ -24,12 +31,24 @@ export type MedicalPortalSessionIdentity = {
   name: string;
   medicalRut?: string;
   sisRegistration?: string;
-  role: "doctor" | "admin";
+  role: MedicalPortalRole;
   expiresAt: Date;
 };
 
 function normalizeEmail(value: string) {
   return value.trim().toLowerCase();
+}
+
+export function isPrimaryMedicalAdmin(email: string) {
+  return normalizeEmail(email) === PRIMARY_MEDICAL_ADMIN_EMAIL;
+}
+
+export function canManageMedicalUsers(session: MedicalPortalSessionIdentity) {
+  return session.role === "admin";
+}
+
+export function canValidateMedicalOrders(session: MedicalPortalSessionIdentity) {
+  return session.role === "doctor" || session.role === "admin";
 }
 
 function getBootstrapCredentials() {
@@ -67,6 +86,16 @@ async function ensureBootstrapMedicalUser() {
       throw error;
     }
   }
+}
+
+async function preservePrimaryMedicalAdmin() {
+  await prisma.medicalPortalUser.updateMany({
+    where: {
+      email: PRIMARY_MEDICAL_ADMIN_EMAIL,
+      OR: [{ active: false }, { role: { not: MedicalPortalRoleDb.admin } }],
+    },
+    data: { active: true, role: MedicalPortalRoleDb.admin },
+  });
 }
 
 function getMfaKey() {
@@ -162,6 +191,7 @@ export async function validateDoctorCredentials(input: {
   totpCode?: string;
 }) {
   await ensureBootstrapMedicalUser();
+  await preservePrimaryMedicalAdmin();
   const user = await prisma.medicalPortalUser.findUnique({
     where: { email: normalizeEmail(input.email) },
   });
@@ -209,6 +239,7 @@ export async function createMedicalPortalSession(input: {
 
 export async function verifyMedicalPortalSessionToken(token?: string | null) {
   if (!token || token.length > 200) return null;
+  await preservePrimaryMedicalAdmin();
   const row = await prisma.medicalPortalSession.findUnique({
     where: { tokenHash: hashOpaqueToken(token) },
     include: { user: true },

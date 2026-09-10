@@ -96,7 +96,13 @@ test("síntomas exige consentimiento y limita los datos enviados a IA", () => {
   assert.match(schema, /symptomsText:\s*trimmed\(12,\s*4_000\)/);
   assert.match(route, /symptoms:interpret/);
   assert.match(client, /modelo\s+propietario de LLM/);
-  assert.match(client, /no reemplaza la atención\s+clínica directa/);
+  assert.match(client, /no reemplaza[\s\S]{0,100}la atención clínica directa/);
+  assert.match(client, /checked=\{consentToAiProcessing\}/);
+  assert.match(client, /checked=\{acknowledgesMedicalReview\}/);
+  assert.match(
+    client,
+    /consentToAiProcessing:\s*consentToAiProcessing\s*&&\s*acknowledgesMedicalReview/,
+  );
 });
 
 test("la interpretación de síntomas se persiste en servidor antes del pago", () => {
@@ -124,6 +130,22 @@ test("la entrevista por síntomas es adaptativa y persiste cada turno en servido
   assert.match(orderRoute, /requestRecord\.followUpAnswers/);
   assert.match(openai, /openai\.responses/);
   assert.match(openai, /store:\s*false/);
+});
+
+test("el estado clínico interno no se expone al paciente y sí queda disponible al médico", () => {
+  const patientRoute = read("app/api/sintomas/requests/[id]/route.ts");
+  const doctorRoute = read("app/api/portal-medicos/symptoms/[id]/route.ts");
+  const migration = read(
+    "prisma/migrations/20260907153000_adaptive_symptoms_interview_v2/migration.sql",
+  );
+
+  assert.match(patientRoute, /internalFields/);
+  assert.match(patientRoute, /"clinicalState"/);
+  assert.match(patientRoute, /"questionQueue"/);
+  assert.match(doctorRoute, /clinicalState: record\.clinicalState/);
+  assert.match(doctorRoute, /interviewMetadata: record\.interviewMetadata/);
+  assert.match(migration, /"clinicalState" JSONB/);
+  assert.doesNotMatch(migration, /NOT NULL/);
 });
 
 test("la preorden por síntomas queda identificada visualmente como borrador", () => {
@@ -156,6 +178,31 @@ test("el portal médico reutiliza el validador y aísla los nuevos borradores cl
   assert.match(prescription, /Backend de emisión pendiente/);
   assert.match(vaccines, /VACCINE_CATALOG/);
   assert.doesNotMatch(vaccines, /fetch\(/);
+});
+
+test("la administración médica separa roles, protege al administrador principal e invita sin contraseñas", () => {
+  const schema = read("prisma/schema.prisma");
+  const auth = read("lib/server/medical-portal-auth.ts");
+  const usersRoute = read("app/api/medicos-auth/users/route.ts");
+  const invitationsRoute = read("app/api/medicos-auth/invitations/route.ts");
+  const acceptRoute = read("app/api/medicos-auth/invitations/accept/route.ts");
+  const validationRoute = read("app/api/portal-medicos/symptoms/[id]/validate/route.ts");
+
+  assert.match(schema, /enum MedicalPortalRoleDb\s*{\s*portal\s+doctor\s+admin/);
+  assert.match(schema, /model MedicalPortalInvitation/);
+  assert.match(schema, /tokenHash\s+String\s+@unique/);
+  assert.doesNotMatch(schema, /MedicalPortalInvitation[\s\S]{0,500}\bpassword\b/i);
+  assert.match(auth, /PRIMARY_MEDICAL_ADMIN_EMAIL/);
+  assert.match(auth, /preservePrimaryMedicalAdmin/);
+  assert.match(auth, /data:\s*{\s*active:\s*true,\s*role:\s*MedicalPortalRoleDb\.admin\s*}/);
+  assert.match(usersRoute, /targetIsPrimary/);
+  assert.match(usersRoute, /canViewPatients\s*\?\s*prisma\.user\.findMany/);
+  assert.match(invitationsRoute, /medicalInvitationTokenHash\(rawToken\)/);
+  assert.match(invitationsRoute, /RESEND_API_KEY/);
+  assert.match(invitationsRoute, /idempotencyKey/);
+  assert.match(acceptRoute, /password:\s*z\.string\(\)\.min\(12\)/);
+  assert.match(acceptRoute, /acceptedAt:\s*now/);
+  assert.match(validationRoute, /canValidateMedicalOrders/);
 });
 
 test("las rutas críticas cuentan con protección de origen, tamaño y rate limit", () => {
