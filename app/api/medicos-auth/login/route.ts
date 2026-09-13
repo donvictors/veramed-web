@@ -14,6 +14,8 @@ import {
   requireSameOrigin,
 } from "@/lib/server/http-security";
 import { splitMedicalPortalName } from "@/lib/medical-portal/profile";
+import { AUTH_SESSION_COOKIE } from "@/lib/auth";
+import { logoutSession } from "@/lib/server/auth-store";
 
 type LoginBody = {
   email?: string;
@@ -53,6 +55,14 @@ export async function POST(request: Request) {
 
   const created = await createMedicalPortalSession({ userId: result.user.id, request });
   const cookieStore = await cookies();
+  await logoutSession(cookieStore.get(AUTH_SESSION_COOKIE)?.value);
+  cookieStore.set(AUTH_SESSION_COOKIE, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 0,
+  });
   cookieStore.set(MEDICAL_PORTAL_SESSION_COOKIE, created.token, {
     httpOnly: true,
     sameSite: "lax",

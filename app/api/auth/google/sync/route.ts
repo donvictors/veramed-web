@@ -4,6 +4,10 @@ import { getServerSession } from "next-auth";
 import { AUTH_SESSION_COOKIE } from "@/lib/auth";
 import { authOptions } from "@/lib/next-auth";
 import { getSessionTtlMs, loginOrRegisterOAuthUser } from "@/lib/server/auth-store";
+import {
+  MEDICAL_PORTAL_SESSION_COOKIE,
+  revokeMedicalPortalSession,
+} from "@/lib/server/medical-portal-auth";
 import { enforceRateLimit, httpErrorResponse, requireSameOrigin } from "@/lib/server/http-security";
 
 export async function POST(request: Request) {
@@ -20,6 +24,17 @@ export async function POST(request: Request) {
   const name = providerSession?.user?.name?.trim() || "Usuario Veramed";
   const result = await loginOrRegisterOAuthUser({ email, name });
   const cookieStore = await cookies();
+
+  await revokeMedicalPortalSession(
+    cookieStore.get(MEDICAL_PORTAL_SESSION_COOKIE)?.value,
+  );
+  cookieStore.set(MEDICAL_PORTAL_SESSION_COOKIE, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 0,
+  });
 
   cookieStore.set(AUTH_SESSION_COOKIE, result.session.token, {
     httpOnly: true,

@@ -3,6 +3,10 @@ import { cookies } from "next/headers";
 import { AUTH_SESSION_COOKIE, validateLoginInput } from "@/lib/auth";
 import { getSessionTtlMs, loginUser } from "@/lib/server/auth-store";
 import {
+  MEDICAL_PORTAL_SESSION_COOKIE,
+  revokeMedicalPortalSession,
+} from "@/lib/server/medical-portal-auth";
+import {
   enforceRateLimit,
   httpErrorResponse,
   readJsonBody,
@@ -43,6 +47,16 @@ export async function POST(request: Request) {
   }
 
   const cookieStore = await cookies();
+  await revokeMedicalPortalSession(
+    cookieStore.get(MEDICAL_PORTAL_SESSION_COOKIE)?.value,
+  );
+  cookieStore.set(MEDICAL_PORTAL_SESSION_COOKIE, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 0,
+  });
   cookieStore.set(AUTH_SESSION_COOKIE, result.session.token, {
     httpOnly: true,
     sameSite: "lax",

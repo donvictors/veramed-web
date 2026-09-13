@@ -19,11 +19,17 @@ function loadHeaderSessionRoute({ patient = null, medical = null } = {}) {
       cookies: async () => ({
         get: (name) =>
           cookieValues[name] ? { value: cookieValues[name] } : undefined,
+        set: (name, value) => {
+          cookieValues[name] = value;
+        },
       }),
     },
     "@/lib/auth": { AUTH_SESSION_COOKIE: "veramed_session" },
     "@/lib/server/auth-store": {
       getUserFromSession: async () => patient,
+      logoutSession: async (token) => {
+        cookieValues.loggedOutPatientToken = token;
+      },
     },
     "@/lib/server/medical-portal-auth": {
       MEDICAL_PORTAL_SESSION_COOKIE: "veramed_medicos_session",
@@ -31,6 +37,25 @@ function loadHeaderSessionRoute({ patient = null, medical = null } = {}) {
     },
   });
 }
+
+test("prioriza la sesión médica y elimina una sesión de paciente coexistente", async () => {
+  const { GET } = loadHeaderSessionRoute({
+    patient: {
+      name: "Víctor Paciente",
+      email: "victor@example.com",
+      profile: { fullName: "Víctor Paciente", email: "victor@example.com" },
+    },
+    medical: {
+      name: "Dr. Víctor Rebolledo",
+      email: "victor@example.com",
+    },
+  });
+
+  const response = await GET();
+
+  assert.equal(response.body.session.kind, "medical");
+  assert.equal(response.body.session.name, "Dr. Víctor Rebolledo");
+});
 
 test("expone la sesión del paciente para el encabezado", async () => {
   const { GET } = loadHeaderSessionRoute({
