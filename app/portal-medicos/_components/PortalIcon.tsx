@@ -9,6 +9,7 @@ export type PortalIconName =
   | "menu"
   | "pill"
   | "referral"
+  | "receipt"
   | "syringe"
   | "user"
   | "users"
@@ -22,6 +23,7 @@ export default function PortalIcon({ name, className = "h-5 w-5" }: { name: Port
     pill: <><path d="m8.5 4.5 11 11a4 4 0 0 1-5.7 5.7l-11-11a4 4 0 0 1 5.7-5.7Z" /><path d="m7 15 8-8" /></>,
     syringe: <><path d="m14 4 6 6M17 3l4 4M12 6l6 6-8.5 8.5-6-6L12 6ZM7 17l-4 4M7 11l3 3" /></>,
     referral: <><path d="M5 4h10v6" /><path d="m11 6 4 4-4 4" /><path d="M19 20H9v-6" /></>,
+    receipt: <><path d="M6 3h12v19l-3-2-3 2-3-2-3 2V3Z" /><path d="M9 8h6M9 12h6M9 16h3" /></>,
     calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" /></>,
     user: <><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></>,
     users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></>,

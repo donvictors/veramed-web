@@ -211,6 +211,16 @@ export default function AccountPage() {
               <InfoRow label="Fecha de nacimiento" value={formattedBirthDate} />
               <InfoRow label="Edad" value={age > 0 ? `${age} años` : "No calculable"} />
               <InfoRow
+                label="Sexo biológico"
+                value={
+                  user.profile.sex === "F"
+                    ? "Femenino"
+                    : user.profile.sex === "M"
+                      ? "Masculino"
+                      : "No informado"
+                }
+              />
+              <InfoRow
                 label="Correo"
                 value={user.profile.email || user.email}
               />

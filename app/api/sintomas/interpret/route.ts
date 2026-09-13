@@ -20,7 +20,7 @@ import {
   mergeCandidateQueues,
 } from "@/lib/server/symptoms-interview-engine.mjs";
 import { EMPTY_SYMPTOMS_ANTECEDENTS, type SymptomsAntecedents } from "@/lib/symptoms-order";
-import { getUserFromSession } from "@/lib/server/auth-store";
+import { getUserFromSession, syncUserProfileFromPatient } from "@/lib/server/auth-store";
 import {
   enforceRateLimit,
   httpErrorResponse,
@@ -156,6 +156,13 @@ export async function POST(request: Request) {
     const cookieStore = await cookies();
     const sessionToken = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
     const user = await getUserFromSession(sessionToken);
+    if (user?.id) {
+      await syncUserProfileFromPatient(
+        user.id,
+        body.patient,
+        patientSex === "female" ? "F" : patientSex === "male" ? "M" : "",
+      );
+    }
     const draft = await createOrUpdateSymptomsDraft({
       id: requestId,
       userId: user?.id,

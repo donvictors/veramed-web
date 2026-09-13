@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { AUTH_SESSION_COOKIE } from "@/lib/auth";
 import { createCheckupRecord, serializeCheckupRecord } from "@/lib/server/checkup-store";
-import { getUserFromSession } from "@/lib/server/auth-store";
+import { getUserFromSession, syncUserProfileFromPatient } from "@/lib/server/auth-store";
 import { type PatientDetails } from "@/lib/checkup";
 import {
   getRequestAccessCookieName,
@@ -53,6 +53,10 @@ export async function POST(request: Request) {
     const token = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
     const user = await getUserFromSession(token);
     const patient = mergePatientDefaults(payload.patient, user?.profile);
+
+    if (user?.id) {
+      await syncUserProfileFromPatient(user.id, patient, payload.input.sex);
+    }
 
     const record = await createCheckupRecord({
       userId: user?.id,

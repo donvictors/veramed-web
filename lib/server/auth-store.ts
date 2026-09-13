@@ -15,7 +15,7 @@ export type PublicUser = {
   name: string;
   email: string;
   createdAt: number;
-  profile: PatientDetails;
+  profile: PatientDetails & { sex: "M" | "F" | "" };
 };
 
 type SessionRecord = {
@@ -74,6 +74,7 @@ function serializeUser(user: {
   profileMaternalSurname: string;
   profileRut: string;
   profileBirthDate: string;
+  profileSex: string;
   profileEmail: string;
   profilePhone: string;
   profileAddress: string;
@@ -91,6 +92,7 @@ function serializeUser(user: {
       }),
       rut: user.profileRut,
       birthDate: user.profileBirthDate,
+      sex: user.profileSex === "M" || user.profileSex === "F" ? user.profileSex : "",
       email: user.profileEmail,
       phone: user.profilePhone,
       address: user.profileAddress,
@@ -382,7 +384,11 @@ export async function resetPasswordByUserId(userId: string, nextPassword: string
   return updated.id;
 }
 
-export async function syncUserProfileFromPatient(userId: string, patient: PatientDetails) {
+export async function syncUserProfileFromPatient(
+  userId: string,
+  patient: PatientDetails,
+  sex?: "M" | "F" | "",
+) {
   const current = await prisma.user.findUnique({
     where: { id: userId },
   });
@@ -402,6 +408,7 @@ export async function syncUserProfileFromPatient(userId: string, patient: Patien
       profileMaternalSurname: nameFields.maternalSurname || current.profileMaternalSurname,
       profileRut: patient.rut.trim() || current.profileRut,
       profileBirthDate: patient.birthDate || current.profileBirthDate,
+      profileSex: sex === "M" || sex === "F" ? sex : current.profileSex,
       profileEmail: normalizeEmail(patient.email.trim() || current.profileEmail || current.email),
       profilePhone: patient.phone.trim() || current.profilePhone,
       profileAddress: patient.address.trim() || current.profileAddress,
@@ -427,6 +434,7 @@ export async function updateUserProfile(
     maternalSurname: string;
     rut: string;
     birthDate: string;
+    sex: "M" | "F" | "";
     email: string;
     phone?: string;
     address?: string;
@@ -464,6 +472,7 @@ export async function updateUserProfile(
       profileMaternalSurname: maternalSurname,
       profileRut: normalizedRut,
       profileBirthDate: payload.birthDate,
+      profileSex: payload.sex,
       profileEmail: normalizedEmail,
       profilePhone: normalizedPhone,
       profileAddress: normalizedAddress,

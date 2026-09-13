@@ -138,6 +138,14 @@ export async function sendSymptomsValidatedOrderEmail(
     throw new Error(sent.error.message || "No pudimos enviar el correo.");
   }
 
+  await prisma.symptomsRequest.update({
+    where: { id: request.id },
+    data: {
+      orderEmailSentAt: new Date(),
+      orderEmailMessageId: sent.data?.id ?? null,
+    },
+  });
+
   return {
     ok: true,
     messageId: sent.data?.id ?? null,

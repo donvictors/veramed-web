@@ -15,6 +15,7 @@ export type AuthUser = {
     fullName: string;
     rut: string;
     birthDate: string;
+    sex: "M" | "F" | "";
     email: string;
     phone: string;
     address: string;

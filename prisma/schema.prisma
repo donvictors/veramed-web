@@ -83,6 +83,12 @@ enum OutboxStatusDb {
   failed
 }
 
+enum ElectronicReceiptStatusDb {
+  pending
+  ready
+  sent
+}
+
 model Healthcheck {
   id        String   @id @default(cuid())
   key       String   @unique
@@ -102,6 +108,7 @@ model User {
   profileMaternalSurname String                  @default("")
   profileRut             String                  @default("")
   profileBirthDate       String                  @default("")
+  profileSex             String                  @default("")
   profileEmail           String
   profilePhone           String                  @default("")
   profileAddress         String                  @default("")
@@ -235,6 +242,8 @@ model SymptomsRequest {
   validatedByRut         String?
   validatedBySis         String?
   validatedAt            DateTime?
+  orderEmailSentAt       DateTime?
+  orderEmailMessageId    String?
   createdAt              DateTime                     @default(now())
   updatedAt              DateTime                     @updatedAt
   user                   User?                        @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -245,6 +254,37 @@ model SymptomsRequest {
   @@index([userId])
   @@index([reviewStatus, createdAt])
   @@index([validatedByEmail, validatedAt])
+}
+
+model ElectronicReceipt {
+  id               String                    @id @default(cuid())
+  requestType      ClinicalRequestTypeDb
+  requestId        String
+  paymentId        String
+  amount           Int
+  currency         String                    @default("CLP")
+  serviceLabel     String
+  patientName      String
+  patientEmail     String
+  patientRut       String?
+  status           ElectronicReceiptStatusDb @default(pending)
+  folio            String?
+  fileName         String?
+  blobUrl          String?
+  blobPath         String?
+  sizeBytes        Int?
+  issuedAt         DateTime?
+  uploadedAt       DateTime?
+  uploadedByUserId String?
+  emailSentAt      DateTime?
+  emailMessageId   String?
+  lastEmailError   String?
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+
+  @@unique([requestType, requestId])
+  @@index([status, createdAt])
+  @@index([patientEmail, createdAt])
 }
 
 model CheckupPayment {

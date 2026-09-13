@@ -138,7 +138,7 @@ export default function MedicalPortalShell({ doctor, children }: { doctor: Docto
         </div>
       </header>
 
-      <div className="relative z-30 flex min-h-[72px] items-stretch bg-emerald-900 text-white shadow-sm">
+      <div className="relative z-30 flex min-h-[72px] items-stretch bg-emerald-700 text-white shadow-sm">
         <button type="button" onClick={() => setMobileOpen(true)} className="flex w-16 items-center justify-center border-r border-white/10 lg:hidden" aria-label="Abrir navegación">
           <PortalIcon name="menu" />
         </button>
@@ -167,6 +167,9 @@ export default function MedicalPortalShell({ doctor, children }: { doctor: Docto
           <TopLink href="/portal-medicos" label="Escritorio" icon="home" active={pathname === "/portal-medicos"} />
           {doctor.role !== "portal" ? (
             <TopLink href="/portal-medicos/validar-ordenes" label="Validar órdenes" icon="document" active={pathname.startsWith("/portal-medicos/validar-ordenes") || pathname.startsWith("/portal-medicos/orden/")} />
+          ) : null}
+          {doctor.role === "admin" ? (
+            <TopLink href="/portal-medicos/boletas" label="Boletas" icon="receipt" active={pathname.startsWith("/portal-medicos/boletas")} />
           ) : null}
           {doctor.role === "admin" ? (
             <TopLink href="/portal-medicos/blog" label="Blog" icon="blog" active={pathname.startsWith("/portal-medicos/blog")} />

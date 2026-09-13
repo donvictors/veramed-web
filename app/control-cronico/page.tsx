@@ -10,6 +10,7 @@ import {
   calculateAgeFromBirthDate,
   calculateBodyMassIndex,
   calculatePackYearIndex,
+  formatRut,
   joinPatientFullName,
   type CheckupInput,
   type DietaryPattern,
@@ -178,7 +179,10 @@ export default function ChronicControlPage() {
             paternalSurname: current.paternalSurname || parsedName.paternalSurname,
             maternalSurname: current.maternalSurname || parsedName.maternalSurname,
           }));
-          setRut((current) => current || response.user?.profile.rut || "");
+          setRut((current) => current || formatRut(response.user?.profile.rut || ""));
+          if (response.user?.profile.sex) {
+            setCheckupSex(response.user.profile.sex);
+          }
           setBirthDate((current) => current || response.user?.profile.birthDate || "");
           setEmail((current) => current || response.user?.profile.email || response.user?.email || "");
           setPhone((current) => current || response.user?.profile.phone || "");

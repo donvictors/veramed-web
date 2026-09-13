@@ -11,6 +11,7 @@ type UpdateProfilePayload = {
   maternalSurname?: string;
   rut?: string;
   birthDate?: string;
+  sex?: string;
   email?: string;
   phone?: string;
   address?: string;
@@ -45,6 +46,8 @@ export async function PATCH(request: Request) {
   const maternalSurname = (payload.maternalSurname ?? "").trim();
   const rut = (payload.rut ?? "").trim();
   const birthDate = (payload.birthDate ?? "").trim();
+  const sex = (payload.sex ?? "").trim();
+  const normalizedSex: "M" | "F" | "" = sex === "M" || sex === "F" ? sex : "";
   const email = (payload.email ?? "").trim();
   const phone = (payload.phone ?? "").trim();
   const address = (payload.address ?? "").trim();
@@ -63,6 +66,9 @@ export async function PATCH(request: Request) {
   } else if (!isValidDateString(birthDate)) {
     errors.push("La fecha de nacimiento no es válida.");
   }
+  if (!normalizedSex) {
+    errors.push("El sexo biológico es obligatorio.");
+  }
   if (!email) {
     errors.push("El correo es obligatorio.");
   } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -79,6 +85,7 @@ export async function PATCH(request: Request) {
     maternalSurname,
     rut,
     birthDate,
+    sex: normalizedSex,
     email,
     phone,
     address,

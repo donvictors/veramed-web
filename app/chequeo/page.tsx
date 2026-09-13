@@ -196,6 +196,9 @@ export default function CheckupPage() {
           const normalizedProfileRut = normalizeRut(profileRut);
           setRut((current) => current || formatRut(profileRut));
           setRutNormalized((current) => current || normalizedProfileRut);
+          if (response.user?.profile.sex) {
+            setSex(response.user.profile.sex);
+          }
           setBirthDate((current) => current || response.user?.profile.birthDate || "");
           setEmail((current) => current || response.user?.profile.email || response.user?.email || "");
           setPhone((current) => current || response.user?.profile.phone || "");

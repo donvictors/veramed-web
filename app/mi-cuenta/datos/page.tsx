@@ -19,6 +19,7 @@ type ProfileForm = {
   maternalSurname: string;
   rut: string;
   birthDate: string;
+  sex: "M" | "F" | "";
   email: string;
   phone: string;
   address: string;
@@ -39,6 +40,7 @@ export default function AccountProfileEditPage() {
     maternalSurname: "",
     rut: "",
     birthDate: "",
+    sex: "",
     email: "",
     phone: "",
     address: "",
@@ -60,6 +62,7 @@ export default function AccountProfileEditPage() {
           maternalSurname: nameFields.maternalSurname,
           rut: formatRut(normalizeRut(response.user.profile.rut)),
           birthDate: response.user.profile.birthDate || "",
+          sex: response.user.profile.sex || "",
           email: response.user.profile.email || response.user.email,
           phone: response.user.profile.phone || "",
           address: response.user.profile.address || "",
@@ -91,6 +94,7 @@ export default function AccountProfileEditPage() {
         maternalSurname: form.maternalSurname.trim(),
         rut: formatRut(normalizeRut(form.rut)),
         birthDate: form.birthDate,
+        sex: form.sex,
         email: form.email.trim(),
         phone: form.phone.trim(),
         address: form.address.trim(),
@@ -180,6 +184,19 @@ export default function AccountProfileEditPage() {
                 onChange={(e) => updateField("birthDate", e.target.value)}
                 required
               />
+            </Field>
+
+            <Field label="Sexo biológico">
+              <select
+                className={inputCls}
+                value={form.sex}
+                onChange={(e) => updateField("sex", e.target.value as ProfileForm["sex"])}
+                required
+              >
+                <option value="">Seleccionar</option>
+                <option value="F">Femenino</option>
+                <option value="M">Masculino</option>
+              </select>
             </Field>
 
             <Field label="Edad">

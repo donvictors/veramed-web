@@ -5,12 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import PhoneInput from "@/components/PhoneInput";
 import { FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { fetchCurrentUser } from "@/lib/auth-api";
 import {
   calculateAgeFromBirthDate,
   formatRut,
   isValidRut,
   joinPatientFullName,
   normalizeRut,
+  splitPatientFullName,
   type PatientNameFields,
 } from "@/lib/checkup";
 import type { SymptomsInterpretation } from "@/lib/symptoms-intake";
@@ -234,6 +236,41 @@ export default function SintomasPage() {
     ],
   );
   const patientAge = useMemo(() => calculateAgeFromBirthDate(birthDate), [birthDate]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void fetchCurrentUser()
+      .then((response) => {
+        if (cancelled || !response.user) {
+          return;
+        }
+
+        const profile = response.user.profile;
+        const parsedName = splitPatientFullName(profile.fullName || response.user.name || "");
+        const profileRut = profile.rut || "";
+
+        setNameFields((current) => ({
+          firstName: current.firstName || parsedName.firstName,
+          paternalSurname: current.paternalSurname || parsedName.paternalSurname,
+          maternalSurname: current.maternalSurname || parsedName.maternalSurname,
+        }));
+        setRut((current) => current || formatRut(profileRut));
+        setRutNormalized((current) => current || normalizeRut(profileRut));
+        setSex((current) =>
+          current || (profile.sex === "F" ? "female" : profile.sex === "M" ? "male" : ""),
+        );
+        setBirthDate((current) => current || profile.birthDate || "");
+        setEmail((current) => current || profile.email || response.user?.email || "");
+        setPhone((current) => current || profile.phone || "");
+        setAddress((current) => current || profile.address || "");
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     return () => {
