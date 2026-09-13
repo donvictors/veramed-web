@@ -11,6 +11,7 @@ import {
   requireSameOrigin,
 } from "@/lib/server/http-security";
 import { hashPassword } from "@/lib/server/password-hashing";
+import { splitMedicalPortalName } from "@/lib/medical-portal/profile";
 
 const inspectSchema = z.object({ token: z.string().min(20).max(200) });
 const acceptSchema = inspectSchema.extend({
@@ -58,6 +59,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invitación inválida o expirada." }, { status: 400 });
     }
     const { hash, salt } = hashPassword(parsed.data.password);
+    const nameFields = splitMedicalPortalName(parsed.data.name);
     const now = new Date();
 
     const user = await prisma.$transaction(async (tx) => {
@@ -76,6 +78,7 @@ export async function POST(request: Request) {
         data: {
           email: invitation.email,
           name: parsed.data.name,
+          ...nameFields,
           medicalRut: parsed.data.medicalRut,
           sisRegistration: parsed.data.sisRegistration,
           role: invitation.role as MedicalPortalRoleDb,

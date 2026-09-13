@@ -7,5 +7,18 @@ export default async function MedicalProfilePage() {
   const cookieStore = await cookies();
   const session = await verifyMedicalPortalSessionToken(cookieStore.get(MEDICAL_PORTAL_SESSION_COOKIE)?.value);
   if (!session) redirect("/medicos-login");
-  return <ProfileSettings doctor={{ name: session.name, email: session.email, role: session.role, specialty: null }} />;
+  return (
+    <ProfileSettings
+      doctor={{
+        firstName: session.firstName,
+        paternalSurname: session.paternalSurname,
+        maternalSurname: session.maternalSurname,
+        email: session.email,
+        role: session.role,
+        specialty: session.specialty ?? null,
+        medicalRut: session.medicalRut ?? "",
+        sisRegistration: session.sisRegistration ?? "",
+      }}
+    />
+  );
 }

@@ -13,6 +13,7 @@ import {
   readJsonBody,
   requireSameOrigin,
 } from "@/lib/server/http-security";
+import { splitMedicalPortalName } from "@/lib/medical-portal/profile";
 
 type LoginBody = {
   email?: string;
@@ -60,12 +61,23 @@ export async function POST(request: Request) {
     maxAge: getMedicalPortalSessionMaxAgeSeconds(),
   });
 
+  const nameFields = {
+    firstName: result.user.firstName,
+    paternalSurname: result.user.paternalSurname,
+    maternalSurname: result.user.maternalSurname,
+  };
+  const resolvedNameFields = nameFields.firstName
+    ? nameFields
+    : splitMedicalPortalName(result.user.name);
+
   await recordMedicalAudit({
     session: {
       sessionId: created.session.id,
       userId: result.user.id,
       email: result.user.email,
       name: result.user.name,
+      ...resolvedNameFields,
+      specialty: result.user.specialty ?? undefined,
       medicalRut: result.user.medicalRut ?? undefined,
       sisRegistration: result.user.sisRegistration ?? undefined,
       role: result.user.role,

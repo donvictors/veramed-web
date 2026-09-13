@@ -11,6 +11,7 @@ import {
   verifyMedicalPortalSessionToken,
 } from "@/lib/server/medical-portal-auth";
 import { httpErrorResponse, readJsonBody, requireSameOrigin } from "@/lib/server/http-security";
+import { splitMedicalPortalName } from "@/lib/medical-portal/profile";
 
 const updateSchema = z.object({
   userId: z.string().min(1).max(100),
@@ -118,11 +119,13 @@ export async function PATCH(request: Request) {
     }
 
     const accessChanged = current.active !== parsed.data.active || current.role !== parsed.data.role;
+    const nameFields = splitMedicalPortalName(parsed.data.name);
     const updated = await prisma.$transaction(async (tx) => {
       const user = await tx.medicalPortalUser.update({
         where: { id: current.id },
         data: {
           name: parsed.data.name,
+          ...nameFields,
           medicalRut: parsed.data.medicalRut,
           sisRegistration: parsed.data.sisRegistration,
           role: parsed.data.role as MedicalPortalRoleDb,

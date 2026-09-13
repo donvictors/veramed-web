@@ -5,9 +5,13 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import BrandLogo from "@/components/BrandLogo";
 import PortalIcon, { type PortalIconName } from "@/app/portal-medicos/_components/PortalIcon";
+import { medicalPortalInitials } from "@/lib/medical-portal/profile";
 
 type Doctor = {
   name: string;
+  firstName: string;
+  paternalSurname: string;
+  maternalSurname: string;
   email: string;
   role: "portal" | "doctor" | "admin";
   isPrimaryAdmin: boolean;
@@ -43,10 +47,6 @@ const sections: NavSection[] = [
     ],
   },
 ];
-
-function initials(name: string) {
-  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "VM";
-}
 
 export default function MedicalPortalShell({ doctor, children }: { doctor: Doctor; children: React.ReactNode }) {
   const pathname = usePathname();
@@ -144,10 +144,10 @@ export default function MedicalPortalShell({ doctor, children }: { doctor: Docto
         </button>
         <div className="relative flex min-w-0 items-center border-r border-white/10 lg:w-[292px]">
           <button type="button" onClick={() => setProfileOpen((value) => !value)} className="flex w-full min-w-0 items-center gap-3 px-4 py-3 text-left hover:bg-white/5" aria-expanded={profileOpen}>
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/12 text-sm font-bold">{initials(doctor.name)}</span>
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/12 text-sm font-bold">{medicalPortalInitials(doctor)}</span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-semibold">{doctor.name}</span>
-              <span className="block truncate text-[11px] uppercase tracking-[0.12em] text-emerald-100">{doctor.isPrimaryAdmin ? "Administrador principal" : doctor.specialty || "Especialidad no configurada"}</span>
+              <span className="block truncate text-[11px] uppercase tracking-[0.12em] text-emerald-100">{doctor.specialty || "Especialidad no configurada"}</span>
             </span>
             <PortalIcon name="chevron" className={`h-4 w-4 shrink-0 transition ${profileOpen ? "rotate-180" : ""}`} />
           </button>

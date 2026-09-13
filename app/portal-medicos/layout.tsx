@@ -19,10 +19,13 @@ export default async function PortalMedicosLayout({ children }: { children: Reac
     <MedicalPortalShell
       doctor={{
         name: session.name,
+        firstName: session.firstName,
+        paternalSurname: session.paternalSurname,
+        maternalSurname: session.maternalSurname,
         email: session.email,
         role: session.role,
         isPrimaryAdmin: isPrimaryMedicalAdmin(session.email),
-        specialty: null,
+        specialty: session.specialty ?? null,
       }}
     >
       {children}

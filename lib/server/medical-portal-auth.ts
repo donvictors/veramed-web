@@ -13,6 +13,10 @@ import { prisma } from "@/lib/prisma";
 import { getRequestIpHash, hashOpaqueToken } from "@/lib/server/http-security";
 import { hashPassword, verifyPassword } from "@/lib/server/password-hashing";
 import { getConfiguredMedicalSigner } from "@/lib/server/medical-approval";
+import {
+  joinMedicalPortalName,
+  splitMedicalPortalName,
+} from "@/lib/medical-portal/profile";
 
 export const MEDICAL_PORTAL_SESSION_COOKIE = "veramed_medicos_session";
 export const PRIMARY_MEDICAL_ADMIN_EMAIL = (
@@ -29,6 +33,10 @@ export type MedicalPortalSessionIdentity = {
   userId: string;
   email: string;
   name: string;
+  firstName: string;
+  paternalSurname: string;
+  maternalSurname: string;
+  specialty?: string;
   medicalRut?: string;
   sisRegistration?: string;
   role: MedicalPortalRole;
@@ -69,11 +77,13 @@ async function ensureBootstrapMedicalUser() {
   if (!credentials) return;
   const { hash, salt } = hashPassword(credentials.password);
   const signer = getConfiguredMedicalSigner();
+  const nameFields = splitMedicalPortalName(credentials.name);
   try {
     await prisma.medicalPortalUser.create({
       data: {
         email: credentials.email,
-        name: credentials.name,
+        name: joinMedicalPortalName(nameFields),
+        ...nameFields,
         medicalRut: signer.rut,
         sisRegistration: signer.sisRegistration,
         role: MedicalPortalRoleDb.admin,
@@ -253,11 +263,16 @@ export async function verifyMedicalPortalSessionToken(token?: string | null) {
       data: { lastSeenAt: new Date() },
     });
   }
+  const legacyNameFields = splitMedicalPortalName(row.user.name);
   return {
     sessionId: row.id,
     userId: row.user.id,
     email: row.user.email,
     name: row.user.name,
+    firstName: row.user.firstName || legacyNameFields.firstName,
+    paternalSurname: row.user.paternalSurname || legacyNameFields.paternalSurname,
+    maternalSurname: row.user.maternalSurname || legacyNameFields.maternalSurname,
+    specialty: row.user.specialty ?? undefined,
     medicalRut: row.user.medicalRut ?? undefined,
     sisRegistration: row.user.sisRegistration ?? undefined,
     role: row.user.role,

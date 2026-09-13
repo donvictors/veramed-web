@@ -481,6 +481,10 @@ model MedicalPortalUser {
   id                  String                    @id @default(cuid())
   email               String                    @unique
   name                String
+  firstName           String                    @default("")
+  paternalSurname     String                    @default("")
+  maternalSurname     String                    @default("")
+  specialty           String?
   medicalRut          String?
   sisRegistration     String?
   role                MedicalPortalRoleDb       @default(doctor)
