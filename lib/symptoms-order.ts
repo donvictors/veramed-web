@@ -30,6 +30,29 @@ export const EMPTY_SYMPTOMS_ANTECEDENTS: SymptomsAntecedents = {
 
 export type SymptomsFlowAnswerMap = Record<string, string>;
 
+export const DEFAULT_SYMPTOMS_TESTS: TestItem[] = [
+  {
+    name: "Hemograma",
+    why: "Examen de respaldo sugerido para la revisión médica de la consulta por síntomas.",
+  },
+  {
+    name: "Creatinina en sangre",
+    why: "Examen de respaldo sugerido para evaluar la función renal durante la revisión médica.",
+  },
+  {
+    name: "Proteína C reactiva (PCR)",
+    why: "Examen de respaldo sugerido para evaluar actividad inflamatoria durante la revisión médica.",
+  },
+  {
+    name: "Perfil bioquímico",
+    why: "Examen de respaldo sugerido para complementar la revisión médica de la consulta.",
+  },
+];
+
+export function ensureSymptomsTests(tests: TestItem[]): TestItem[] {
+  return tests.length > 0 ? tests : DEFAULT_SYMPTOMS_TESTS.map((test) => ({ ...test }));
+}
+
 export type SymptomsOrderFlowSummary = {
   flowId: string;
   label: string;

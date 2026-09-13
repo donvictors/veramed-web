@@ -7,6 +7,7 @@ import {
   type TestItem,
 } from "@/lib/checkup";
 import {
+  ensureSymptomsTests,
   EMPTY_SYMPTOMS_ANTECEDENTS,
   type SymptomsAntecedents,
   type SymptomsFlowAnswerMap,
@@ -617,6 +618,7 @@ export async function saveSymptomsOrderDraft(input: {
   oneLinerSummary?: string;
   interviewMetadata?: SymptomsInterviewMetadata;
 }) {
+  const suggestedTests = ensureSymptomsTests(input.suggestedTests);
   const changed = await prisma.symptomsRequest.updateMany({
     where: {
       id: input.requestId,
@@ -625,15 +627,43 @@ export async function saveSymptomsOrderDraft(input: {
     },
     data: {
       followUpAnswers: input.followUpAnswers,
-      suggestedTests: input.suggestedTests,
-      selectedTests: input.suggestedTests,
+      suggestedTests,
+      selectedTests: suggestedTests,
       notes: input.notes,
       interviewMetadata: input.interviewMetadata,
       oneLinerSummary: input.oneLinerSummary || undefined,
       reviewStatus: SymptomsRequestStatusDb.pending_validation,
     },
   });
-  if (changed.count !== 1) throw new Error("Transición clínica inválida para construir la orden.");
+  if (changed.count !== 1) {
+    const current = await prisma.symptomsRequest.findUnique({
+      where: { id: input.requestId },
+      include: { payment: true },
+    });
+    if (
+      current?.payment?.status === PaymentStatusDb.paid &&
+      (current.reviewStatus === SymptomsRequestStatusDb.pending_validation ||
+        current.reviewStatus === SymptomsRequestStatusDb.validated)
+    ) {
+      if (
+        current.reviewStatus === SymptomsRequestStatusDb.pending_validation &&
+        asTests(current.selectedTests).length === 0
+      ) {
+        const repaired = await prisma.symptomsRequest.update({
+          where: { id: input.requestId },
+          data: {
+            suggestedTests,
+            selectedTests: suggestedTests,
+            notes: input.notes,
+          },
+          include: { payment: true },
+        });
+        return toRecord(repaired);
+      }
+      return toRecord(current);
+    }
+    throw new Error("No pudimos actualizar la propuesta de orden. Recarga la página para continuar.");
+  }
   const updated = await prisma.symptomsRequest.findUnique({
     where: { id: input.requestId },
     include: { payment: true },

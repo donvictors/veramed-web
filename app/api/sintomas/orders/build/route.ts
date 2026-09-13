@@ -16,7 +16,7 @@ import { LEGACY_MIN_INTERVIEW_TURNS } from "@/lib/server/symptoms-interview";
 import { toSymptomsOrderDraftFromRecord } from "@/lib/server/symptoms-order-mapper";
 import { suggestSymptomsExamsWithOpenAI } from "@/lib/server/symptoms-openai";
 import { getSymptomsRequest, saveSymptomsOrderDraft } from "@/lib/server/symptoms-store";
-import type { SymptomsFlowAnswerMap } from "@/lib/symptoms-order";
+import { ensureSymptomsTests, type SymptomsFlowAnswerMap } from "@/lib/symptoms-order";
 
 import {
   enforceRateLimit,
@@ -88,6 +88,31 @@ export async function POST(request: Request) {
     );
   }
 
+  if (
+    requestRecord.reviewStatus === "pending_validation" ||
+    requestRecord.reviewStatus === "validated"
+  ) {
+    const repairedRecord =
+      requestRecord.reviewStatus === "pending_validation" && requestRecord.selectedTests.length === 0
+        ? await saveSymptomsOrderDraft({
+            requestId: requestRecord.id,
+            followUpAnswers: requestRecord.followUpAnswers,
+            suggestedTests: [],
+            notes: [
+              ...requestRecord.notes,
+              "Se agregó un panel de respaldo porque la evaluación automática no identificó exámenes dirigidos. El médico revisor puede confirmarlo o modificarlo.",
+            ],
+            oneLinerSummary: requestRecord.oneLinerSummary,
+            interviewMetadata: requestRecord.interviewMetadata,
+          })
+        : requestRecord;
+    return NextResponse.json({
+      order: toSymptomsOrderDraftFromRecord(repairedRecord),
+      engineVersion: requestRecord.engineVersion,
+      createdAt: new Date().toISOString(),
+    });
+  }
+
   const followUpAnswers = requestRecord.followUpAnswers;
   const allVisibleQuestionsAnswered = requestRecord.followUpQuestions.every(
     (_, index) => Boolean(followUpAnswers[`q_${index}`]?.trim()),
@@ -128,8 +153,8 @@ export async function POST(request: Request) {
         console.error("Symptoms exam assessment requires physician review", { name: error instanceof Error ? error.name : "UnknownError" });
       }
     }
-    // Never feed adaptive q_N answers into fixed flow IDs. A failed assessment is
-    // explicitly sent for physician review, not converted into a broad fallback panel.
+    // Adaptive q_N answers remain attached to their source rather than being mapped
+    // to fixed flow IDs. The business fallback is applied only after clinical review.
     const flags = requestRecord.clinicalState?.redFlags.filter(flag => flag.status !== "absent") ?? [];
     const emergency = flags.some(flag => flag.status === "present" && flag.priority === "critical");
     const warning = flags.length > 0 || requestRecord.interpretation.urgencyWarning;
@@ -140,9 +165,14 @@ export async function POST(request: Request) {
         red_flags: flags.map(flag => flag.label),
       },
     });
-    const suggestedTests = examDecision.accepted_tests;
-    const notes = [examDecision.patient_guidance,
-      suggestedTests.length ? "Exámenes seleccionados por utilidad clínica individual; pendientes de revisión y firma médica." : "Sin exámenes automáticos para esta etapa; la revisión médica puede confirmar o modificar la propuesta."];
+    const suggestedTests = ensureSymptomsTests(examDecision.accepted_tests);
+    const usedDefaultTests = examDecision.accepted_tests.length === 0;
+    const notes = [
+      examDecision.patient_guidance,
+      usedDefaultTests
+        ? "Se agregó un panel de respaldo porque la evaluación automática no identificó exámenes dirigidos. El médico revisor puede confirmarlo o modificarlo."
+        : "Exámenes seleccionados por utilidad clínica individual; pendientes de revisión y firma médica.",
+    ];
     const interviewMetadata = {
       ...(requestRecord.interviewMetadata ?? createInitialInterviewMetadata({ currentQuestion: null, origin: "fallback", warningActive: warning })),
       examDecision,

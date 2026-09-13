@@ -6,6 +6,10 @@ export function toSymptomsOrderDraftFromRecord(record: SymptomsRequestRecord): S
   const issuedAtMs = record.validatedAt ?? record.updatedAt ?? record.createdAt;
   const tests = record.selectedTests;
   const decision = record.interviewMetadata?.examDecision;
+  const patientCareLevel =
+    decision?.care_level === "no_tests" && tests.length > 0
+      ? "outpatient_tests"
+      : decision?.care_level;
   const statusLabel = record.reviewStatus === "validated" ? "Aprobada" : "Pendiente";
 
   const summary =
@@ -15,7 +19,14 @@ export function toSymptomsOrderDraftFromRecord(record: SymptomsRequestRecord): S
 
   return {
     id: record.id,
-    careDecision: decision ? { care_level: decision.care_level, patient_guidance: decision.patient_guidance, status: decision.status } : undefined,
+    careDecision: decision ? {
+      care_level: patientCareLevel!,
+      patient_guidance:
+        decision.care_level === "no_tests" && tests.length > 0
+          ? "Estos exámenes quedan sujetos a revisión médica antes de emitir la orden definitiva."
+          : decision.patient_guidance,
+      status: decision.status,
+    } : undefined,
     issuedAtMs,
     verificationCode: createVerificationCode(record.patient.rut, issuedAtMs),
     summary,
@@ -49,4 +60,3 @@ export function toSymptomsOrderDraftFromRecord(record: SymptomsRequestRecord): S
     },
   };
 }
-

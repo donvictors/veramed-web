@@ -203,6 +203,55 @@ test("build guarda y devuelve una orden urgente sin veto por nivel de atención"
   } finally { if (previous === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = previous; }
 });
 
+test("build agrega el panel de respaldo cuando la evaluación no selecciona exámenes", async () => {
+  const text = "Molestia leve sin otros síntomas.";
+  const assessment = proposal(text, "Molestia inespecífica", [], "no_tests");
+  const decision = run(assessment);
+  const record = {
+    ...mockRecord(decision),
+    payment: { status: "paid" },
+    reviewStatus: "in_flow",
+    aiConsentAt: undefined,
+    aiConsentVersion: undefined,
+    primarySymptom: text,
+    oneLinerSummary: text,
+    followUpQuestions: ["¿Cuándo comenzó?"],
+    followUpAnswers: { q_0: "Hoy" },
+    interviewMetadata: { stopReason: "clinical_state_ready" },
+    symptomsText: text,
+  };
+  let saved;
+  const previous = process.env.OPENAI_API_KEY;
+  delete process.env.OPENAI_API_KEY;
+  try {
+    const { POST } = loadModule("app/api/sintomas/orders/build/route.ts", {
+      "next/server": { NextResponse: { json: (body, options) => ({ body, status: options?.status ?? 200 }) } },
+      "next/headers": { cookies: async () => ({ get: () => undefined }) },
+      "@/lib/auth": { AUTH_SESSION_COOKIE: "session" },
+      "@/lib/server/auth-store": { getUserFromSession: async () => null },
+      "@/lib/server/internal-access": { hasValidInternalAccess: () => true },
+      "@/lib/server/request-access": { getRequestAccessCookieName: () => "access", hasValidRequestAccessCookie: () => true },
+      "@/lib/server/symptoms-interview": { LEGACY_MIN_INTERVIEW_TURNS: 4 },
+      "@/lib/checkup": { createVerificationCode: () => "code", calculateAgeFromBirthDate: () => 36 },
+      "@/lib/server/symptoms-openai": { suggestSymptomsExamsWithOpenAI: async () => { throw new Error("No debería invocarse sin API key"); } },
+      "@/lib/server/symptoms-store": { getSymptomsRequest: async () => record, saveSymptomsOrderDraft: async input => { saved = input; return { ...record, ...input, selectedTests: input.suggestedTests, reviewStatus: "pending_validation" }; } },
+      "@/lib/server/http-security": { requireSameOrigin() {}, enforceRateLimit: async () => {}, readJsonBody: async () => ({ requestId: record.id }), httpErrorResponse: error => { throw error; } },
+    });
+    const response = await POST(new Request("https://veramed.test/api/sintomas/orders/build", { method: "POST" }));
+    assert.equal(response.status, 200);
+    assert.deepEqual(saved.suggestedTests.map(test => test.name), [
+      "Hemograma",
+      "Creatinina en sangre",
+      "Proteína C reactiva (PCR)",
+      "Perfil bioquímico",
+    ]);
+    assert.deepEqual(response.body.order.tests, saved.suggestedTests);
+  } finally {
+    if (previous === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = previous;
+  }
+});
+
 test("generador realiza dos llamadas separadas y no sustituye la auditoría con flags propios", async () => {
   const assessment = proposal("Dolor anal con secreción y exposición sexual anal.", "Proctitis infecciosa", [NAAT, "Urocultivo"]);
   const audit = auditFor(assessment, [NAAT]);

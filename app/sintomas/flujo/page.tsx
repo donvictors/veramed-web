@@ -86,7 +86,7 @@ function buildPersistedMessages(request: SymptomsRequestPayload) {
     {
       id: "intro-2",
       role: "assistant",
-      text: "Conversaremos brevemente. Cada pregunta se adaptará a lo que me cuentes.",
+      text: "Te haré algunas preguntas y según lo que me cuentes elegiremos los exámenes que necesitas.",
     },
   ];
 
@@ -382,12 +382,6 @@ function SintomasFlujoPageContent() {
         throw new Error(payload && "error" in payload && payload.error ? payload.error : "No pudimos generar la orden.");
       }
 
-      if (!payload.order.tests?.length) {
-        throw new Error(
-          "No hemos identificado ningún examen para ti por ahora. Lo sentimos. Puedes editar tu relato o consultar de forma presencial.",
-        );
-      }
-
       window.sessionStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(payload.order));
       setOrderProgress(100);
       await sleep(320);
@@ -443,7 +437,7 @@ function SintomasFlujoPageContent() {
         <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-[0_24px_70px_-52px_rgba(15,23,42,0.55)] md:p-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
-              Entrevista clínica adaptativa
+              Consulta digital
             </p>
             <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
               {Object.keys(answers).length} respuestas registradas
