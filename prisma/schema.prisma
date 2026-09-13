@@ -89,6 +89,21 @@ enum ElectronicReceiptStatusDb {
   sent
 }
 
+enum MedicalPrescriptionStatusDb {
+  signed
+  sent
+  email_failed
+  revoked
+}
+
+enum MedicalScheduleBlockTypeDb {
+  short_consultation
+  follow_up
+  intake
+  home_visit
+  blocked
+}
+
 model Healthcheck {
   id        String   @id @default(cuid())
   key       String   @unique
@@ -98,26 +113,28 @@ model Healthcheck {
 }
 
 model User {
-  id                     String                  @id @default(cuid())
+  id                     String                       @id @default(cuid())
   name                   String
-  email                  String                  @unique
+  email                  String                       @unique
   passwordHash           String
   passwordSalt           String
   profileFirstName       String
-  profilePaternalSurname String                  @default("")
-  profileMaternalSurname String                  @default("")
-  profileRut             String                  @default("")
-  profileBirthDate       String                  @default("")
-  profileSex             String                  @default("")
+  profilePaternalSurname String                       @default("")
+  profileMaternalSurname String                       @default("")
+  profileRut             String                       @default("")
+  profileBirthDate       String                       @default("")
+  profileSex             String                       @default("")
   profileEmail           String
-  profilePhone           String                  @default("")
-  profileAddress         String                  @default("")
-  createdAt              DateTime                @default(now())
-  updatedAt              DateTime                @updatedAt
+  profilePhone           String                       @default("")
+  profileAddress         String                       @default("")
+  createdAt              DateTime                     @default(now())
+  updatedAt              DateTime                     @updatedAt
   sessions               Session[]
   checkups               CheckupRequest[]
   chronicControls        ChronicControlRequest[]
   symptomsRequests       SymptomsRequest[]
+  medicalPrescriptions   MedicalPrescription[]
+  scheduleAppointments   MedicalScheduleAppointment[]
 }
 
 model Session {
@@ -499,8 +516,86 @@ model MedicalPortalUser {
   sessions            MedicalPortalSession[]
   auditLogs           MedicalAuditLog[]
   invitations         MedicalPortalInvitation[] @relation("MedicalPortalInviter")
+  prescriptions       MedicalPrescription[]
+  scheduleBlocks      MedicalScheduleBlock[]
 
   @@index([active, role])
+}
+
+model MedicalScheduleBlock {
+  id                  String                       @id @default(cuid())
+  doctorUserId        String
+  type                MedicalScheduleBlockTypeDb
+  startsAt            DateTime
+  slotDurationMinutes Int
+  slotCount           Int                          @default(1)
+  notes               String                       @default("")
+  createdAt           DateTime                     @default(now())
+  updatedAt           DateTime                     @updatedAt
+  doctor              MedicalPortalUser            @relation(fields: [doctorUserId], references: [id], onDelete: Cascade)
+  appointments        MedicalScheduleAppointment[]
+
+  @@index([doctorUserId, startsAt])
+}
+
+model MedicalScheduleAppointment {
+  id                     String               @id @default(cuid())
+  blockId                String
+  patientUserId          String
+  patientFirstName       String
+  patientPaternalSurname String               @default("")
+  patientMaternalSurname String               @default("")
+  patientRut             String
+  patientEmail           String               @default("")
+  patientPhone           String               @default("")
+  notes                  String               @default("")
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+  block                  MedicalScheduleBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
+  patient                User                 @relation(fields: [patientUserId], references: [id], onDelete: Restrict)
+
+  @@unique([blockId, patientUserId])
+  @@index([patientUserId, createdAt])
+}
+
+model MedicalPrescription {
+  id                     String                      @id @default(cuid())
+  prescriberUserId       String
+  patientUserId          String
+  patientFirstName       String
+  patientPaternalSurname String                      @default("")
+  patientMaternalSurname String                      @default("")
+  patientRut             String
+  patientBirthDate       String                      @default("")
+  patientEmail           String
+  patientPhone           String                      @default("")
+  patientAddress         String                      @default("")
+  prescriberName         String
+  prescriberRut          String
+  prescriberSis          String
+  prescriberEmail        String
+  prescriberSpecialty    String                      @default("")
+  items                  Json
+  verificationCode       String                      @unique
+  status                 MedicalPrescriptionStatusDb @default(signed)
+  fileName               String
+  blobUrl                String
+  blobPath               String
+  sizeBytes              Int
+  signedAt               DateTime                    @default(now())
+  emailSentAt            DateTime?
+  emailMessageId         String?
+  emailError             String?
+  revokedAt              DateTime?
+  createdAt              DateTime                    @default(now())
+  updatedAt              DateTime                    @updatedAt
+  prescriber             MedicalPortalUser           @relation(fields: [prescriberUserId], references: [id], onDelete: Restrict)
+  patient                User                        @relation(fields: [patientUserId], references: [id], onDelete: Restrict)
+
+  @@index([prescriberUserId, createdAt])
+  @@index([patientUserId, createdAt])
+  @@index([patientRut, createdAt])
+  @@index([status, createdAt])
 }
 
 model MedicalPortalInvitation {

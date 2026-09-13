@@ -159,9 +159,7 @@ function SymptomsOrderPageContent() {
   const printCategoryMeta = getOrderCategoryMeta(printCategory);
   const printWarning = order.careDecision?.care_level === "emergency"
     ? "Acude a urgencias ahora. No esperes la firma, la toma de exámenes ni sus resultados para acudir."
-    : order.careDecision?.care_level === "presencial_priority" || order.interpretation.urgencyWarning
-      ? "Busca evaluación presencial prioritaria. No retrases la consulta esperando los exámenes ni sus resultados."
-      : "";
+    : "";
   const printPages = chunkTestsForPrint(printTests, printCategory, { bodyHeightMm: LETTER_PRINT_CONFIG.bodyHeightMm - (printWarning ? 18 : 0) });
   const issuedAt = new Intl.DateTimeFormat("es-CL", {
     dateStyle: "medium",

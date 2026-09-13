@@ -109,7 +109,7 @@ export async function sendSymptomsValidatedOrderEmail(
     <div style="font-family: Arial, sans-serif; color: #0f172a; line-height: 1.6;">
       <p style="margin: 0 0 12px;">Hola ${escapeHtml(getFirstName(patientName))},</p>
       <p style="margin: 0 0 12px;">${hasTests ? "Tu orden de exámenes por síntomas ya fue validada y firmada por un médico de Veramed." : "Un médico de Veramed revisó tu evaluación y no indicó exámenes en esta etapa."}</p>
-      ${decision ? `<p style="padding:12px;border:2px solid #d97706;">${escapeHtml(decision.patient_guidance)}</p>` : ""}
+      ${decision && decision.care_level !== "presencial_priority" ? `<p style="padding:12px;border:2px solid #d97706;">${escapeHtml(decision.patient_guidance)}</p>` : ""}
       <p style="margin: 0 0 8px;">${hasTests ? "Puedes revisar tus órdenes:" : "Puedes revisar tu evaluación:"}</p>
       <ul style="margin: 0 0 12px 18px; padding: 0;">
         ${links}

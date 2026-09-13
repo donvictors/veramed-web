@@ -167,7 +167,8 @@ test("el portal médico reutiliza el validador y aísla los nuevos borradores cl
   const shell = read("app/portal-medicos/_components/MedicalPortalShell.tsx");
   const validatorPage = read("app/portal-medicos/validar-ordenes/page.tsx");
   const examPage = read("app/portal-medicos/indicaciones/examenes/page.tsx");
-  const prescription = read("app/portal-medicos/_components/PrescriptionBuilder.tsx");
+  const prescription = read("app/portal-medicos/_components/StandardPrescriptionBuilder.tsx");
+  const prescriptionRoute = read("app/api/portal-medicos/prescriptions/route.ts");
   const vaccines = read("app/portal-medicos/_components/VaccineOrderBuilder.tsx");
 
   assert.match(validatorPage, /PortalMedicosClient/);
@@ -175,7 +176,9 @@ test("el portal médico reutiliza el validador y aísla los nuevos borradores cl
   assert.match(shell, /target="_blank"/);
   assert.match(shell, /rel="noopener noreferrer"/);
   assert.match(examPage, /EXAM_MASTER_CATALOG/);
-  assert.match(prescription, /Backend de emisión pendiente/);
+  assert.match(prescription, /\/api\/portal-medicos\/prescriptions/);
+  assert.match(prescriptionRoute, /canValidateMedicalOrders/);
+  assert.match(prescriptionRoute, /recordMedicalAudit/);
   assert.match(vaccines, /VACCINE_CATALOG/);
   assert.doesNotMatch(vaccines, /fetch\(/);
 });
