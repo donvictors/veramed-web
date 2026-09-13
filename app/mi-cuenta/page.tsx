@@ -160,9 +160,7 @@ export default function AccountPage() {
                 <p className="mt-1 text-sm text-slate-500">Hola, {user.name}</p>
               </div>
             </div>
-            <Link href="/chequeo" className={primaryBtnCls}>
-              Solicitar orden
-            </Link>
+            <OrderRequestMenu />
           </div>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-3">
@@ -216,7 +214,7 @@ export default function AccountPage() {
                 label="Correo"
                 value={user.profile.email || user.email}
               />
-              <InfoRow label="Teléfono" value={formattedPhone || "No informado"} />
+              <InfoRow label="Celular" value={formattedPhone || "No informado"} />
               <InfoRow
                 label="Dirección"
                 value={user.profile.address || "No informada"}
@@ -479,10 +477,80 @@ function EmptyState() {
   return (
     <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-center">
       <p className="text-sm text-slate-600">Aún no tienes solicitudes.</p>
-      <Link href="/chequeo" className={`${primaryBtnCls} mt-3`}>
-        Nuevo chequeo
-      </Link>
+      <OrderRequestMenu label="Nueva orden" className="mt-3" align="center" />
     </div>
+  );
+}
+
+const orderRequestOptions = [
+  {
+    href: "/chequeo",
+    title: "Orden de chequeo",
+    description: "Exámenes preventivos según tu perfil.",
+  },
+  {
+    href: "/control-cronico",
+    title: "Orden de control crónico",
+    description: "Seguimiento de enfermedades crónicas.",
+  },
+  {
+    href: "/sintomas",
+    title: "Evaluación de síntomas con IA",
+    description: "Orientación de exámenes según tus síntomas.",
+  },
+] as const;
+
+function OrderRequestMenu({
+  label = "Solicitar orden",
+  className = "",
+  align = "right",
+}: {
+  label?: string;
+  className?: string;
+  align?: "right" | "center";
+}) {
+  return (
+    <details className={`group relative inline-block text-left ${className}`}>
+      <summary
+        className={`${primaryBtnCls} cursor-pointer list-none gap-2 [&::-webkit-details-marker]:hidden`}
+      >
+        {label}
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          aria-hidden="true"
+          className="transition-transform group-open:rotate-180"
+        >
+          <path
+            d="m7 10 5 5 5-5"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </summary>
+      <div
+        className={`absolute top-full z-30 mt-2 w-[min(20rem,calc(100vw-3rem))] rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl ${
+          align === "center" ? "left-1/2 -translate-x-1/2" : "right-0"
+        }`}
+      >
+        {orderRequestOptions.map((option) => (
+          <Link
+            key={option.href}
+            href={option.href}
+            className="block rounded-xl px-4 py-3 transition hover:bg-emerald-50 focus-visible:bg-emerald-50 focus-visible:outline-none"
+          >
+            <span className="block text-sm font-semibold text-slate-900">{option.title}</span>
+            <span className="mt-0.5 block text-xs leading-5 text-slate-500">
+              {option.description}
+            </span>
+          </Link>
+        ))}
+      </div>
+    </details>
   );
 }
 

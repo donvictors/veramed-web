@@ -1,8 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useMemo } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import BrandLogo from "./BrandLogo";
 
 const navItems = [
@@ -15,8 +16,53 @@ const navItems = [
 
 const COMPACT_FLOW_PREFIXES = ["/chequeo", "/control-cronico", "/sintomas"];
 
+type HeaderSession = {
+  kind: "patient" | "medical";
+  name: string;
+  shortName: string;
+  email: string;
+};
+
 export default function Header() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [session, setSession] = useState<HeaderSession | null | undefined>(undefined);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void fetch("/api/auth/header-session", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("No se pudo consultar la sesión.");
+        return response.json() as Promise<{
+          authenticated: boolean;
+          session: HeaderSession | null;
+        }>;
+      })
+      .then((response) => {
+        if (!cancelled) setSession(response.authenticated ? response.session : null);
+      })
+      .catch(() => {
+        if (!cancelled) setSession(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
+
+  async function handleLogout() {
+    if (!session) return;
+
+    const endpoint = session.kind === "medical" ? "/api/medicos-auth/logout" : "/api/auth/logout";
+    try {
+      await fetch(endpoint, { method: "POST" });
+    } finally {
+      setSession(null);
+      router.push("/");
+      router.refresh();
+    }
+  }
 
   const isCompactFlowHeader = useMemo(() => {
     if (!pathname) return false;
@@ -36,10 +82,14 @@ export default function Header() {
           <Link href="/" className="shrink-0" aria-label="Ir al inicio de Veramed">
             <BrandLogo priority />
           </Link>
-          <span className="hidden items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 sm:inline-flex">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            Entorno clínico seguro
-          </span>
+          {session ? (
+            <UserSessionMenu session={session} onLogout={handleLogout} />
+          ) : session === undefined ? (
+            <div
+              className="h-11 w-36 animate-pulse rounded-2xl bg-slate-100"
+              aria-label="Consultando sesión"
+            />
+          ) : null}
         </div>
       </header>
     );
@@ -67,6 +117,14 @@ export default function Header() {
           ))}
         </nav>
 
+        {session ? (
+          <UserSessionMenu session={session} onLogout={handleLogout} />
+        ) : session === undefined ? (
+          <div
+            className="h-11 w-36 animate-pulse rounded-2xl bg-slate-100"
+            aria-label="Consultando sesión"
+          />
+        ) : (
         <div className="flex items-center gap-2">
           <details className="group relative hidden xl:block">
             <summary className="flex cursor-pointer list-none items-center gap-2 rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:border-emerald-300 hover:text-emerald-800">
@@ -157,7 +215,75 @@ export default function Header() {
             Quiero mi orden
           </Link>
         </div>
+        )}
       </div>
     </header>
+  );
+}
+
+function UserSessionMenu({
+  session,
+  onLogout,
+}: {
+  session: HeaderSession;
+  onLogout: () => Promise<void>;
+}) {
+  const accountHref = session.kind === "medical" ? "/portal-medicos" : "/mi-cuenta";
+  const accountLabel = session.kind === "medical" ? "Ir al escritorio" : "Ir a Mi cuenta";
+
+  return (
+    <details className="group relative">
+      <summary
+        className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-2xl border border-emerald-300 bg-white py-1.5 pl-1.5 pr-3 text-sm font-semibold text-slate-900 shadow-[0_8px_24px_-18px_rgba(5,150,105,0.8)] transition hover:border-emerald-500 hover:text-emerald-800 [&::-webkit-details-marker]:hidden"
+        aria-label={`Abrir menú de ${session.name}`}
+      >
+        <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-emerald-50">
+          <Image
+            src="/brand/veramed-icon.png"
+            alt=""
+            width={32}
+            height={32}
+            className="h-8 w-8 object-cover"
+          />
+        </span>
+        <span className="max-w-32 truncate sm:max-w-44">{session.shortName}</span>
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          aria-hidden="true"
+          className="shrink-0 transition-transform group-open:rotate-180"
+        >
+          <path
+            d="m7 10 5 5 5-5"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </summary>
+      <div className="absolute right-0 top-12 z-40 w-64 rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl">
+        <div className="px-3 py-2">
+          <p className="truncate text-sm font-semibold text-slate-900">{session.name}</p>
+          <p className="mt-0.5 truncate text-xs text-slate-500">{session.email}</p>
+        </div>
+        <div className="my-1 border-t border-slate-200" />
+        <Link
+          href={accountHref}
+          className="block rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-emerald-50 hover:text-emerald-800"
+        >
+          {accountLabel}
+        </Link>
+        <button
+          type="button"
+          onClick={() => void onLogout()}
+          className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition hover:bg-rose-50 hover:text-rose-700"
+        >
+          Cerrar sesión
+        </button>
+      </div>
+    </details>
   );
 }

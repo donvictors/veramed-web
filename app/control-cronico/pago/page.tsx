@@ -1,10 +1,11 @@
 "use client";
 
-import { startTransition, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, startTransition, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Stepper from "@/components/checkup/Stepper";
+import RequestPageFallback from "@/components/checkup/RequestPageFallback";
 import {
   fetchChronicControlRequest,
   type ChronicControlApiRecord,
@@ -19,6 +20,14 @@ import { validateDiscountCode } from "@/lib/discount-api";
 import { useRequestId } from "@/lib/use-request-id";
 
 export default function ChronicControlPaymentPage() {
+  return (
+    <Suspense fallback={<RequestPageFallback />}>
+      <ChronicControlPaymentPageContent />
+    </Suspense>
+  );
+}
+
+function ChronicControlPaymentPageContent() {
   const router = useRouter();
   const [data, setData] = useState<ChronicControlApiRecord | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);

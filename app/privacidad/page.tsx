@@ -61,7 +61,7 @@ export default function PrivacyPage() {
                 <div className="mt-2 space-y-1 pl-4">
                   <p>Nombre completo</p>
                   <p>Correo electrónico</p>
-                  <p>Teléfono (si lo proporcionas)</p>
+                  <p>Celular (si lo proporcionas)</p>
                   <p>Edad / Fecha de nacimiento</p>
                 </div>
               </div>

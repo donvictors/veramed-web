@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { startTransition, useEffect, useState } from "react";
+import { Suspense, startTransition, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Stepper from "@/components/checkup/Stepper";
+import RequestPageFallback from "@/components/checkup/RequestPageFallback";
 import { fetchCheckupRequest } from "@/lib/checkup-api";
 import { type ReviewStatus } from "@/lib/checkup";
 import { useRequestId } from "@/lib/use-request-id";
@@ -11,6 +12,14 @@ import { useRequestId } from "@/lib/use-request-id";
 const REVIEW_DELAY_MS = 8000;
 
 export default function StatusPage() {
+  return (
+    <Suspense fallback={<RequestPageFallback />}>
+      <StatusPageContent />
+    </Suspense>
+  );
+}
+
+function StatusPageContent() {
   const router = useRouter();
   const [status, setStatus] = useState<ReviewStatus>("queued");
   const [secondsLeft, setSecondsLeft] = useState<number>(8);

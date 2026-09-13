@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import Stepper from "@/components/checkup/Stepper";
+import PhoneInput from "@/components/PhoneInput";
 import { fetchCurrentUser } from "@/lib/auth-api";
 import { createCheckupRequest } from "@/lib/checkup-api";
 import {
@@ -223,7 +224,7 @@ export default function CheckupPage() {
       setSubmitError("");
 
       const checkup = await createCheckupRequest({ input, patient });
-      router.push(`/chequeo/resumen?id=${checkup.id}`);
+      router.push(`/chequeo/resumen?id=${encodeURIComponent(checkup.id)}`);
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "No pudimos crear tu solicitud.");
     } finally {
@@ -427,13 +428,7 @@ export default function CheckupPage() {
                         onChange={(e) => setEmail(e.target.value)}
                       />
                     </Field>
-                    <Field label="Teléfono">
-                      <input
-                        className={inputCls}
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                      />
-                    </Field>
+                    <PhoneInput value={phone} onChange={setPhone} />
                   </div>
 
                   <Field label="Dirección">
@@ -795,6 +790,7 @@ export default function CheckupPage() {
             )}
 
             <button
+              type="button"
               onClick={handleContinue}
               disabled={isSubmitting}
               className="mt-6 w-full rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"

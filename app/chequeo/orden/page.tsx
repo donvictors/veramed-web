@@ -1,9 +1,10 @@
 "use client";
 
-import { Fragment, startTransition, useEffect, useState } from "react";
+import { Fragment, Suspense, startTransition, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import BrandLogo from "@/components/BrandLogo";
+import RequestPageFallback from "@/components/checkup/RequestPageFallback";
 import { fetchCheckupRequest, type CheckupApiRecord } from "@/lib/checkup-api";
 import {
   calculateAgeFromBirthDate,
@@ -21,6 +22,14 @@ import { useRequestId } from "@/lib/use-request-id";
 import { buildProtectedSignatureUrl } from "@/lib/protected-order-assets";
 
 export default function OrderPage() {
+  return (
+    <Suspense fallback={<RequestPageFallback />}>
+      <OrderPageContent />
+    </Suspense>
+  );
+}
+
+function OrderPageContent() {
   const router = useRouter();
   const [data, setData] = useState<CheckupApiRecord | null>(null);
   const [approved, setApproved] = useState(false);
@@ -28,16 +37,13 @@ export default function OrderPage() {
   const [selectedCategory, setSelectedCategory] = useState<OrderCategory>("laboratory");
   const [issuedAt, setIssuedAt] = useState("");
   const [issuedAtTimestamp, setIssuedAtTimestamp] = useState(0);
-  const { requestId, resolved } = useRequestId();
-  const queryParams =
-    typeof window === "undefined" ? null : new URLSearchParams(window.location.search);
-  const internalTs = queryParams?.get("internalTs")?.trim() || "";
-  const internalSig = queryParams?.get("internalSig")?.trim() || "";
-  const requestedCategory = parseOrderCategory(queryParams?.get("printCategory") || null);
-  const queryReady = typeof window !== "undefined";
+  const { requestId, resolved, searchParams } = useRequestId();
+  const internalTs = searchParams.get("internalTs")?.trim() || "";
+  const internalSig = searchParams.get("internalSig")?.trim() || "";
+  const requestedCategory = parseOrderCategory(searchParams.get("printCategory"));
 
   useEffect(() => {
-    if (!resolved || !queryReady) {
+    if (!resolved) {
       return;
     }
 
@@ -74,7 +80,7 @@ export default function OrderPage() {
       .catch(() => {
         router.replace("/mi-cuenta");
       });
-  }, [requestId, resolved, router, internalTs, internalSig, queryReady]);
+  }, [requestId, resolved, router, internalTs, internalSig]);
 
   if (!data) {
     return (
@@ -289,7 +295,7 @@ export default function OrderPage() {
             <Info label="RUT" value={patient?.rut || "No informado"} />
             <Info label="Fecha de nacimiento" value={formatBirthDate(patient?.birthDate || "")} />
             <Info label="Correo" value={patient?.email || "No informado"} />
-            <Info label="Teléfono" value={patient?.phone || "No informado"} />
+            <Info label="Celular" value={patient?.phone || "No informado"} />
             <Info label="Dirección" value={patient?.address || "No informada"} />
             <Info label="Edad" value={`${data.input.age}`} />
             <Info label="Sexo" value={formatSex(data.input.sex)} />
@@ -674,7 +680,7 @@ function OrderHeader({
           <div className="w-[48%] space-y-0.5">
             <PrintRow label="Edad" value={age > 0 ? `${age} años` : "No informada"} />
             <PrintRow label="Correo" value={patient?.email || "No informado"} />
-            <PrintRow label="Teléfono" value={patient?.phone || "No informado"} />
+            <PrintRow label="Celular" value={patient?.phone || "No informado"} />
           </div>
         </div>
       </div>

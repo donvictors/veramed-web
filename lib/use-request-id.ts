@@ -1,17 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 
 export function useRequestId() {
-  const requestId = useMemo(() => {
-    if (typeof window === "undefined") {
-      return null;
-    }
-    return new URLSearchParams(window.location.search).get("id");
-  }, []);
+  const searchParams = useSearchParams();
 
   return {
-    requestId,
-    resolved: typeof window !== "undefined",
+    requestId: searchParams.get("id"),
+    resolved: true,
+    searchParams,
   };
 }

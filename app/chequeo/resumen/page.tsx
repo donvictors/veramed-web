@@ -1,8 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { startTransition, useEffect, useRef, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import {
+  Suspense,
+  startTransition,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Stepper from "@/components/checkup/Stepper";
 import {
   fetchCheckupRequest,
@@ -36,7 +43,26 @@ const OPTIONAL_ADDITIONAL_TESTS = [
 ] as const;
 
 export default function SummaryPage() {
+  return (
+    <Suspense fallback={<SummaryPageFallback />}>
+      <SummaryPageContent />
+    </Suspense>
+  );
+}
+
+function SummaryPageFallback() {
+  return (
+    <main className="veramed-page min-h-screen bg-slate-50 text-slate-900">
+      <div className="mx-auto max-w-6xl px-6 py-10 md:py-12">
+        <div className="h-48 animate-pulse rounded-[2rem] border border-slate-200 bg-white" />
+      </div>
+    </main>
+  );
+}
+
+function SummaryPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const initializedOptionalTestsRef = useRef(false);
   const [data, setData] = useState<CheckupApiRecord | null>(null);
   const [colorectalMethod, setColorectalMethod] = useState<"fit" | "colonoscopy">("fit");
@@ -48,8 +74,7 @@ export default function SummaryPage() {
   );
   const [prostateMethod, setProstateMethod] = useState<"include" | "skip">("include");
   const [selectionError, setSelectionError] = useState("");
-  const requestId =
-    typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("id");
+  const requestId = searchParams.get("id");
 
   useEffect(() => {
     if (!requestId) {

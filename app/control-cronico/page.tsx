@@ -3,6 +3,7 @@
 import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Stepper from "@/components/checkup/Stepper";
+import PhoneInput from "@/components/PhoneInput";
 import { fetchCurrentUser } from "@/lib/auth-api";
 import { createChronicControlRequest } from "@/lib/chronic-control-api";
 import {
@@ -383,13 +384,7 @@ export default function ChronicControlPage() {
                         onChange={(e) => setEmail(e.target.value)}
                       />
                     </Field>
-                    <Field label="Teléfono">
-                      <input
-                        className={inputCls}
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                      />
-                    </Field>
+                    <PhoneInput value={phone} onChange={setPhone} />
                   </div>
 
                   <Field label="Dirección">

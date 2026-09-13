@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchCurrentUser, updateAccountProfile } from "@/lib/auth-api";
+import PhoneInput from "@/components/PhoneInput";
 import {
   formatRut,
   isValidRut,
@@ -195,13 +196,7 @@ export default function AccountProfileEditPage() {
               />
             </Field>
 
-            <Field label="Teléfono">
-              <input
-                className={inputCls}
-                value={form.phone}
-                onChange={(e) => updateField("phone", e.target.value)}
-              />
-            </Field>
+            <PhoneInput value={form.phone} onChange={(value) => updateField("phone", value)} />
 
             <Field label="Dirección" className="md:col-span-2">
               <input
@@ -260,4 +255,3 @@ function Field({
     </label>
   );
 }
-

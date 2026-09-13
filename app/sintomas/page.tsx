@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import PhoneInput from "@/components/PhoneInput";
 import { FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   calculateAgeFromBirthDate,
@@ -735,13 +736,7 @@ export default function SintomasPage() {
                         onChange={(event) => setEmail(event.target.value)}
                       />
                     </Field>
-                    <Field label="Teléfono">
-                      <input
-                        className={inputCls}
-                        value={phone}
-                        onChange={(event) => setPhone(event.target.value)}
-                      />
-                    </Field>
+                    <PhoneInput value={phone} onChange={setPhone} />
                   </div>
 
                   <Field label="Dirección">

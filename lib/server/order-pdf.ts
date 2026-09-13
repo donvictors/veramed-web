@@ -128,7 +128,7 @@ function drawHeader(args: {
       })(),
     ],
     ["Correo", patient.email || "No informado"],
-    ["Teléfono", patient.phone || "No informado"],
+    ["Celular", patient.phone || "No informado"],
   ] as const;
 
   let lineY = y;

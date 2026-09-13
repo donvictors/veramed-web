@@ -288,7 +288,7 @@ function SymptomsOrderPageContent() {
             <Info label="RUT" value={order.patient.rut || "No informado"} />
             <Info label="Fecha de nacimiento" value={formatBirthDate(order.patient.birthDate || "")} />
             <Info label="Correo" value={order.patient.email || "No informado"} />
-            <Info label="Teléfono" value={order.patient.phone || "No informado"} />
+            <Info label="Celular" value={order.patient.phone || "No informado"} />
             <Info label="Dirección" value={order.patient.address || "No informada"} />
             <Info label="Edad" value={patientAge > 0 ? `${patientAge}` : "No informada"} />
             <Info label="Sexo" value="No informado" />
@@ -683,7 +683,7 @@ function OrderHeader({
           <div className="w-[48%] space-y-0.5">
             <PrintRow label="Edad" value={age > 0 ? `${age} años` : "No informada"} />
             <PrintRow label="Correo" value={patient?.email || "No informado"} />
-            <PrintRow label="Teléfono" value={patient?.phone || "No informado"} />
+            <PrintRow label="Celular" value={patient?.phone || "No informado"} />
           </div>
         </div>
       </div>

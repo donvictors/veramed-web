@@ -326,7 +326,7 @@ export default function ReviewSymptomsOrderClient({
                 }
               />
               <ClinicalDatum label="Correo" value={request.patient.email || "No informado"} />
-              <ClinicalDatum label="Teléfono" value={request.patient.phone || "No informado"} />
+              <ClinicalDatum label="Celular" value={request.patient.phone || "No informado"} />
               <ClinicalDatum label="Dirección" value={request.patient.address || "No informada"} />
             </dl>
           </ClinicalDetailBlock>
