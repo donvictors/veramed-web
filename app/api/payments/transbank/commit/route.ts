@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import {
   commitTransbankPayment,
   validateCommitPayload,
@@ -9,8 +9,10 @@ import {
   readJsonBody,
   requireSameOrigin,
 } from "@/lib/server/http-security";
+import { processOrderOutbox } from "@/lib/server/order-workflow";
 
 export const runtime = "nodejs";
+export const maxDuration = 300;
 
 function resolveErrorStatus(message: string) {
   if (message.includes("obligatorio") || message.includes("inválido") || message.includes("Body")) {
@@ -39,6 +41,18 @@ export async function POST(request: Request) {
     }
 
     const result = await commitTransbankPayment(validation.token);
+    if (result.status === "PAID" && result.requestId) {
+      after(async () => {
+        try {
+          await processOrderOutbox({ aggregateId: result.requestId, maxItems: 1 });
+        } catch (error) {
+          console.error("No pudimos completar el envío posterior al pago", {
+            requestId: result.requestId,
+            error,
+          });
+        }
+      });
+    }
     return NextResponse.json(result);
   } catch (error) {
     const securityResponse = httpErrorResponse(error, "");

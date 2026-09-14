@@ -208,12 +208,17 @@ export async function sendApprovedOrderEmail(
     `;
 
     const resend = new Resend(process.env.RESEND_API_KEY);
-    const result = await resend.emails.send({
-      from: FROM_EMAIL,
-      to: [patient.email.trim().toLowerCase()],
-      subject: DEFAULT_SUBJECT,
-      html,
-    });
+    const result = await resend.emails.send(
+      {
+        from: FROM_EMAIL,
+        to: [patient.email.trim().toLowerCase()],
+        subject: DEFAULT_SUBJECT,
+        html,
+      },
+      forceResend
+        ? undefined
+        : { idempotencyKey: `order-ready-checkup-${request.id}` },
+    );
 
     if (result.error) {
       throw new Error(result.error.message || "No pudimos enviar el correo con Resend.");
@@ -341,12 +346,17 @@ export async function sendApprovedOrderEmail(
   `;
 
   const resend = new Resend(process.env.RESEND_API_KEY);
-  const result = await resend.emails.send({
-    from: FROM_EMAIL,
-    to: [patient.email.trim().toLowerCase()],
-    subject: DEFAULT_SUBJECT,
-    html,
-  });
+  const result = await resend.emails.send(
+    {
+      from: FROM_EMAIL,
+      to: [patient.email.trim().toLowerCase()],
+      subject: DEFAULT_SUBJECT,
+      html,
+    },
+    forceResend
+      ? undefined
+      : { idempotencyKey: `order-ready-chronic-control-${request.id}` },
+  );
 
   if (result.error) {
     throw new Error(result.error.message || "No pudimos enviar el correo con Resend.");

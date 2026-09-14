@@ -12,7 +12,7 @@ import {
 import { PaymentStatusDb, ReviewStatusDb } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAutomaticApprovalAttribution } from "@/lib/server/medical-approval";
-import { enqueueOrderApproved, processOrderOutbox } from "@/lib/server/order-workflow";
+import { enqueueOrderApproved } from "@/lib/server/order-workflow";
 
 type CheckupRecord = {
   id: string;
@@ -27,6 +27,10 @@ type CheckupRecord = {
     confirmed: StoredPayment | null;
   };
   status: StoredCheckupStatus;
+  emailDelivery: {
+    status: "pending" | "sent";
+    sentAt?: number;
+  };
 };
 
 type CheckupRow = {
@@ -55,6 +59,7 @@ type CheckupRow = {
   approvalProtocolVersion: string | null;
   rejectedAt: Date | null;
   orderId: string | null;
+  orderEmailSentAt?: Date | null;
   payment: {
     amount: number;
     currency: string;
@@ -156,6 +161,10 @@ function fromRow(row: CheckupRow): CheckupRecord {
       approvedByEmail: row.approvedByEmail ?? undefined,
       approvalMethod: row.approvalMethod ?? undefined,
       approvalProtocolVersion: row.approvalProtocolVersion ?? undefined,
+    },
+    emailDelivery: {
+      status: row.orderEmailSentAt ? "sent" : "pending",
+      sentAt: row.orderEmailSentAt?.getTime(),
     },
   };
 }
@@ -622,9 +631,6 @@ export async function confirmPendingPayment(
   });
 
   if (!updated) return null;
-  void processOrderOutbox({ aggregateId: id, maxItems: 1 }).catch((error) => {
-    console.error("No pudimos procesar el evento de orden aprobada", { requestType: "checkup", id, error });
-  });
   return fromRow(updated);
 }
 

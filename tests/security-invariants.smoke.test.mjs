@@ -35,6 +35,30 @@ test("los enlaces PDF están limitados a siete días y son revocables", () => {
   assert.match(source, /orderPdfAccessLog\.create/);
 });
 
+test("el correo de órdenes es verificable, reintentable e idempotente", () => {
+  const orderPage = read("app/chequeo/orden/page.tsx");
+  const emailRoute = read("app/api/send-email/route.ts");
+  const emailService = read("lib/server/order-ready-email.ts");
+  const checkupStore = read("lib/server/checkup-store.ts");
+
+  assert.match(orderPage, /emailDeliveryStatus/);
+  assert.match(orderPage, /Reintentar envío/);
+  assert.match(orderPage, /sendOrderReadyEmail/);
+  assert.match(emailRoute, /hasValidRequestAccessCookie/);
+  assert.match(emailRoute, /maxDuration = 300/);
+  assert.match(emailService, /idempotencyKey: `order-ready-checkup-/);
+  assert.doesNotMatch(checkupStore, /void processOrderOutbox/);
+});
+
+test("la vista de impresión y el PDF final fuerzan carta vertical", () => {
+  const orderPage = read("app/chequeo/orden/page.tsx");
+  const renderer = read("lib/server/order-pdf-browser.ts");
+
+  assert.match(orderPage, /cssSize: "letter portrait"/);
+  assert.match(orderPage, /size: \$\{LETTER_PRINT_CONFIG\.cssSize\}/);
+  assert.match(renderer, /preferCSSPageSize: true/);
+});
+
 test("las páginas cliente no importan definiciones privadas de descuento", () => {
   for (const path of [
     "app/chequeo/pago/page.tsx",

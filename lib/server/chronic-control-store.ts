@@ -17,7 +17,7 @@ import {
 import { type CheckupInput } from "@/lib/checkup";
 import { prisma } from "@/lib/prisma";
 import { getAutomaticApprovalAttribution } from "@/lib/server/medical-approval";
-import { enqueueOrderApproved, processOrderOutbox } from "@/lib/server/order-workflow";
+import { enqueueOrderApproved } from "@/lib/server/order-workflow";
 
 type ChronicControlRecord = {
   id: string;
@@ -652,13 +652,6 @@ export async function confirmChronicPendingPayment(
   });
 
   if (!updated) return null;
-  void processOrderOutbox({ aggregateId: id, maxItems: 1 }).catch((error) => {
-    console.error("No pudimos procesar el evento de orden aprobada", {
-      requestType: "chronic_control",
-      id,
-      error,
-    });
-  });
   return fromRow(updated);
 }
 

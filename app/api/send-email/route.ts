@@ -10,6 +10,10 @@ import { ensureOrderPdfAssets } from "@/lib/server/order-pdf-assets";
 import { type TestItem } from "@/lib/checkup";
 import { createTemporaryPdfAccessLinks } from "@/lib/server/order-pdf-access";
 import {
+  getRequestAccessCookieName,
+  hasValidRequestAccessCookie,
+} from "@/lib/server/request-access";
+import {
   enforceRateLimit,
   httpErrorResponse,
   readJsonBody,
@@ -17,6 +21,7 @@ import {
 } from "@/lib/server/http-security";
 
 export const runtime = "nodejs";
+export const maxDuration = 300;
 
 const FROM_EMAIL = "Veramed <ordenes@mail.veramed.cl>";
 const DEFAULT_SUBJECT = "Tu orden de exámenes está lista 📋";
@@ -35,6 +40,7 @@ type SendEmailPayload = {
 type RequestContext = {
   requestType: RequestType;
   requestId: string;
+  createdAt: number;
   userId?: string;
   patientEmail: string;
   patientName: string;
@@ -130,6 +136,7 @@ async function getRequestContext(payload: SendEmailPayload) {
     return {
       requestType: "checkup" as const,
       requestId: request.id,
+      createdAt: request.createdAt,
       userId: request.userId,
       patientEmail: request.patient.email?.trim().toLowerCase() ?? "",
       patientName: request.patient.fullName?.trim() || "Paciente Veramed",
@@ -150,6 +157,7 @@ async function getRequestContext(payload: SendEmailPayload) {
   return {
     requestType: "chronic_control" as const,
     requestId: request.id,
+    createdAt: request.createdAt,
     userId: request.userId,
     patientEmail: request.patient.email?.trim().toLowerCase() ?? "",
     patientName: request.patient.fullName?.trim() || "Paciente Veramed",
@@ -242,9 +250,18 @@ export async function POST(request: Request) {
   }
 
   if (!ownerUserId) {
+    const requestAccessCookie = cookieStore.get(getRequestAccessCookieName())?.value;
+    const hasGuestAccess = hasValidRequestAccessCookie(requestAccessCookie, {
+      requestType: requestContext.requestType,
+      requestId: requestContext.requestId,
+      createdAtMs: requestContext.createdAt,
+    });
     const expectedSupportToken = process.env.INTERNAL_SUPPORT_TOKEN?.trim();
     const providedSupportToken = request.headers.get("x-support-token")?.trim();
-    if (!expectedSupportToken || !providedSupportToken || providedSupportToken !== expectedSupportToken) {
+    const hasSupportAccess = Boolean(
+      expectedSupportToken && providedSupportToken && providedSupportToken === expectedSupportToken,
+    );
+    if (!hasGuestAccess && !hasSupportAccess) {
       return NextResponse.json(
         { ok: false, error: "No tienes acceso a esta solicitud." },
         { status: 403 },
@@ -367,12 +384,17 @@ export async function POST(request: Request) {
   `;
 
   const resend = new Resend(process.env.RESEND_API_KEY);
-  const result = await resend.emails.send({
-    from: FROM_EMAIL,
-    to: [email],
-    subject: DEFAULT_SUBJECT,
-    html,
-  });
+  const result = await resend.emails.send(
+    {
+      from: FROM_EMAIL,
+      to: [email],
+      subject: DEFAULT_SUBJECT,
+      html,
+    },
+    payload.forceResend
+      ? undefined
+      : { idempotencyKey: `order-ready-${requestContext.requestType}-${requestContext.requestId}` },
+  );
 
   if (result.error) {
     return NextResponse.json(

@@ -15,6 +15,10 @@ export type CheckupApiRecord = StoredCheckup & {
     confirmed: StoredPayment | null;
   };
   status: StoredCheckupStatus;
+  emailDelivery?: {
+    status: "pending" | "sent";
+    sentAt?: number;
+  };
 };
 
 async function readJson<T>(response: Response) {

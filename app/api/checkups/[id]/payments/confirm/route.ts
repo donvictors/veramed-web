@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { AUTH_SESSION_COOKIE } from "@/lib/auth";
 import { getUserFromSession } from "@/lib/server/auth-store";
@@ -12,6 +12,9 @@ import {
   getRequestAccessCookieName,
   hasValidRequestAccessCookie,
 } from "@/lib/server/request-access";
+import { processOrderOutbox } from "@/lib/server/order-workflow";
+
+export const maxDuration = 300;
 
 type RouteContext = {
   params: Promise<{
@@ -67,6 +70,17 @@ export async function POST(_request: Request, context: RouteContext) {
       { status: 404 },
     );
   }
+
+  after(async () => {
+    try {
+      await processOrderOutbox({ aggregateId: id, maxItems: 1 });
+    } catch (error) {
+      console.error("No pudimos completar el envío posterior al pago", {
+        requestId: id,
+        error,
+      });
+    }
+  });
 
   return NextResponse.json({ checkup: serializeCheckupRecord(record) });
 }

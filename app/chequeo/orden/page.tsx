@@ -20,6 +20,7 @@ import { getFonasaCodeByExamName } from "@/lib/fonasa-codes";
 import { getOrderCategoryByTestName } from "@/lib/order-categories";
 import { useRequestId } from "@/lib/use-request-id";
 import { buildProtectedSignatureUrl } from "@/lib/protected-order-assets";
+import { sendOrderReadyEmail } from "@/lib/email-api";
 
 export default function OrderPage() {
   return (
@@ -37,6 +38,10 @@ function OrderPageContent() {
   const [selectedCategory, setSelectedCategory] = useState<OrderCategory>("laboratory");
   const [issuedAt, setIssuedAt] = useState("");
   const [issuedAtTimestamp, setIssuedAtTimestamp] = useState(0);
+  const [emailDeliveryStatus, setEmailDeliveryStatus] = useState<
+    "idle" | "sending" | "sent" | "failed"
+  >("idle");
+  const [emailDeliveryError, setEmailDeliveryError] = useState("");
   const { requestId, resolved, searchParams } = useRequestId();
   const internalTs = searchParams.get("internalTs")?.trim() || "";
   const internalSig = searchParams.get("internalSig")?.trim() || "";
@@ -52,6 +57,8 @@ function OrderPageContent() {
       return;
     }
 
+    let cancelled = false;
+
     void fetchCheckupRequest(
       requestId,
       internalTs && internalSig
@@ -62,6 +69,7 @@ function OrderPageContent() {
         : undefined,
     )
       .then((checkup) => {
+        if (cancelled) return;
         const issuedTimestamp =
           checkup.status.approvedAt ?? checkup.status.queuedAt ?? checkup.updatedAt;
         const formattedDate = new Intl.DateTimeFormat("es-CL", {
@@ -76,10 +84,44 @@ function OrderPageContent() {
           setApproved(checkup.status.status === "approved");
           setPaid(Boolean(checkup.payment.confirmed?.paid));
         });
+
+        const readyToSend =
+          checkup.status.status === "approved" && Boolean(checkup.payment.confirmed?.paid);
+        const alreadySent = checkup.emailDelivery?.status === "sent";
+        const isInternalPdfRender = Boolean(internalTs && internalSig);
+
+        if (alreadySent) {
+          setEmailDeliveryStatus("sent");
+        } else if (readyToSend && !isInternalPdfRender) {
+          setEmailDeliveryStatus("sending");
+          void sendOrderReadyEmail({
+            requestType: "checkup",
+            requestId: checkup.id,
+            email: checkup.patient?.email || "",
+            patientName: checkup.patient?.fullName,
+          })
+            .then(() => {
+              if (cancelled) return;
+              setEmailDeliveryError("");
+              setEmailDeliveryStatus("sent");
+            })
+            .catch((error) => {
+              if (cancelled) return;
+              setEmailDeliveryError(
+                error instanceof Error ? error.message : "No pudimos enviar el correo.",
+              );
+              setEmailDeliveryStatus("failed");
+            });
+        }
       })
       .catch(() => {
+        if (cancelled) return;
         router.replace("/mi-cuenta");
       });
+
+    return () => {
+      cancelled = true;
+    };
   }, [requestId, resolved, router, internalTs, internalSig]);
 
   if (!data) {
@@ -134,6 +176,28 @@ function OrderPageContent() {
         window.print();
       });
     });
+  }
+
+  function handleRetryEmail() {
+    if (!requestId || emailDeliveryStatus === "sending") return;
+
+    setEmailDeliveryError("");
+    setEmailDeliveryStatus("sending");
+    void sendOrderReadyEmail({
+      requestType: "checkup",
+      requestId,
+      email: patient?.email || "",
+      patientName: patient?.fullName,
+    })
+      .then(() => {
+        setEmailDeliveryStatus("sent");
+      })
+      .catch((error) => {
+        setEmailDeliveryError(
+          error instanceof Error ? error.message : "No pudimos enviar el correo.",
+        );
+        setEmailDeliveryStatus("failed");
+      });
   }
 
   if (!paid) {
@@ -208,11 +272,31 @@ function OrderPageContent() {
               Tus órdenes de exámenes ➡️
             </h1>
             <p className="mt-1 text-base text-slate-600">
-              Te enviamos las órdenes a tu correo (recuerda revisar tu bandeja de spam).
+              {emailDeliveryStatus === "sent"
+                ? "Tus órdenes están acá. También te las enviaremos por correo durante las próximas horas; recuerda revisar tu bandeja de spam."
+                : emailDeliveryStatus === "sending"
+                  ? "Tus órdenes están acá. También te las enviaremos por correo durante las próximas horas; recuerda revisar tu bandeja de spam."
+                  : emailDeliveryStatus === "failed"
+                    ? "Tus órdenes están acá, pero todavía no pudimos confirmar el envío por correo. Puedes reintentarlo a continuación."
+                    : "Tus órdenes están acá. También te las enviaremos por correo durante las próximas horas; recuerda revisar tu bandeja de spam."}
               <br />
               <span className="font-semibold">Haz clic</span> en los recuadros de la derecha si
               deseas imprimirlas ahora. 😉
             </p>
+            {emailDeliveryStatus === "failed" && (
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleRetryEmail}
+                  className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                >
+                  Reintentar envío
+                </button>
+                <p className="max-w-md text-xs leading-5 text-rose-700" role="alert">
+                  {emailDeliveryError}
+                </p>
+              </div>
+            )}
             <p className="mt-1 text-[11px] text-right text-slate-600">
               ID de referencia: {verificationCode}
             </p>
@@ -459,7 +543,7 @@ function OrderPageContent() {
       <style jsx global>{`
         @media print {
           @page {
-            size: auto;
+            size: ${LETTER_PRINT_CONFIG.cssSize};
             margin: 10mm 10mm 12mm 10mm;
           }
 

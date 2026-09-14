@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { commitTransbankPayment } from "@/lib/server/transbank/service";
+import { processOrderOutbox } from "@/lib/server/order-workflow";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -35,6 +37,7 @@ function buildRequestStatusUrl(input: { requestType: "checkup" | "chronic_contro
 }
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 export default async function TransbankReturnPage({
   searchParams,
@@ -62,6 +65,16 @@ export default async function TransbankReturnPage({
 
   if (committed.status === "PAID") {
     if (committed.requestId) {
+      after(async () => {
+        try {
+          await processOrderOutbox({ aggregateId: committed.requestId, maxItems: 1 });
+        } catch (error) {
+          console.error("No pudimos completar el envío posterior al pago", {
+            requestId: committed.requestId,
+            error,
+          });
+        }
+      });
       redirect(buildRequestStatusUrl({ requestType: committed.requestType, requestId: committed.requestId }));
     }
     redirect(buildSuccessUrl(committed.orderId));
