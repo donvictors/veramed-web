@@ -17,7 +17,10 @@ import {
   updateCheckupScreeningPreferences,
 } from "@/lib/checkup-api";
 import { inferOrderDetails } from "@/lib/checkup";
-import { getOrderCategoryByTestName } from "@/lib/order-categories";
+import {
+  countCheckupSelection,
+  formatCheckupSelectionSummary,
+} from "@/lib/order-categories";
 
 const OPTIONAL_ADDITIONAL_TESTS = [
   {
@@ -68,7 +71,6 @@ function SummaryPageContent() {
   const [colorectalMethod, setColorectalMethod] = useState<"fit" | "colonoscopy">("fit");
   const [cervicalMethod, setCervicalMethod] = useState<"pap" | "hpv" | "cotesting">("pap");
   const [bloodPressureMethod, setBloodPressureMethod] = useState<"mapa" | "skip">("mapa");
-  const [bloodPressureInfoOpen, setBloodPressureInfoOpen] = useState(false);
   const [breastImaging, setBreastImaging] = useState<"mammo_only" | "mammo_plus_ultrasound">(
     "mammo_only",
   );
@@ -284,17 +286,8 @@ function SummaryPageContent() {
     return true;
   });
   const removedTests = data.rec.removedTests ?? [];
-  const summaryCounts = displayedTests.reduce(
-    (acc, test) => {
-      const category = getOrderCategoryByTestName(test.name);
-      if (category === "image") acc.image += 1;
-      else if (category === "procedure") acc.procedure += 1;
-      else acc.laboratory += 1;
-
-      return acc;
-    },
-    { laboratory: 0, image: 0, procedure: 0 },
-  );
+  const summaryCounts = countCheckupSelection(displayedTests);
+  const selectionSummary = formatCheckupSelectionSummary(summaryCounts);
   const selectedOptionalAdditionalTests = OPTIONAL_ADDITIONAL_TESTS.filter((test) =>
     data.rec.tests.some((item) => item.name === test.name),
   );
@@ -576,63 +569,37 @@ function SummaryPageContent() {
 
                   {hasBloodPressureScreening && (
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <button
-                        type="button"
-                        onClick={() => setBloodPressureInfoOpen((current) => !current)}
-                        className="flex w-full items-center justify-between gap-3 text-left"
-                      >
+                      <p className="text-sm font-semibold text-slate-900">
+                        Holter de presión arterial (MAPA)
+                      </p>
+                      <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+                        <input
+                          type="checkbox"
+                          checked={bloodPressureMethod === "mapa"}
+                          onChange={(event) =>
+                            void handleBloodPressureMethodChange(
+                              event.target.checked ? "mapa" : "skip",
+                            )
+                          }
+                          className="mt-1"
+                        />
                         <span className="text-sm font-semibold text-slate-900">
-                          ¿Prefieres no hacerte el Holter de presión arterial (MAPA)?
+                          Incluir en mi orden
                         </span>
-                        <span
-                          className={`inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-300 bg-white text-sm text-slate-600 transition ${
-                            bloodPressureInfoOpen ? "rotate-180" : ""
-                          }`}
+                      </label>
+                      <p className="mt-3 text-sm leading-6 text-slate-600">
+                        Registra tu presión durante 24 horas durante tus actividades habituales.
+                        También puedes controlar tu presión en consulta o en casa con un{" "}
+                        <a
+                          href="/documentos/ampa-validados.pdf"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="font-semibold text-slate-900 underline underline-offset-2"
                         >
-                          v
-                        </span>
-                      </button>
-                      {bloodPressureInfoOpen && (
-                        <p className="mt-2 text-sm leading-6 text-slate-600">
-                          Las guías internacionales recomiendan el tamizaje de presión arterial una vez al año en mayores de 18 años, pero no recomiendan un método específico. Creemos que el Holter de presión arterial es el método más práctico para personas que desean chequear esto en su casa, sin embargo no es el único. Una alternativa es la medición en la consulta por un profesional de salud, por lo que si en el último año te han medido la presión y resultó normal (&lt;140/90), puedes no hacerte este examen. Otra alternativa es medirte tu la presión en la casa, lo que se conoce como automonitoreo de presión arterial (AMPA), pero esto es importante hacerlo con aparatos de presión que la midan en el brazo (¡no en la muñeca!) y que estén validados. Si quieres saber si un equipo está validado, puedes revisarlo{" "}
-                          <a
-                            href="/documentos/ampa-validados.pdf"
-                            target="_blank"
-                            rel="noreferrer"
-                            className="font-semibold text-slate-900 underline underline-offset-2"
-                          >
-                            aquí
-                          </a>
-                          .
-                        </p>
-                      )}
-                      <div className="mt-3 grid gap-3 md:grid-cols-2">
-                        <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4">
-                          <input
-                            type="radio"
-                            name="blood-pressure-method"
-                            checked={bloodPressureMethod === "mapa"}
-                            onChange={() => void handleBloodPressureMethodChange("mapa")}
-                            className="mt-1"
-                          />
-                          <p className="text-sm font-semibold text-slate-900">
-                            Quiero mantener el Holter de presión arterial (MAPA)
-                          </p>
-                        </label>
-
-                        <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4">
-                          <input
-                            type="radio"
-                            name="blood-pressure-method"
-                            checked={bloodPressureMethod === "skip"}
-                            onChange={() => void handleBloodPressureMethodChange("skip")}
-                            className="mt-1"
-                          />
-                          <p className="text-sm font-semibold text-slate-900">
-                            No, no incluirlo por ahora
-                          </p>
-                        </label>
-                      </div>
+                          manguito de brazo validado
+                        </a>
+                        . Si ya tienes mediciones recientes normales, puedes retirarlo.
+                      </p>
                     </div>
                   )}
 
@@ -725,10 +692,14 @@ function SummaryPageContent() {
             <div className="mt-6">
               <div className="rounded-3xl border border-slate-200 p-5">
                 <div className="flex items-start gap-3">
-                  <p className="text-sm font-semibold text-slate-900">
-                    ¿Deseas agregar un examen adicional?
-                  </p>
-                  <TooltipInfo text="Los siguientes exámenes no están recomendados en base a evidencia como parte del tamizaje de personas sanas, pero muchos médicos los piden en su práctica clínica de todas formas. En Veramed creemos que su solicitud es de bajo riesgo de cascadas diagnósticas/sobrediagnóstico, por lo que si deseas puedes añadir los siguientes." />
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">Amplía tu chequeo</p>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">
+                      Estos exámenes son opcionales y vienen seleccionados para quienes prefieren
+                      una evaluación más amplia.
+                    </p>
+                  </div>
+                  <TooltipInfo text="Estos exámenes no son necesarios en todas las personas, pero pueden aportar información adicional sobre tu estado de salud. Los dejamos seleccionados para que puedas hacer un chequeo más amplio; puedes retirar cualquiera que no quieras realizar." />
                 </div>
                 <div className="mt-4 grid gap-3">
                   {OPTIONAL_ADDITIONAL_TESTS.map((test) => {
@@ -766,7 +737,7 @@ function SummaryPageContent() {
                 <p className="text-sm font-semibold text-slate-900">
                   Exámenes incluidos (edítalos según tus preferencias)
                 </p>
-                <TooltipInfo text="Te damos la opción de editar porque, si te hiciste alguno de estos exámenes en los últimos 12 meses y esto corresponde a un chequeo, en general no es necesario volver a controlarlos. También puede que prefieras no realizar algún procedimiento ahora. En definitiva, la elección es tuya." />
+                <TooltipInfo text="Si ya te realizaste alguno de estos exámenes recientemente, o simplemente no quieres hacerlo ahora, puedes quitarlo de tu orden." />
               </div>
               <div className="mt-4 grid gap-3">
                 {displayedTests.map((t) => (
@@ -839,8 +810,8 @@ function SummaryPageContent() {
                   Vigencia sugerida: 60 días
                 </span>
                 <MetricCard
-                  label={`Incluye ${orderDetails.includedCount} exámenes`}
-                  value={`Set recomendado: ${summaryCounts.laboratory} examen(es) de laboratorio, ${summaryCounts.image} examen(es) de imagen, ${summaryCounts.procedure} procedimiento(s)`}
+                  label="Tu selección actual"
+                  value={selectionSummary}
                 />
                 <MetricCard
                   label={`Necesita ayuno: ${orderDetails.needsFasting ? "Sí" : "No"}`}

@@ -22,7 +22,7 @@ import {
   type PatientNameFields,
   type Pregnancy,
   type Sex,
-  type SexualActivity,
+  type StiScreening,
   type Smoking,
   recommend,
   splitPatientFullName,
@@ -52,7 +52,7 @@ export default function CheckupPage() {
   const [quitSmokingYearsAgo, setQuitSmokingYearsAgo] = useState(0);
   const [dietaryRestriction, setDietaryRestriction] = useState<DietaryRestriction>("none");
   const [dietaryPatterns, setDietaryPatterns] = useState<DietaryPattern[]>([]);
-  const [sexualActivity, setSexualActivity] = useState<SexualActivity>("no");
+  const [stiScreening, setStiScreening] = useState<StiScreening>("no");
   const [pregnancy, setPregnancy] = useState<Pregnancy>("no");
   const [gestationWeeks, setGestationWeeks] = useState(0);
   const [highlightRecommendation, setHighlightRecommendation] = useState(false);
@@ -96,7 +96,7 @@ export default function CheckupPage() {
       quitSmokingYearsAgo: smoking === "former" ? quitSmokingYearsAgo : 0,
       dietaryRestriction,
       dietaryPatterns: dietaryRestriction === "special" ? dietaryPatterns : [],
-      sexualActivity,
+      stiScreening,
       pregnancy,
       gestationWeeks: pregnancy === "yes" ? gestationWeeks : 0,
     }),
@@ -112,7 +112,7 @@ export default function CheckupPage() {
       dietaryRestriction,
       dietaryPatterns,
       sex,
-      sexualActivity,
+      stiScreening,
       smoking,
       smokingYears,
       weightKg,
@@ -668,11 +668,11 @@ export default function CheckupPage() {
                     </div>
                   )}
 
-                  <Field label="¿Eres sexualmente activo?">
+                  <Field label="¿Quieres incluir un chequeo de infecciones de transmisión sexual?">
                     <select
                       className={inputCls}
-                      value={sexualActivity}
-                      onChange={(e) => setSexualActivity(e.target.value as SexualActivity)}
+                      value={stiScreening}
+                      onChange={(e) => setStiScreening(e.target.value as StiScreening)}
                     >
                       <option value="no">No</option>
                       <option value="yes">Sí</option>

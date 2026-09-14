@@ -5,15 +5,25 @@ export type ChronicCondition =
   | "ischemic_heart_disease"
   | "heart_failure"
   | "atrial_fibrillation"
+  | "type1_diabetes"
   | "type2_diabetes"
+  | "prediabetes"
   | "obesity_metabolic_syndrome"
   | "dyslipidemia"
   | "hypothyroidism"
+  | "hyperthyroidism"
+  | "gout"
+  | "pcos"
   | "copd"
   | "asthma"
   | "pulmonary_interstitial_disease"
+  | "ibd"
+  | "celiac_disease"
+  | "bariatric_surgery"
+  | "anemia_iron_deficiency"
   | "osteoporosis"
   | "rheumatoid_arthritis"
+  | "spondyloarthritis_psoriatic_arthritis"
   | "lupus_erythematosus_systemic"
   | "chronic_kidney_disease"
   | "chronic_liver_disease_masld"
@@ -69,21 +79,38 @@ export const CHRONIC_CONTROL_GENERAL_CHECKUP_NOTE =
 export const CONDITION_OPTIONS: ChronicCondition[] = [
   "hypertension",
   "type2_diabetes",
+  "type1_diabetes",
+  "prediabetes",
   "dyslipidemia",
   "obesity_metabolic_syndrome",
+  "hypothyroidism",
+  "hyperthyroidism",
+  "gout",
+  "pcos",
   "ischemic_heart_disease",
   "heart_failure",
   "atrial_fibrillation",
   "chronic_kidney_disease",
   "chronic_liver_disease_masld",
+  "ibd",
+  "celiac_disease",
+  "bariatric_surgery",
+  "anemia_iron_deficiency",
   "asthma",
   "copd",
   "pulmonary_interstitial_disease",
-  "hypothyroidism",
   "osteoporosis",
   "rheumatoid_arthritis",
+  "spondyloarthritis_psoriatic_arthritis",
   "lupus_erythematosus_systemic",
+  "chronic_hiv",
 ];
+
+const CONDITIONS_WITHOUT_DIAGNOSIS_DURATION = new Set<ChronicCondition>([
+  "type1_diabetes",
+  "prediabetes",
+  "bariatric_surgery",
+]);
 
 export const MEDICATION_OPTIONS: MedicationOption[] = [
   "metformin",
@@ -238,6 +265,31 @@ export function recommendChronicControl(
       ],
       notes: ["La frecuencia del control depende de metas clínicas y tratamiento actual."],
     },
+    type1_diabetes: {
+      summary: "Control de diabetes mellitus tipo 1 con seguimiento glicémico, renal, metabólico, tiroideo y oftalmológico.",
+      tests: [
+        { name: "Hemoglobina glicosilada (HbA1C)", why: "Monitoreo periódico del control glicémico." },
+        { name: "Perfil lipídico", why: "Seguimiento del riesgo cardiovascular asociado." },
+        { name: "Creatinina en sangre", why: "Evaluación de función renal." },
+        {
+          name: "Razón albuminuria / creatininuria (RAC)",
+          why: "Pesquisa y seguimiento de compromiso renal asociado a diabetes.",
+        },
+        { name: "TSH", why: "Seguimiento de función tiroidea en el control de diabetes tipo 1." },
+        { name: "Fondo de ojo", why: "Evaluación oftalmológica periódica en diabetes tipo 1." },
+      ],
+      notes: ["La frecuencia del control depende de metas clínicas y tratamiento actual."],
+    },
+    prediabetes: {
+      summary: "Control de prediabetes con seguimiento glicémico, metabólico y hepático.",
+      tests: [
+        { name: "Hemoglobina glicosilada (HbA1C)", why: "Seguimiento del metabolismo de la glucosa." },
+        { name: "Glucosa en sangre", why: "Control glicémico periódico." },
+        { name: "Perfil lipídico", why: "Evaluación de riesgo cardiometabólico asociado." },
+        { name: "Perfil hepático", why: "Seguimiento hepático en contexto de riesgo metabólico." },
+      ],
+      notes: ["El control debe complementarse con seguimiento clínico y hábitos de vida."],
+    },
     obesity_metabolic_syndrome: {
       summary: "Control de obesidad o síndrome metabólico con evaluación cardiometabólica integral.",
       tests: [
@@ -268,6 +320,35 @@ export function recommendChronicControl(
         { name: "T4 libre", why: "Complementa el control del eje tiroideo." },
       ],
       notes: ["La periodicidad depende del tiempo de tratamiento, síntomas y cambios de dosis."],
+    },
+    hyperthyroidism: {
+      summary: "Control de hipertiroidismo o enfermedad de Graves con seguimiento de función tiroidea.",
+      tests: [
+        { name: "TSH", why: "Seguimiento del eje tiroideo." },
+        { name: "T4 libre", why: "Evaluación de hormona tiroidea libre en el control." },
+        { name: "T3", why: "Complementa el seguimiento bioquímico del hipertiroidismo." },
+      ],
+      notes: ["Los exámenes de seguridad adicionales dependen del tratamiento actualmente en uso."],
+    },
+    gout: {
+      summary: "Control de gota o hiperuricemia con seguimiento metabólico, renal, hematológico y hepático.",
+      tests: [
+        { name: "Ácido úrico", why: "Seguimiento de uricemia durante el control." },
+        { name: "Creatinina en sangre", why: "Evaluación de función renal asociada." },
+        { name: "Hemograma", why: "Control hematológico general de seguimiento." },
+        { name: "Perfil hepático", why: "Control hepático general de seguimiento." },
+      ],
+      notes: ["Correlacionar con evolución clínica y tratamiento actual."],
+    },
+    pcos: {
+      summary: "Control metabólico del síndrome de ovario poliquístico.",
+      tests: [
+        { name: "Hemoglobina glicosilada (HbA1C)", why: "Seguimiento del metabolismo de la glucosa." },
+        { name: "Glucosa en sangre", why: "Evaluación glicémica periódica." },
+        { name: "Perfil lipídico", why: "Seguimiento del riesgo cardiometabólico." },
+        { name: "Perfil hepático", why: "Control hepático en contexto metabólico." },
+      ],
+      notes: ["Esta opción corresponde al seguimiento metabólico de un SOP ya conocido."],
     },
     copd: {
       summary:
@@ -310,6 +391,56 @@ export function recommendChronicControl(
       ],
       notes: ["El seguimiento debe complementarse con evaluación clínica respiratoria especializada."],
     },
+    ibd: {
+      summary: "Control de enfermedad inflamatoria intestinal con seguimiento inflamatorio, hematológico, renal, hepático y nutricional.",
+      tests: [
+        { name: "Hemograma", why: "Seguimiento hematológico en enfermedad inflamatoria intestinal." },
+        { name: "Proteína C reactiva (PCR)", why: "Seguimiento de actividad inflamatoria." },
+        { name: "Creatinina en sangre", why: "Control de función renal." },
+        { name: "Perfil hepático", why: "Control hepático general y de seguridad." },
+        { name: "Albúmina", why: "Evaluación nutricional y de función sintética." },
+        { name: "Ferritina", why: "Control de reservas de hierro." },
+        { name: "Cinética de fierro", why: "Evaluación del metabolismo del hierro." },
+        { name: "Calprotectina fecal cuantitativa", why: "Seguimiento de inflamación intestinal." },
+      ],
+      notes: ["Correlacionar con síntomas, evolución y tratamiento actual."],
+    },
+    celiac_disease: {
+      summary: "Seguimiento nutricional y general de enfermedad celíaca conocida.",
+      tests: [
+        { name: "Hemograma", why: "Seguimiento hematológico general." },
+        { name: "Ferritina", why: "Control de reservas de hierro." },
+        { name: "Cinética de fierro", why: "Evaluación del metabolismo del hierro." },
+        { name: "Niveles de vitamina B12", why: "Evaluación de estado de vitamina B12." },
+        { name: "Niveles de vitamina D", why: "Evaluación de estado de vitamina D." },
+        { name: "Perfil hepático", why: "Control hepático general de seguimiento." },
+      ],
+      notes: ["Este set es para seguimiento general, no para diagnóstico ni evaluación serológica de adherencia."],
+    },
+    bariatric_surgery: {
+      summary: "Seguimiento nutricional y metabólico posterior a cirugía bariátrica.",
+      tests: [
+        { name: "Hemograma", why: "Seguimiento hematológico general." },
+        { name: "Ferritina", why: "Control de reservas de hierro." },
+        { name: "Cinética de fierro", why: "Evaluación del metabolismo del hierro." },
+        { name: "Niveles de vitamina B12", why: "Control de vitamina B12 tras cirugía bariátrica." },
+        { name: "Calcio total", why: "Evaluación de metabolismo mineral." },
+        { name: "Niveles de vitamina D", why: "Control de suficiencia de vitamina D." },
+        { name: "PTH", why: "Seguimiento del metabolismo óseo-mineral." },
+        { name: "Albúmina", why: "Evaluación nutricional general." },
+      ],
+      notes: ["Este set ofrece un seguimiento amplio independientemente de la técnica quirúrgica."],
+    },
+    anemia_iron_deficiency: {
+      summary: "Control de anemia o ferropenia conocida con seguimiento hematológico y nutricional.",
+      tests: [
+        { name: "Hemograma", why: "Seguimiento de parámetros hematológicos." },
+        { name: "Ferritina", why: "Control de reservas de hierro." },
+        { name: "Cinética de fierro", why: "Evaluación del metabolismo del hierro." },
+        { name: "Niveles de vitamina B12", why: "Evaluación nutricional complementaria." },
+      ],
+      notes: ["Este set no intenta inferir la causa de la anemia o ferropenia."],
+    },
     osteoporosis: {
       summary: "Control de osteoporosis con evaluación ósea, mineral y renal.",
       tests: [
@@ -328,6 +459,16 @@ export function recommendChronicControl(
         { name: "Proteína C reactiva (PCR)", why: "Seguimiento de actividad inflamatoria." },
       ],
       notes: ["Correlacionar con actividad clínica, dolor y tratamiento actual."],
+    },
+    spondyloarthritis_psoriatic_arthritis: {
+      summary: "Control de espondiloartritis o artritis psoriática con seguimiento inflamatorio, hematológico, renal y hepático.",
+      tests: [
+        { name: "Hemograma", why: "Seguimiento hematológico general." },
+        { name: "Proteína C reactiva (PCR)", why: "Seguimiento de actividad inflamatoria." },
+        { name: "Creatinina en sangre", why: "Control de función renal." },
+        { name: "Perfil hepático", why: "Control hepático general y de seguridad." },
+      ],
+      notes: ["Los exámenes adicionales de seguridad dependen del tratamiento actualmente en uso."],
     },
     lupus_erythematosus_systemic: {
       summary:
@@ -399,6 +540,7 @@ export function recommendChronicControl(
           name: "Cuantificación de subpoblaciones de linfocitos T (CD3, CD4, CD8)",
           why: "Seguimiento inmunológico.",
         },
+        { name: "Hemograma", why: "Seguimiento hematológico general." },
         { name: "Perfil hepático", why: "Control de seguridad y evolución clínica." },
         { name: "Creatinina en sangre", why: "Monitoreo de función renal." },
       ],
@@ -471,20 +613,28 @@ export function recommendMultipleChronicControls(
       : `Control combinado para ${selected.map(conditionLabel).join(", ").toLowerCase()}, con un panel consolidado para seguimiento periódico.`;
 
   const testsMap = new Map<string, ControlTest>();
+  const addOrMergeTest = (test: ControlTest) => {
+    const existing = testsMap.get(test.name);
+    if (!existing) {
+      testsMap.set(test.name, { ...test });
+      return;
+    }
+
+    if (!existing.why.includes(test.why)) {
+      existing.why = `${existing.why} ${test.why}`;
+    }
+  };
+
   for (const recommendation of recommendations) {
     for (const test of recommendation.tests) {
-      if (!testsMap.has(test.name)) {
-        testsMap.set(test.name, test);
-      }
+      addOrMergeTest(test);
     }
   }
 
   if (usesMedication) {
     for (const medication of selectedMedications) {
       for (const test of MEDICATION_TESTS[medication]) {
-        if (!testsMap.has(test.name)) {
-          testsMap.set(test.name, test);
-        }
+        addOrMergeTest(test);
       }
     }
   }
@@ -551,15 +701,7 @@ export function recommendMultipleChronicControls(
   if (generalCheckupInput) {
     const generalCheckupRecommendation = recommend(generalCheckupInput);
     for (const test of generalCheckupRecommendation.tests) {
-      const existing = testsMap.get(test.name);
-      if (!existing) {
-        testsMap.set(test.name, { ...test });
-        continue;
-      }
-
-      if (!existing.why.includes(test.why)) {
-        existing.why = `${existing.why} ${test.why}`;
-      }
+      addOrMergeTest(test);
     }
   }
 
@@ -601,22 +743,42 @@ export function conditionLabel(condition: ChronicCondition) {
       return "Fibrilación auricular";
     case "type2_diabetes":
       return "Diabetes tipo 2";
+    case "type1_diabetes":
+      return "Diabetes mellitus tipo 1";
+    case "prediabetes":
+      return "Prediabetes";
     case "obesity_metabolic_syndrome":
       return "Obesidad / Síndrome metabólico";
     case "dyslipidemia":
       return "Dislipidemia";
     case "hypothyroidism":
       return "Hipotiroidismo";
+    case "hyperthyroidism":
+      return "Hipertiroidismo / enfermedad de Graves";
+    case "gout":
+      return "Gota / hiperuricemia";
+    case "pcos":
+      return "Síndrome de ovario poliquístico (SOP)";
     case "copd":
       return "EPOC";
     case "asthma":
       return "Asma";
     case "pulmonary_interstitial_disease":
       return "Enfermedad pulmonar intersticial";
+    case "ibd":
+      return "Enfermedad inflamatoria intestinal (Crohn / colitis ulcerosa)";
+    case "celiac_disease":
+      return "Enfermedad celíaca";
+    case "bariatric_surgery":
+      return "Cirugía bariátrica previa";
+    case "anemia_iron_deficiency":
+      return "Anemia o ferropenia en seguimiento";
     case "osteoporosis":
       return "Osteoporosis";
     case "rheumatoid_arthritis":
       return "Artritis reumatoide";
+    case "spondyloarthritis_psoriatic_arthritis":
+      return "Espondiloartritis / artritis psoriática";
     case "lupus_erythematosus_systemic":
       return "Lupus eritematoso sistémico";
     case "chronic_kidney_disease":
@@ -624,8 +786,12 @@ export function conditionLabel(condition: ChronicCondition) {
     case "chronic_liver_disease_masld":
       return "Enfermedad hepática crónica";
     case "chronic_hiv":
-      return "VIH crónico";
+      return "VIH";
   }
+}
+
+export function conditionUsesDiagnosisDuration(condition: ChronicCondition) {
+  return !CONDITIONS_WITHOUT_DIAGNOSIS_DURATION.has(condition);
 }
 
 export function medicationLabel(medication: MedicationOption) {

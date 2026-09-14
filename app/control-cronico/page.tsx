@@ -29,6 +29,7 @@ import {
   MEDICATION_OPTIONS,
   antiepilepticLabel,
   conditionLabel,
+  conditionUsesDiagnosisDuration,
   medicationLabel,
   recommendMultipleChronicControls,
   type AntiepilepticOption,
@@ -156,6 +157,7 @@ export default function ChronicControlPage() {
     () => (showAllConditions ? CONDITION_OPTIONS : CONDITION_OPTIONS.slice(0, 6)),
     [showAllConditions],
   );
+  const shouldAskYearsSinceDiagnosis = conditions.some(conditionUsesDiagnosisDuration);
   const selectZeroValueOnFocus = (event: React.FocusEvent<HTMLInputElement>) => {
     const currentValue = event.currentTarget.value.trim();
     if (currentValue === "0" || currentValue === "0.0" || currentValue === "0,0") {
@@ -274,7 +276,7 @@ export default function ChronicControlPage() {
       const request = await createChronicControlRequest({
         conditions,
         patient,
-        yearsSinceDiagnosis,
+        yearsSinceDiagnosis: shouldAskYearsSinceDiagnosis ? yearsSinceDiagnosis : 0,
         hasRecentChanges,
         usesMedication,
         selectedMedications,
@@ -299,10 +301,10 @@ export default function ChronicControlPage() {
             Control crónico
           </p>
           <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950">
-            Exámenes de control <br /> para tu enfermedad o condición crónica.
+            Exámenes de control <br /> para tus enfermedades o condiciones.
           </h1>
           <p className="mt-3 text-base leading-7 text-slate-600">
-            Indica la condición que quieres controlar y recibe una recomendación estructurada de
+            Indica las enfermedades o condiciones que quieres controlar y recibe una recomendación estructurada de
             exámenes para seguimiento periódico, con orientación clínica clara y ordenable.
           </p>
         </div>
@@ -403,7 +405,9 @@ export default function ChronicControlPage() {
               </div>
 
               <div className="rounded-3xl bg-slate-50 p-5">
-                <p className="text-sm font-semibold text-slate-900">2. Condiciones a controlar</p>
+                <p className="text-sm font-semibold text-slate-900">
+                  2. ¿Qué enfermedades o condiciones estás controlando?
+                </p>
                 <p className="mt-1 text-sm text-slate-600">
                   Selecciona la o las condiciones que quieres controlar.
                 </p>
@@ -440,7 +444,7 @@ export default function ChronicControlPage() {
                       onClick={() => setShowAllConditions(true)}
                       className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
                     >
-                      Mostrar más enfermedades ↓
+                      Mostrar más condiciones ↓
                     </button>
                   )}
 
@@ -450,21 +454,23 @@ export default function ChronicControlPage() {
                       onClick={() => setShowAllConditions(false)}
                       className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
                     >
-                      Mostrar menos enfermedades ↑
+                      Mostrar menos condiciones ↑
                     </button>
                   )}
 
-                  <Field label="Años desde el diagnóstico">
-                    <input
-                      className={inputCls}
-                      type="number"
-                      min={0}
-                      max={60}
-                      value={yearsSinceDiagnosis}
-                      onFocus={selectZeroValueOnFocus}
-                      onChange={(e) => setYearsSinceDiagnosis(Number(e.target.value))}
-                    />
-                  </Field>
+                  {shouldAskYearsSinceDiagnosis && (
+                    <Field label="Años desde el diagnóstico">
+                      <input
+                        className={inputCls}
+                        type="number"
+                        min={0}
+                        max={60}
+                        value={yearsSinceDiagnosis}
+                        onFocus={selectZeroValueOnFocus}
+                        onChange={(e) => setYearsSinceDiagnosis(Number(e.target.value))}
+                      />
+                    </Field>
+                  )}
                 </div>
               </div>
 

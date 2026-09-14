@@ -334,6 +334,7 @@ export const EXAM_MASTER_CATALOG: readonly ExamMasterCatalogItem[] = [
   },
   { name: "RPR/VDRL", category: "laboratory", fonasaCode: "0306042" },
   { name: "T4 libre", category: "laboratory", fonasaCode: "0303026" },
+  { name: "T3", category: "laboratory", fonasaCode: "No informado" },
   { name: "Tamizaje de cáncer cervicouterino", category: "procedure", fonasaCode: "No informado" },
   { name: "Tamizaje de cáncer colorrectal", category: "procedure", fonasaCode: "No informado" },
   {

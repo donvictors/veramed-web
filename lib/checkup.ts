@@ -3,6 +3,7 @@ import { getExamMetadataByName, getExamSampleTypeByName } from "@/lib/exam-maste
 export type Sex = "M" | "F";
 export type Smoking = "never" | "former" | "current";
 export type SexualActivity = "yes" | "no";
+export type StiScreening = "yes" | "no";
 export type Pregnancy = "yes" | "no";
 export type DietaryRestriction = "none" | "special";
 export type DietaryPattern = "vegan" | "vegetarian" | "ketogenic" | "gluten_free";
@@ -34,7 +35,10 @@ export type CheckupInput = {
   smokingYears?: number;
   packYearIndex?: number;
   quitSmokingYearsAgo?: number;
-  sexualActivity: SexualActivity;
+  /** Nuevo nombre para solicitudes creadas desde /chequeo. */
+  stiScreening?: StiScreening;
+  /** Compatibilidad con solicitudes antiguas y el módulo de chequeo dentro de control crónico. */
+  sexualActivity?: SexualActivity;
   pregnancy: Pregnancy;
   gestationWeeks?: number;
   dietaryRestriction?: DietaryRestriction;
@@ -236,7 +240,7 @@ export function recommend(input: CheckupInput): CheckupRecommendation {
   }
 
   const isPregnant = input.sex === "F" && input.pregnancy === "yes";
-  const isSexuallyActive = input.sexualActivity === "yes";
+  const includesStiScreening = (input.stiScreening ?? input.sexualActivity ?? "no") === "yes";
   const isFemale = input.sex === "F";
   const isMale = input.sex === "M";
   const bmi = input.bodyMassIndex ?? 0;
@@ -259,7 +263,7 @@ export function recommend(input: CheckupInput): CheckupRecommendation {
   if (input.age >= 15 && input.age <= 65) {
     addTest(
       "ELISA para VIH",
-      "Lo recomendamos como tamizaje universal entre los 15 y 65 años, y además en personas de cualquier edad que sean sexualmente activas.",
+      "Lo recomendamos como tamizaje universal entre los 15 y 65 años. También puede incluirse como parte del chequeo de infecciones de transmisión sexual.",
     );
   }
 
@@ -303,29 +307,31 @@ export function recommend(input: CheckupInput): CheckupRecommendation {
     );
   }
 
-  if (isSexuallyActive) {
+  if (includesStiScreening) {
     addTest(
       "ELISA para VIH",
-      "Lo recomendamos como tamizaje universal entre los 15 y 65 años, y además en personas de cualquier edad que sean sexualmente activas.",
+      "Se incluye como parte del chequeo de infecciones de transmisión sexual.",
     );
     addTest(
       "RPR/VDRL",
-      "Lo recomendamos en todas las personas sexualmente activas.",
+      "Se incluye como parte del chequeo de infecciones de transmisión sexual.",
     );
     addTest(
       "Antígeno de superficie Virus Hepatitis B (HBsAg)",
-      "Lo recomendamos en todas las personas sexualmente activas.",
+      "Se incluye como parte del chequeo de infecciones de transmisión sexual.",
     );
     addTest(
       "Anticuerpos anti Virus Hepatitis C",
-      "Lo recomendamos en todas las personas sexualmente activas.",
+      "Se incluye como parte del chequeo de infecciones de transmisión sexual.",
     );
   }
 
-  if ((isFemale && isSexuallyActive) || isPregnant) {
+  if ((isFemale && includesStiScreening) || isPregnant) {
     addTest(
       "PCR Chlamydia trachomatis y Neisseria gonorrhoeae",
-      "Corresponde tamizaje de ITS según sexo y contexto clínico declarado.",
+      isPregnant && !includesStiScreening
+        ? "Se incluye durante el embarazo según la regla preventiva vigente."
+        : "Se incluye como parte del chequeo de infecciones de transmisión sexual en mujeres.",
     );
   }
 
@@ -336,10 +342,10 @@ export function recommend(input: CheckupInput): CheckupRecommendation {
     );
   }
 
-  if (input.age >= 65 && input.age <= 75 && input.smoking !== "never") {
+  if (isMale && input.age >= 65 && input.age <= 75 && input.smoking !== "never") {
     addTest(
       "Ecografía abdominal",
-      "La pedimos a personas de entre 65 y 75 años que hayan fumado, para la detección precoz de aneurismas de aorta abdominal (AAA).",
+      "La pedimos a hombres de entre 65 y 75 años que hayan fumado, para la detección precoz de aneurismas de aorta abdominal (AAA).",
     );
   }
 
@@ -426,10 +432,6 @@ export function recommend(input: CheckupInput): CheckupRecommendation {
       "Hemograma",
       "Se agrega por dieta libre de gluten para evaluación hematológica complementaria.",
     );
-    addTest(
-      "Folato sérico",
-      "Se agrega por dieta libre de gluten para evaluar estado de folato.",
-    );
   }
 
   const tests = Array.from(testMap.values());
@@ -457,6 +459,10 @@ export function formatSex(sex: Sex) {
 }
 
 export function formatSexualActivity(value: SexualActivity) {
+  return value === "yes" ? "Sí" : "No";
+}
+
+export function formatStiScreening(value: StiScreening | SexualActivity | undefined) {
   return value === "yes" ? "Sí" : "No";
 }
 

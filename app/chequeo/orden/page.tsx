@@ -11,7 +11,7 @@ import {
   createVerificationCode,
   formatBirthDate,
   formatSex,
-  formatSexualActivity,
+  formatStiScreening,
   formatSmoking,
   inferOrderDetails,
 } from "@/lib/checkup";
@@ -302,7 +302,10 @@ function OrderPageContent() {
             <Info label="Peso" value={`${data.input.weightKg} kg`} />
             <Info label="Talla" value={`${data.input.heightCm} cm`} />
             <Info label="Tabaco" value={formatSmoking(data.input.smoking)} />
-            <Info label="Actividad sexual" value={formatSexualActivity(data.input.sexualActivity)} />
+            <Info
+              label="Chequeo de infecciones de transmisión sexual"
+              value={formatStiScreening(data.input.stiScreening ?? data.input.sexualActivity)}
+            />
           </div>
 
             <div className="mt-8 rounded-3xl bg-slate-50 p-5">
