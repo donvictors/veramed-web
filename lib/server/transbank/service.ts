@@ -454,6 +454,7 @@ export async function createTransbankPayment(
     amount: pricing.finalAmount,
     token: parsed.token,
     url: parsed.url,
+    discountCodeId: appliedDiscount?.id ?? null,
   });
 
   await ensurePendingRequestPayment(target, record.token, record.amount);

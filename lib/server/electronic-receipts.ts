@@ -170,11 +170,48 @@ export async function listReceiptWorkItems(): Promise<ReceiptWorkItem[]> {
   );
 
   return sources
+    .filter((source) => !receiptByRequest.get(`${source.requestType}:${source.requestId}`)?.archivedAt)
     .map((source) => toWorkItem(
       source,
       receiptByRequest.get(`${source.requestType}:${source.requestId}`),
     ))
     .sort((left, right) => Date.parse(right.eligibleAt) - Date.parse(left.eligibleAt));
+}
+
+export async function listArchivedReceiptItems() {
+  return prisma.electronicReceipt.findMany({
+    where: { archivedAt: { not: null } },
+    orderBy: { archivedAt: "desc" },
+    take: 500,
+    select: {
+      id: true, requestType: true, requestId: true, serviceLabel: true,
+      patientName: true, patientEmail: true, paymentId: true, amount: true,
+      currency: true, status: true, folio: true, fileName: true,
+      archivedAt: true, uploadedAt: true, emailSentAt: true,
+    },
+  });
+}
+
+export async function archiveReceiptWorkItem(requestType: ReceiptRequestType, requestId: string, userId: string) {
+  const item = (await listReceiptWorkItems()).find((row) => row.requestType === requestType && row.requestId === requestId);
+  if (!item) throw new Error("Boleta no encontrada en el panel de trabajo.");
+  return prisma.electronicReceipt.upsert({
+    where: { requestType_requestId: { requestType, requestId } },
+    update: { archivedAt: new Date(), archivedByUserId: userId },
+    create: {
+      requestType, requestId, paymentId: item.paymentId, amount: item.amount,
+      currency: item.currency, serviceLabel: item.serviceLabel,
+      patientName: item.patientName, patientEmail: item.patientEmail,
+      patientRut: item.patientRut || null, status: "pending",
+      archivedAt: new Date(), archivedByUserId: userId,
+    },
+  });
+}
+
+export async function restoreReceiptWorkItem(requestType: ReceiptRequestType, requestId: string) {
+  const row = await prisma.electronicReceipt.findUnique({ where: { requestType_requestId: { requestType, requestId } } });
+  if (!row?.archivedAt) throw new Error("Boleta no encontrada en el registro archivado.");
+  return prisma.electronicReceipt.update({ where: { id: row.id }, data: { archivedAt: null, archivedByUserId: null } });
 }
 
 export async function getEligibleReceiptSource(

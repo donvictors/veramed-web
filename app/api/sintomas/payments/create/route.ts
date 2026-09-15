@@ -171,6 +171,7 @@ export async function POST(request: Request) {
       amount: pricing.finalAmount,
       token: created.token,
       webpayUrl: created.url,
+      discountCodeId: appliedDiscount?.id ?? null,
     });
 
     await markSymptomsPaymentPending({

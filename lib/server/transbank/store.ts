@@ -121,6 +121,7 @@ export async function upsertCreatedPayment(input: {
   amount: number;
   token: string;
   url: string;
+  discountCodeId?: string | null;
 }) {
   const tx = getTransactionDelegate();
   if (!tx) {
@@ -200,6 +201,7 @@ export async function upsertCreatedPayment(input: {
         amount: input.amount,
         token: input.token,
         webpayUrl: input.url,
+        discountCodeId: input.discountCodeId ?? null,
         status: "created",
         authorizationCode: null,
         buyOrder: null,
@@ -227,6 +229,7 @@ export async function upsertCreatedPayment(input: {
         amount: input.amount,
         token: input.token,
         webpayUrl: input.url,
+        discountCodeId: input.discountCodeId ?? null,
         status: "created",
       },
     });
@@ -258,6 +261,7 @@ export async function upsertCreatedPayment(input: {
         amount: input.amount,
         token: input.token,
         webpayUrl: input.url,
+        discountCodeId: input.discountCodeId ?? null,
         status: "created",
         authorizationCode: null,
         buyOrder: null,

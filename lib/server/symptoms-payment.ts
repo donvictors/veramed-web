@@ -95,6 +95,7 @@ export async function upsertSymptomsPaymentTransaction(input: {
   amount: number;
   token: string;
   webpayUrl: string;
+  discountCodeId?: string | null;
 }) {
   const tx = getSymptomsPaymentTransactionDelegate();
   const row = await (tx.upsert as (args: unknown) => Promise<unknown>)({
@@ -105,6 +106,7 @@ export async function upsertSymptomsPaymentTransaction(input: {
       amount: input.amount,
       token: input.token,
       webpayUrl: input.webpayUrl,
+      discountCodeId: input.discountCodeId ?? null,
       status: "created",
       errorReason: null,
       authorizationCode: null,
@@ -124,6 +126,7 @@ export async function upsertSymptomsPaymentTransaction(input: {
       amount: input.amount,
       token: input.token,
       webpayUrl: input.webpayUrl,
+      discountCodeId: input.discountCodeId ?? null,
       status: "created",
     },
   });

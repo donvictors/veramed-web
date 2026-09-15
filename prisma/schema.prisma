@@ -296,12 +296,15 @@ model ElectronicReceipt {
   emailSentAt      DateTime?
   emailMessageId   String?
   lastEmailError   String?
+  archivedAt       DateTime?
+  archivedByUserId String?
   createdAt        DateTime                  @default(now())
   updatedAt        DateTime                  @updatedAt
 
   @@unique([requestType, requestId])
   @@index([status, createdAt])
   @@index([patientEmail, createdAt])
+  @@index([archivedAt, createdAt])
 }
 
 model CheckupPayment {
@@ -366,11 +369,13 @@ model TransbankPaymentTransaction {
   errorReason       String?
   committedAt       DateTime?
   paidAt            DateTime?
+  discountCodeId    String?
   createdAt         DateTime                     @default(now())
   updatedAt         DateTime                     @updatedAt
 
   @@index([requestType, requestId])
   @@index([status, createdAt])
+  @@index([discountCodeId, status])
 }
 
 model SymptomsPaymentTransaction {
@@ -392,12 +397,14 @@ model SymptomsPaymentTransaction {
   errorReason       String?
   committedAt       DateTime?
   paidAt            DateTime?
+  discountCodeId    String?
   createdAt         DateTime                     @default(now())
   updatedAt         DateTime                     @updatedAt
   request           SymptomsRequest              @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
   @@index([requestId])
   @@index([status, createdAt])
+  @@index([discountCodeId, status])
 }
 
 model OrderPdfAsset {
@@ -436,6 +443,7 @@ model SymptomsOrderPdfAsset {
 model DiscountCode {
   id             String         @id @default(cuid())
   codeHash       String         @unique
+  codeCiphertext String?
   label          String
   type           DiscountTypeDb
   percentOff     Int?

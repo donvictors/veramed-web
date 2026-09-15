@@ -24,6 +24,7 @@ type ReceiptItem = {
   emailSentAt: string | null;
   lastEmailError: string | null;
 };
+type ArchivedReceipt = { id: string; requestType: ReceiptItem["requestType"]; requestId: string; serviceLabel: string; patientName: string; patientEmail: string; paymentId: string; amount: number; currency: string; status: ReceiptStatus; folio: string | null; fileName: string | null; archivedAt: string; uploadedAt: string | null; emailSentAt: string | null };
 
 const statusCopy: Record<ReceiptStatus, { label: string; className: string }> = {
   pending: { label: "Pendiente de emisión", className: "bg-amber-50 text-amber-800 ring-amber-200" },
@@ -48,7 +49,8 @@ function itemKey(item: ReceiptItem) {
 
 export default function ReceiptManagementClient() {
   const [items, setItems] = useState<ReceiptItem[]>([]);
-  const [filter, setFilter] = useState<"all" | ReceiptStatus>("pending");
+  const [archived, setArchived] = useState<ArchivedReceipt[]>([]);
+  const [filter, setFilter] = useState<"all" | "archived" | ReceiptStatus>("pending");
   const [folios, setFolios] = useState<Record<string, string>>({});
   const [files, setFiles] = useState<Record<string, File | undefined>>({});
   const [busy, setBusy] = useState<Record<string, boolean>>({});
@@ -60,9 +62,10 @@ export default function ReceiptManagementClient() {
     try {
       setError("");
       const response = await fetch("/api/portal-medicos/receipts", { cache: "no-store" });
-      const body = (await response.json().catch(() => ({}))) as { items?: ReceiptItem[]; error?: string };
+      const body = (await response.json().catch(() => ({}))) as { items?: ReceiptItem[]; archived?: ArchivedReceipt[]; error?: string };
       if (!response.ok) throw new Error(body.error || "No pudimos cargar las boletas.");
       setItems(body.items ?? []);
+      setArchived(body.archived ?? []);
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "No pudimos cargar las boletas.");
     } finally {
@@ -77,9 +80,10 @@ export default function ReceiptManagementClient() {
     pending: items.filter((item) => item.status === "pending").length,
     ready: items.filter((item) => item.status === "ready").length,
     sent: items.filter((item) => item.status === "sent").length,
-  }), [items]);
+    archived: archived.length,
+  }), [items, archived]);
   const visible = useMemo(
-    () => filter === "all" ? items : items.filter((item) => item.status === filter),
+    () => filter === "all" ? items : filter === "archived" ? [] : items.filter((item) => item.status === filter),
     [filter, items],
   );
 
@@ -135,12 +139,25 @@ export default function ReceiptManagementClient() {
     }
   }
 
+  async function changeArchive(requestType: ReceiptItem["requestType"], requestId: string, action: "archive" | "restore") {
+    setBusy((current) => ({ ...current, [`${requestType}:${requestId}`]: true }));
+    setError(""); setNotice("");
+    try {
+      const response = await fetch("/api/portal-medicos/receipts/archive", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ requestType, requestId, action }) });
+      const body = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(body.error || "No pudimos actualizar la boleta.");
+      setNotice(action === "archive" ? "La boleta salió del panel y quedó en el registro compacto." : "La boleta volvió al panel de trabajo.");
+      await load();
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "No pudimos actualizar la boleta."); }
+    finally { setBusy((current) => ({ ...current, [`${requestType}:${requestId}`]: false })); }
+  }
+
   return (
     <div className="space-y-7">
       <PageHeader
         eyebrow="Administración"
         title="Boletas electrónicas"
-        description="Emite la boleta exenta en el SII, adjunta el PDF y envíalo al paciente desde Veramed. Solo aparecen pagos confirmados con su orden ya emitida."
+        description="Emite la boleta exenta en el SII, adjunta el PDF y envíalo al paciente. Puedes quitar registros del panel sin eliminar documentos tributarios ni PDFs."
         aside={<a href="https://www.sii.cl/servicios_online/3532-3810.html" target="_blank" rel="noopener noreferrer" className="inline-flex rounded-xl bg-emerald-900 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-800">Abrir e-Boleta SII ↗</a>}
       />
 
@@ -154,22 +171,23 @@ export default function ReceiptManagementClient() {
       </div>
 
       <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-4">
-        {(["pending", "ready", "sent", "all"] as const).map((value) => (
+        {(["pending", "ready", "sent", "all", "archived"] as const).map((value) => (
           <button key={value} type="button" onClick={() => setFilter(value)} className={`rounded-xl px-4 py-2 text-sm font-semibold ${filter === value ? "bg-emerald-900 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}>
-            {value === "pending" ? "Pendientes" : value === "ready" ? "Listas" : value === "sent" ? "Enviadas" : "Todas"} ({counts[value]})
+            {value === "pending" ? "Pendientes" : value === "ready" ? "Listas" : value === "sent" ? "Enviadas" : value === "archived" ? "Registro compacto" : "Todas"} ({counts[value]})
           </button>
         ))}
       </div>
 
       {loading ? <p className="py-10 text-sm text-slate-600">Cargando pagos…</p> : null}
-      {!loading && visible.length === 0 ? (
+      {!loading && filter !== "archived" && visible.length === 0 ? (
         <div className="rounded-[1.5rem] border border-slate-200 bg-white px-6 py-14 text-center">
           <h2 className="font-semibold text-slate-950">No hay boletas en esta sección</h2>
           <p className="mt-2 text-sm text-slate-500">Los pagos aparecerán cuando la orden correspondiente haya sido emitida.</p>
         </div>
       ) : null}
 
-      <div className="space-y-4">
+      {filter === "archived" ? <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p className="mb-4 text-sm text-slate-600">Registro administrativo reversible. Las boletas emitidas y sus PDFs siguen conservados; esto no las anula ante el SII.</p>{archived.length === 0 ? <p className="text-sm text-slate-500">No hay boletas archivadas.</p> : <table className="w-full min-w-[780px] text-left text-sm"><thead className="border-b border-slate-200 text-xs uppercase text-slate-500"><tr><th className="py-3">Paciente / servicio</th><th>Monto</th><th>Estado / folio</th><th>Archivada</th><th>Documento</th><th>Acción</th></tr></thead><tbody>{archived.map((row) => <tr key={row.id} className="border-b border-slate-100"><td className="py-3"><strong>{row.patientName}</strong><span className="block text-xs text-slate-500">{row.serviceLabel}</span></td><td>{moneyLabel(row.amount, row.currency)}</td><td>{statusCopy[row.status].label}{row.folio ? ` · ${row.folio}` : ""}</td><td>{dateLabel(row.archivedAt)}</td><td>{row.fileName ? <a className="font-semibold text-emerald-800 hover:underline" href={`/api/portal-medicos/receipts/${row.id}/pdf`} target="_blank" rel="noopener noreferrer">Abrir PDF</a> : "—"}</td><td><button disabled={Boolean(busy[`${row.requestType}:${row.requestId}`])} onClick={() => void changeArchive(row.requestType, row.requestId, "restore")} className="rounded-lg border border-slate-200 px-3 py-2 font-semibold hover:bg-slate-50 disabled:opacity-50">Restaurar</button></td></tr>)}</tbody></table>}</div> : null}
+      {filter !== "archived" ? <div className="space-y-4">
         {visible.map((item) => {
           const key = itemKey(item);
           const isBusy = Boolean(busy[key]);
@@ -196,6 +214,7 @@ export default function ReceiptManagementClient() {
                     </div>
                   ) : null}
                   {item.lastEmailError ? <p className="mt-3 text-sm text-rose-700">Último error de envío: {item.lastEmailError}</p> : null}
+                  <button type="button" disabled={isBusy} onClick={() => void changeArchive(item.requestType, item.requestId, "archive")} className="mt-4 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50">Quitar del panel y archivar</button>
                 </div>
 
                 <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
@@ -229,7 +248,7 @@ export default function ReceiptManagementClient() {
             </article>
           );
         })}
-      </div>
+      </div> : null}
     </div>
   );
 }

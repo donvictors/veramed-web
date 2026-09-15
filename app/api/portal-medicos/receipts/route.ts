@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import {
   listReceiptWorkItems,
+  listArchivedReceiptItems,
   saveElectronicReceipt,
   type ReceiptRequestType,
 } from "@/lib/server/electronic-receipts";
@@ -33,7 +34,8 @@ export async function GET() {
   if (!canManageMedicalUsers(session)) {
     return NextResponse.json({ error: "No tienes permisos para administrar boletas." }, { status: 403 });
   }
-  return NextResponse.json({ items: await listReceiptWorkItems() }, {
+  const [items, archived] = await Promise.all([listReceiptWorkItems(), listArchivedReceiptItems()]);
+  return NextResponse.json({ items, archived }, {
     headers: { "Cache-Control": "no-store" },
   });
 }

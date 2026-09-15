@@ -71,6 +71,34 @@ test("las páginas cliente no importan definiciones privadas de descuento", () =
   }
 });
 
+test("el monitor de campañas es administrativo y cuenta sólo pagos confirmados", () => {
+  const campaignRoute = read("app/api/portal-medicos/discounts/route.ts");
+  const campaignChange = read("app/api/portal-medicos/discounts/[id]/route.ts");
+  const discountService = read("lib/server/discount-codes.ts");
+  const standardPayment = read("lib/server/transbank/service.ts");
+  const symptomsPayment = read("app/api/sintomas/payments/create/route.ts");
+  assert.match(campaignRoute, /canManageMedicalUsers/);
+  assert.match(campaignRoute, /status: "paid"/);
+  assert.match(campaignRoute, /encryptDiscountCode/);
+  assert.match(campaignChange, /requireSameOrigin/);
+  assert.match(discountService, /aes-256-gcm/);
+  assert.match(standardPayment, /discountCodeId: appliedDiscount\?\.id/);
+  assert.match(symptomsPayment, /discountCodeId: appliedDiscount\?\.id/);
+});
+
+test("archivar boletas sólo las quita del panel y permite restaurarlas", () => {
+  const route = read("app/api/portal-medicos/receipts/archive/route.ts");
+  const service = read("lib/server/electronic-receipts.ts");
+  const client = read("app/portal-medicos/boletas/ReceiptManagementClient.tsx");
+  assert.match(route, /canManageMedicalUsers/);
+  assert.match(route, /requireSameOrigin/);
+  assert.match(service, /archivedAt: new Date\(\)/);
+  assert.match(service, /archivedAt: null/);
+  assert.doesNotMatch(route, /\.delete\(|\bdel\(/);
+  assert.match(client, /Registro compacto/);
+  assert.match(client, /Restaurar/);
+});
+
 test("las sesiones se guardan como hash y el portal médico usa sesiones revocables", () => {
   const patientAuth = read("lib/server/auth-store.ts");
   const medicalAuth = read("lib/server/medical-portal-auth.ts");

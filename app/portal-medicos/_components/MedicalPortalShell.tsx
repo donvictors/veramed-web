@@ -172,6 +172,9 @@ export default function MedicalPortalShell({ doctor, children }: { doctor: Docto
             <TopLink href="/portal-medicos/boletas" label="Boletas" icon="receipt" active={pathname.startsWith("/portal-medicos/boletas")} />
           ) : null}
           {doctor.role === "admin" ? (
+            <TopLink href="/portal-medicos/descuentos" label="Campañas" icon="document" active={pathname.startsWith("/portal-medicos/descuentos")} />
+          ) : null}
+          {doctor.role === "admin" ? (
             <TopLink href="/portal-medicos/blog" label="Blog" icon="blog" active={pathname.startsWith("/portal-medicos/blog")} />
           ) : null}
           {doctor.role === "admin" ? (

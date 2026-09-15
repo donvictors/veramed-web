@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createHmac } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import type { DiscountDefinition } from "@/lib/discount-pricing";
 
@@ -20,6 +20,25 @@ export function hashDiscountCode(raw: string) {
   return createHmac("sha256", getDiscountPepper())
     .update(normalizeDiscountCode(raw))
     .digest("hex");
+}
+
+export function encryptDiscountCode(raw: string) {
+  const key = createHash("sha256").update(getDiscountPepper()).digest();
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", key, iv);
+  const encrypted = Buffer.concat([cipher.update(normalizeDiscountCode(raw), "utf8"), cipher.final()]);
+  return Buffer.concat([iv, cipher.getAuthTag(), encrypted]).toString("base64url");
+}
+
+export function decryptDiscountCode(value: string | null) {
+  if (!value) return null;
+  try {
+    const bytes = Buffer.from(value, "base64url");
+    const key = createHash("sha256").update(getDiscountPepper()).digest();
+    const decipher = createDecipheriv("aes-256-gcm", key, bytes.subarray(0, 12));
+    decipher.setAuthTag(bytes.subarray(12, 28));
+    return Buffer.concat([decipher.update(bytes.subarray(28)), decipher.final()]).toString("utf8");
+  } catch { return null; }
 }
 
 export async function getDiscountByCode(
