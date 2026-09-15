@@ -54,6 +54,7 @@ export default function ReceiptManagementClient() {
   const [folios, setFolios] = useState<Record<string, string>>({});
   const [files, setFiles] = useState<Record<string, File | undefined>>({});
   const [busy, setBusy] = useState<Record<string, boolean>>({});
+  const [archivingAll, setArchivingAll] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -152,6 +153,20 @@ export default function ReceiptManagementClient() {
     finally { setBusy((current) => ({ ...current, [`${requestType}:${requestId}`]: false })); }
   }
 
+  async function archiveAll() {
+    if (!window.confirm("¿Archivar todas las boletas del panel, incluidas las pendientes, listas y enviadas? También se archivarán las más antiguas que no estén visibles en esta página. Los documentos y PDFs se conservarán y podrás restaurar cada registro.")) return;
+    setArchivingAll(true); setError(""); setNotice("");
+    try {
+      const response = await fetch("/api/portal-medicos/receipts/archive-all", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirm: true }) });
+      const body = await response.json() as { archivedCount?: number; error?: string };
+      if (!response.ok) throw new Error(body.error || "No pudimos archivar las boletas.");
+      const count = body.archivedCount ?? 0;
+      setNotice(`${count} ${count === 1 ? "boleta movida" : "boletas movidas"} al registro compacto. Los documentos siguen disponibles.`);
+      await load(); setFilter("archived");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "No pudimos archivar las boletas."); }
+    finally { setArchivingAll(false); }
+  }
+
   return (
     <div className="space-y-7">
       <PageHeader
@@ -168,6 +183,11 @@ export default function ReceiptManagementClient() {
         <Metric label="Pendientes de emitir" value={counts.pending} tone="amber" />
         <Metric label="Listas para enviar" value={counts.ready} tone="sky" />
         <Metric label="Enviadas" value={counts.sent} tone="emerald" />
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+        <p className="text-sm text-slate-600">Limpia el panel de trabajo sin eliminar boletas ni PDFs.</p>
+        <button type="button" onClick={() => void archiveAll()} disabled={archivingAll || loading} className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-900 hover:bg-amber-100 disabled:opacity-50">{archivingAll ? "Archivando…" : "Archivar todas"}</button>
       </div>
 
       <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-4">

@@ -275,3 +275,34 @@ test("las rutas críticas cuentan con protección de origen, tamaño y rate limi
     assert.match(source, /requireSameOrigin/);
   }
 });
+
+test("el archivo masivo de boletas sólo archiva, conserva documentos y exige autorización administrativa", () => {
+  const route = read("app/api/portal-medicos/receipts/archive-all/route.ts");
+  const store = read("lib/server/electronic-receipts.ts");
+  const panel = read("app/portal-medicos/boletas/ReceiptManagementClient.tsx");
+  assert.match(route, /requireSameOrigin\(request\)/);
+  assert.match(route, /canManageMedicalUsers\(session\)/);
+  assert.match(route, /body\?\.confirm !== true/);
+  assert.match(route, /electronic_receipt\.archive_all/);
+  assert.match(store, /listReceiptWorkItems\(\{ all: true \}\)/);
+  assert.match(store, /electronicReceipt\.createMany/);
+  assert.match(store, /electronicReceipt\.updateMany/);
+  assert.doesNotMatch(store.slice(store.indexOf("export async function archiveAllReceiptWorkItems"), store.indexOf("export async function", store.indexOf("export async function archiveAllReceiptWorkItems") + 1)), /\.delete(Many)?\(/);
+  assert.match(panel, /Archivar todas/);
+});
+
+test("el monitor de órdenes automáticas excluye la validación manual y exige pagos confirmados", () => {
+  const store = read("lib/server/automatic-orders.ts");
+  const route = read("app/api/portal-medicos/automatic-orders/route.ts");
+  const page = read("app/portal-medicos/ordenes-automaticas/page.tsx");
+  const shell = read("app/portal-medicos/_components/MedicalPortalShell.tsx");
+  assert.match(store, /approvalMethod: "automatic_protocol"/);
+  assert.match(store, /reviewStatus: "approved"/);
+  assert.match(store, /payment: \{ is: \{ status: "paid"/);
+  assert.match(store, /prisma\.checkupRequest\.findMany/);
+  assert.match(store, /prisma\.chronicControlRequest\.findMany/);
+  assert.match(route, /canManageMedicalUsers\(session\)/);
+  assert.match(route, /automatic_orders\.list/);
+  assert.match(page, /canManageMedicalUsers\(session\)/);
+  assert.match(shell, /\/portal-medicos\/ordenes-automaticas/);
+});

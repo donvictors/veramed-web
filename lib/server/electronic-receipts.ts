@@ -86,7 +86,7 @@ function toWorkItem(source: ReceiptSource, receipt?: ElectronicReceipt | null): 
   };
 }
 
-export async function listReceiptWorkItems(): Promise<ReceiptWorkItem[]> {
+export async function listReceiptWorkItems(options: { all?: boolean } = {}): Promise<ReceiptWorkItem[]> {
   const [checkups, chronicControls, symptoms, receipts] = await Promise.all([
     prisma.checkupRequest.findMany({
       where: {
@@ -96,7 +96,7 @@ export async function listReceiptWorkItems(): Promise<ReceiptWorkItem[]> {
       },
       include: { payment: true },
       orderBy: { orderEmailSentAt: "desc" },
-      take: 250,
+      take: options.all ? undefined : 250,
     }),
     prisma.chronicControlRequest.findMany({
       where: {
@@ -106,7 +106,7 @@ export async function listReceiptWorkItems(): Promise<ReceiptWorkItem[]> {
       },
       include: { payment: true },
       orderBy: { orderEmailSentAt: "desc" },
-      take: 250,
+      take: options.all ? undefined : 250,
     }),
     prisma.symptomsRequest.findMany({
       where: {
@@ -115,9 +115,9 @@ export async function listReceiptWorkItems(): Promise<ReceiptWorkItem[]> {
       },
       include: { payment: true },
       orderBy: { validatedAt: "desc" },
-      take: 250,
+      take: options.all ? undefined : 250,
     }),
-    prisma.electronicReceipt.findMany({ orderBy: { createdAt: "desc" }, take: 1_000 }),
+    prisma.electronicReceipt.findMany({ orderBy: { createdAt: "desc" }, take: options.all ? undefined : 1_000 }),
   ]);
 
   const sources: ReceiptSource[] = [
@@ -182,7 +182,6 @@ export async function listArchivedReceiptItems() {
   return prisma.electronicReceipt.findMany({
     where: { archivedAt: { not: null } },
     orderBy: { archivedAt: "desc" },
-    take: 500,
     select: {
       id: true, requestType: true, requestId: true, serviceLabel: true,
       patientName: true, patientEmail: true, paymentId: true, amount: true,
@@ -206,6 +205,36 @@ export async function archiveReceiptWorkItem(requestType: ReceiptRequestType, re
       archivedAt: new Date(), archivedByUserId: userId,
     },
   });
+}
+
+export async function archiveAllReceiptWorkItems(userId: string) {
+  const items = await listReceiptWorkItems({ all: true });
+  if (items.length === 0) return 0;
+  const archivedAt = new Date();
+  for (let offset = 0; offset < items.length; offset += 250) {
+    const batch = items.slice(offset, offset + 250);
+    const missing = batch.filter((item) => !item.receiptId);
+    const types = ["checkup", "chronic_control", "symptoms"] as const;
+    await prisma.$transaction(async (tx) => {
+      if (missing.length) {
+        await tx.electronicReceipt.createMany({
+          data: missing.map((item) => ({
+            requestType: item.requestType, requestId: item.requestId,
+            paymentId: item.paymentId, amount: item.amount, currency: item.currency,
+            serviceLabel: item.serviceLabel, patientName: item.patientName,
+            patientEmail: item.patientEmail, patientRut: item.patientRut || null,
+            status: ElectronicReceiptStatusDb.pending, archivedAt, archivedByUserId: userId,
+          })),
+          skipDuplicates: true,
+        });
+      }
+      await tx.electronicReceipt.updateMany({
+        where: { OR: types.map((requestType) => ({ requestType, requestId: { in: batch.filter((item) => item.requestType === requestType).map((item) => item.requestId) } })) },
+        data: { archivedAt, archivedByUserId: userId },
+      });
+    }, { timeout: 30_000 });
+  }
+  return items.length;
 }
 
 export async function restoreReceiptWorkItem(requestType: ReceiptRequestType, requestId: string) {
