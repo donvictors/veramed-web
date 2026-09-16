@@ -507,6 +507,82 @@ export async function markSymptomsInFlow(requestId: string) {
   return toRecord(updated);
 }
 
+export async function initializePaidSymptomsInterview(input: {
+  requestId: string;
+  clinicalState: SymptomsClinicalState;
+  candidateQuestions: InterviewQuestionCandidate[];
+  interviewMetadata: SymptomsInterviewMetadata;
+  urgencyWarning: boolean;
+  urgencyGuidance: string;
+}) {
+  return prisma.$transaction(async (tx) => {
+    const current = await tx.symptomsRequest.findUnique({
+      where: { id: input.requestId },
+      include: { payment: true },
+    });
+    if (!current) throw new Error("Solicitud de síntomas no encontrada.");
+    if (current.payment?.status !== PaymentStatusDb.paid) {
+      throw new Error("La solicitud aún no tiene pago confirmado.");
+    }
+    if (
+      current.reviewStatus !== SymptomsRequestStatusDb.paid &&
+      current.reviewStatus !== SymptomsRequestStatusDb.in_flow
+    ) {
+      throw new Error("La entrevista ya fue cerrada y no admite cambios.");
+    }
+
+    const answers = asAnswers(current.followUpAnswers);
+    if (Object.values(answers).some((answer) => answer.trim())) return toRecord(current);
+    if (parseInterviewMetadata(current.interviewMetadata)?.lastModel === "gpt-5.6-luna") {
+      return toRecord(current);
+    }
+
+    const currentQuestion = input.candidateQuestions[0] ?? null;
+    if (!currentQuestion) return toRecord(current);
+    const currentInterpretation = asInterpretation(current.interpretation);
+    const urgencyWarning = currentInterpretation.urgencyWarning || input.urgencyWarning;
+    const nextInterpretation: SymptomsInterpretation = {
+      ...currentInterpretation,
+      urgencyWarning,
+      guidanceText:
+        urgencyWarning && input.urgencyGuidance.trim()
+          ? input.urgencyGuidance.trim()
+          : currentInterpretation.guidanceText,
+    };
+    const changed = await tx.symptomsRequest.updateMany({
+      where: {
+        id: input.requestId,
+        updatedAt: current.updatedAt,
+        reviewStatus: { in: [SymptomsRequestStatusDb.paid, SymptomsRequestStatusDb.in_flow] },
+        payment: { is: { status: PaymentStatusDb.paid } },
+      },
+      data: {
+        followUpQuestions: [currentQuestion.question],
+        followUpAnswers: {},
+        interpretation: nextInterpretation,
+        clinicalState: input.clinicalState,
+        questionQueue: input.candidateQuestions.slice(1, 3),
+        interviewMetadata: input.interviewMetadata,
+        reviewStatus: SymptomsRequestStatusDb.in_flow,
+      },
+    });
+    if (changed.count !== 1) {
+      const latest = await tx.symptomsRequest.findUnique({
+        where: { id: input.requestId },
+        include: { payment: true },
+      });
+      if (!latest) throw new Error("Solicitud de síntomas no encontrada.");
+      return toRecord(latest);
+    }
+    const updated = await tx.symptomsRequest.findUnique({
+      where: { id: input.requestId },
+      include: { payment: true },
+    });
+    if (!updated) throw new Error("Solicitud de síntomas no encontrada.");
+    return toRecord(updated);
+  });
+}
+
 export async function saveSymptomsInterviewTurn(input: {
   requestId: string;
   expectedQuestionIndex: number;

@@ -17,8 +17,10 @@ import { applyDirectedExamProtocols } from "@/lib/symptoms-exam-protocols";
 import { examAssessmentSchema, examAuditSchema, candidateTestSchema, type ExamAssessment, type ExamAudit, type ClinicalSource } from "@/lib/symptoms-exam-assessment";
 import { getClinicalMap } from "@/lib/server/symptoms-interview-engine.mjs";
 
-const DEFAULT_MODEL = "gpt-4o-mini";
-const REQUEST_TIMEOUT_MS = 20000;
+const PREPAY_MODEL = "gpt-4o-mini";
+const POSTPAY_MODEL = "gpt-5.6-luna";
+const PREPAY_REQUEST_TIMEOUT_MS = 20000;
+const POSTPAY_REQUEST_TIMEOUT_MS = 45000;
 
 const FLOW_IDS = CLINICAL_FLOWS.map((flow) => flow.flowId);
 const FLOW_ID_ENUM = [...FLOW_IDS] as [string, ...string[]];
@@ -84,10 +86,6 @@ function deidentifyClinicalText(value: string) {
     .replace(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/g, "[correo omitido]")
     .replace(/\b\d{1,2}\.\d{3}\.\d{3}-[\dkK]\b|\b\d{7,8}-[\dkK]\b/g, "[RUT omitido]")
     .replace(/(?:\+?56\s*)?(?:9\s*)?\d(?:[\s-]?\d){7,8}\b/g, "[teléfono omitido]");
-}
-
-function getModelName() {
-  return process.env.OPENAI_SYMPTOMS_MODEL?.trim() || DEFAULT_MODEL;
 }
 
 export function buildInterpretSystemPrompt() {
@@ -319,7 +317,9 @@ async function callOpenAIJsonSchema<T>(payload: {
     system: payload.systemPrompt,
     prompt: payload.userPrompt,
     output: Output.object({ schema: payload.schema }),
-    abortSignal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    abortSignal: AbortSignal.timeout(
+      payload.model === POSTPAY_MODEL ? POSTPAY_REQUEST_TIMEOUT_MS : PREPAY_REQUEST_TIMEOUT_MS,
+    ),
     providerOptions: {
       openai: {
         store: false,
@@ -344,7 +344,7 @@ export async function interpretSymptomsWithOpenAI(
   candidateQuestions: InterviewQuestionCandidate[];
   model: string;
 }> {
-  const model = getModelName();
+  const model = PREPAY_MODEL;
   const parsedJson = await callOpenAIJsonSchema<OpenAIInterpretation>({
     model,
     systemPrompt: buildInterpretSystemPrompt(),
@@ -377,7 +377,7 @@ export async function suggestSymptomsExamsWithOpenAI(input: {
   sources: ClinicalSource[];
   clinicalState?: SymptomsClinicalState | null;
 }): Promise<{ assessment: ExamAssessment; audit: ExamAudit | null; oneLinerSummary: string; model: string }> {
-  const model = getModelName();
+  const model = POSTPAY_MODEL;
   const parsed = openAISuggestedExamsSchema.parse(await callOpenAIJsonSchema<OpenAISuggestedExams>({
     model,
     systemPrompt: buildSuggestExamsSystemPrompt(),
@@ -417,7 +417,7 @@ export async function continueSymptomsInterviewWithOpenAI(input: {
   currentQuestion: InterviewQuestionCandidate | null;
   patientSex: "female" | "male" | "";
 }): Promise<AdaptiveInterviewDecision & { model: string }> {
-  const model = getModelName();
+  const model = POSTPAY_MODEL;
   const decision = await callOpenAIJsonSchema<AdaptiveInterviewDecision>({
     model,
     systemPrompt: buildAdaptiveInterviewSystemPrompt(),

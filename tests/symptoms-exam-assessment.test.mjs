@@ -265,6 +265,9 @@ test("generador realiza dos llamadas separadas y no sustituye la auditoría con 
   try {
     const output = await suggestSymptomsExamsWithOpenAI({ sources: [{ id: "initial", text: assessment.chief_complaint }] });
     assert.equal(calls.length, 2);
+    assert.equal(calls[0].model, "gpt-5.6-luna");
+    assert.equal(calls[1].model, "gpt-5.6-luna");
+    assert.equal(output.model, "gpt-5.6-luna");
     assert.match(calls[1].system, /Audita críticamente/);
     assert.match(calls[1].prompt, /Propuesta a auditar/);
     assert.match(calls[0].system, /nunca bloquea la emisión/);

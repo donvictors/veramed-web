@@ -43,6 +43,16 @@ type InterviewTurnPayload = {
   };
 };
 
+type InterviewStartPayload = {
+  interview: {
+    questions: string[];
+    answers: Record<string, string>;
+    quickReplies: string[];
+    urgencyWarning: boolean;
+    urgencyGuidance: string;
+  };
+};
+
 type BuildOrderPayload = {
   order: SymptomsOrderDraft;
 };
@@ -200,23 +210,50 @@ function SintomasFlujoPageContent() {
           router.replace(`/sintomas/orden?id=${encodeURIComponent(requestId)}`);
           return;
         }
-        if (!payload.request.followUpQuestions.length) {
+        let activeRequest = payload.request;
+        const hasStartedInterview = Object.values(activeRequest.followUpAnswers).some((answer) =>
+          answer.trim(),
+        );
+        if (!hasStartedInterview) {
+          const startResponse = await fetch("/api/sintomas/interview/start", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ requestId }),
+          });
+          const startPayload = (await startResponse.json().catch(() => null)) as
+            | InterviewStartPayload
+            | null;
+          if (startResponse.ok && startPayload?.interview) {
+            activeRequest = {
+              ...activeRequest,
+              followUpQuestions: startPayload.interview.questions,
+              followUpAnswers: startPayload.interview.answers,
+              currentQuickReplies: startPayload.interview.quickReplies,
+              interpretation: {
+                ...activeRequest.interpretation,
+                urgencyWarning: startPayload.interview.urgencyWarning,
+                guidanceText: startPayload.interview.urgencyGuidance,
+              },
+            };
+          }
+        }
+        if (!activeRequest.followUpQuestions.length) {
           throw new Error("No encontramos una pregunta clínica para continuar.");
         }
-        const firstUnanswered = payload.request.followUpQuestions.findIndex(
-          (_, index) => !payload.request?.followUpAnswers[`q_${index}`]?.trim(),
+        const firstUnanswered = activeRequest.followUpQuestions.findIndex(
+          (_, index) => !activeRequest.followUpAnswers[`q_${index}`]?.trim(),
         );
         const interviewCompleted = firstUnanswered < 0;
-        setRequestData(payload.request);
-        setAnswers(payload.request.followUpAnswers);
-        setQuickReplies(interviewCompleted ? [] : payload.request.currentQuickReplies ?? []);
+        setRequestData(activeRequest);
+        setAnswers(activeRequest.followUpAnswers);
+        setQuickReplies(interviewCompleted ? [] : activeRequest.currentQuickReplies ?? []);
         setQuestionIndex(
-          interviewCompleted ? payload.request.followUpQuestions.length - 1 : firstUnanswered,
+          interviewCompleted ? activeRequest.followUpQuestions.length - 1 : firstUnanswered,
         );
-        setUrgencyWarning(payload.request.interpretation.urgencyWarning);
-        setUrgencyGuidance(payload.request.interpretation.guidanceText);
+        setUrgencyWarning(activeRequest.interpretation.urgencyWarning);
+        setUrgencyGuidance(activeRequest.interpretation.guidanceText);
         setCompleted(interviewCompleted);
-        setMessages(buildPersistedMessages(payload.request));
+        setMessages(buildPersistedMessages(activeRequest));
         setIsTyping(false);
       } catch (error) {
         if (cancelled) return;

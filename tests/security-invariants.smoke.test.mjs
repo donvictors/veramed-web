@@ -166,6 +166,26 @@ test("la interpretación de síntomas se persiste en servidor antes del pago", (
   assert.match(paymentRoute, /getSymptomsRequest\(data\.orderId\)/);
 });
 
+test("síntomas usa 4o-mini antes del pago y Luna sólo en entrevista y exámenes pagados", () => {
+  const openai = read("lib/server/symptoms-openai.ts");
+  const interviewRoute = read("app/api/sintomas/interview/turn/route.ts");
+  const interviewStartRoute = read("app/api/sintomas/interview/start/route.ts");
+  const flowPage = read("app/sintomas/flujo/page.tsx");
+  const orderRoute = read("app/api/sintomas/orders/build/route.ts");
+
+  assert.match(openai, /const PREPAY_MODEL = "gpt-4o-mini"/);
+  assert.match(openai, /const POSTPAY_MODEL = "gpt-5\.6-luna"/);
+  assert.match(openai, /interpretSymptomsWithOpenAI[\s\S]*?const model = PREPAY_MODEL/);
+  assert.match(openai, /suggestSymptomsExamsWithOpenAI[\s\S]*?const model = POSTPAY_MODEL/);
+  assert.match(openai, /continueSymptomsInterviewWithOpenAI[\s\S]*?const model = POSTPAY_MODEL/);
+  assert.doesNotMatch(openai, /OPENAI_SYMPTOMS_MODEL/);
+  assert.match(interviewRoute, /record\.payment\.status !== "paid"/);
+  assert.match(interviewStartRoute, /record\.payment\.status !== "paid"/);
+  assert.match(interviewStartRoute, /continueSymptomsInterviewWithOpenAI/);
+  assert.match(flowPage, /\/api\/sintomas\/interview\/start/);
+  assert.match(orderRoute, /requestRecord\.payment\.status !== "paid"/);
+});
+
 test("la entrevista por síntomas es adaptativa y persiste cada turno en servidor", () => {
   const interviewRoute = read("app/api/sintomas/interview/turn/route.ts");
   const flowPage = read("app/sintomas/flujo/page.tsx");
