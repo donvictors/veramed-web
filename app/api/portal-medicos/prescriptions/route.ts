@@ -81,7 +81,7 @@ export async function POST(request: Request) {
       metadata: {
         prescriptionId: result.id,
         verificationCode: result.verificationCode,
-        patientUserId: parsed.data.patient.userId,
+        patientUserId: parsed.data.patient.userId || null,
         itemCount: parsed.data.items.length,
         emailSent: result.emailSent,
       },

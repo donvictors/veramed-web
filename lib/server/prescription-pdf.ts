@@ -113,7 +113,7 @@ export async function buildMedicalPrescriptionPdf(input: PrescriptionPdfInput) {
       const width = 126;
       page.drawImage(logo, {
         x: margin,
-        y: y - 6,
+        y: y - 41,
         width,
         height: (logo.height / logo.width) * width,
       });
@@ -201,35 +201,33 @@ export async function buildMedicalPrescriptionPdf(input: PrescriptionPdfInput) {
   }
   y -= 106;
 
-  input.items.forEach((item, index) => {
-    const nameLines = wrapText(item.name.toUpperCase(), bold, 11, contentWidth - 42);
-    const instructionLines = wrapText(`Indicación: ${prescriptionInstruction(item)}`, regular, 9.5, contentWidth - 42);
-    const commercialLines = item.commercial ? wrapText(`Recomendación comercial: ${item.commercial}`, regular, 9, contentWidth - 42) : [];
-    const observationLines = item.observations ? wrapText(`Observaciones: ${item.observations}`, regular, 9, contentWidth - 42) : [];
+  input.items.forEach((item) => {
+    const nameLines = wrapText(item.name.toUpperCase(), bold, 11, contentWidth);
+    const instructionLines = wrapText(`Indicación: ${prescriptionInstruction(item)}`, regular, 9.5, contentWidth);
+    const commercialLines = item.commercial ? wrapText(`Recomendación comercial: ${item.commercial}`, regular, 9, contentWidth) : [];
+    const observationLines = item.observations ? wrapText(`Observaciones: ${item.observations}`, regular, 9, contentWidth) : [];
     const blockHeight = 24 + (nameLines.length + instructionLines.length + commercialLines.length + observationLines.length) * 13;
     ensureSpace(blockHeight + 12);
-    page.drawCircle({ x: margin + 7, y: y + 2, size: 7, color: green });
-    page.drawText(String(index + 1), { x: margin + (index < 9 ? 4.6 : 2.5), y: y - 1, size: 7, font: bold, color: rgb(1, 1, 1) });
     let lineY = y;
     for (const line of nameLines) {
-      page.drawText(line, { x: margin + 24, y: lineY, size: 11, font: bold, color: ink });
+      page.drawText(line, { x: margin, y: lineY, size: 11, font: bold, color: ink });
       lineY -= 14;
     }
     for (const line of instructionLines) {
-      page.drawText(line, { x: margin + 24, y: lineY, size: 9.5, font: regular, color: ink });
+      page.drawText(line, { x: margin, y: lineY, size: 9.5, font: regular, color: ink });
       lineY -= 13;
     }
     for (const line of commercialLines) {
-      page.drawText(line, { x: margin + 24, y: lineY, size: 9, font: regular, color: muted });
+      page.drawText(line, { x: margin, y: lineY, size: 9, font: regular, color: muted });
       lineY -= 13;
     }
     for (const line of observationLines) {
-      page.drawText(line, { x: margin + 24, y: lineY, size: 9, font: regular, color: muted });
+      page.drawText(line, { x: margin, y: lineY, size: 9, font: regular, color: muted });
       lineY -= 13;
     }
-    page.drawText(`Inicio: ${item.startDate.split("-").reverse().join("-")}`, { x: margin + 24, y: lineY, size: 8.5, font: regular, color: muted });
+    page.drawText(`Inicio: ${item.startDate.split("-").reverse().join("-")}`, { x: margin, y: lineY, size: 8.5, font: regular, color: muted });
     y = lineY - 22;
-    page.drawLine({ start: { x: margin + 24, y: y + 8 }, end: { x: pageWidth - margin, y: y + 8 }, thickness: 0.5, color: rgb(0.88, 0.9, 0.89) });
+    page.drawLine({ start: { x: margin, y: y + 8 }, end: { x: pageWidth - margin, y: y + 8 }, thickness: 0.5, color: rgb(0.88, 0.9, 0.89) });
   });
 
   drawFooter(true);

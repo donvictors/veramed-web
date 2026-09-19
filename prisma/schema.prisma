@@ -28,6 +28,8 @@ enum TransbankTransactionStatusDb {
 enum TransbankRequestTypeDb {
   checkup
   chronic_control
+  new_service
+  telemedicine
 }
 
 enum OrderPdfCategoryDb {
@@ -55,6 +57,32 @@ enum ClinicalRequestTypeDb {
   checkup
   chronic_control
   symptoms
+}
+
+enum NewServiceTypeDb {
+  kinesiology
+  prescription_renewal
+  weight_management
+}
+
+enum NewServiceRequestStatusDb {
+  draft
+  eligibility_complete
+  awaiting_payment
+  paid
+  awaiting_physician_review
+  approved
+  rejected
+  document_generated
+  completed
+}
+
+enum TelemedicineAppointmentStatusDb {
+  slot_selected
+  payment_pending
+  booked
+  completed
+  cancelled
 }
 
 enum DiscountTypeDb {
@@ -113,28 +141,30 @@ model Healthcheck {
 }
 
 model User {
-  id                     String                       @id @default(cuid())
-  name                   String
-  email                  String                       @unique
-  passwordHash           String
-  passwordSalt           String
-  profileFirstName       String
-  profilePaternalSurname String                       @default("")
-  profileMaternalSurname String                       @default("")
-  profileRut             String                       @default("")
-  profileBirthDate       String                       @default("")
-  profileSex             String                       @default("")
-  profileEmail           String
-  profilePhone           String                       @default("")
-  profileAddress         String                       @default("")
-  createdAt              DateTime                     @default(now())
-  updatedAt              DateTime                     @updatedAt
-  sessions               Session[]
-  checkups               CheckupRequest[]
-  chronicControls        ChronicControlRequest[]
-  symptomsRequests       SymptomsRequest[]
-  medicalPrescriptions   MedicalPrescription[]
-  scheduleAppointments   MedicalScheduleAppointment[]
+  id                       String                       @id @default(cuid())
+  name                     String
+  email                    String                       @unique
+  passwordHash             String
+  passwordSalt             String
+  profileFirstName         String
+  profilePaternalSurname   String                       @default("")
+  profileMaternalSurname   String                       @default("")
+  profileRut               String                       @default("")
+  profileBirthDate         String                       @default("")
+  profileSex               String                       @default("")
+  profileEmail             String
+  profilePhone             String                       @default("")
+  profileAddress           String                       @default("")
+  createdAt                DateTime                     @default(now())
+  updatedAt                DateTime                     @updatedAt
+  sessions                 Session[]
+  checkups                 CheckupRequest[]
+  chronicControls          ChronicControlRequest[]
+  symptomsRequests         SymptomsRequest[]
+  medicalPrescriptions     MedicalPrescription[]
+  scheduleAppointments     MedicalScheduleAppointment[]
+  newServiceRequests       NewServiceRequest[]
+  telemedicineAppointments TelemedicineAppointment[]
 }
 
 model Session {
@@ -566,10 +596,69 @@ model MedicalScheduleAppointment {
   @@index([patientUserId, createdAt])
 }
 
+model NewServiceRequest {
+  id                    String                     @id @default(cuid())
+  type                  NewServiceTypeDb
+  status                NewServiceRequestStatusDb  @default(draft)
+  userId                String?
+  patientData           Json
+  questionnaire         Json
+  extractedClinicalData Json?
+  eligibilityResult     String
+  protocolVersion       String
+  priceClp              Int?
+  uploadedDocumentPath  String?
+  uploadedDocumentName  String?
+  uploadedDocumentMime  String?
+  physicianValidation   Json?
+  finalDocumentPath     String?
+  prescriptionId        String?
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+  user                  User?                      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  followUps             WeightManagementFollowUp[]
+
+  @@index([type, status, createdAt])
+  @@index([userId, createdAt])
+}
+
+model WeightManagementFollowUp {
+  id              String            @id @default(cuid())
+  requestId       String
+  week            Int
+  answers         Json
+  outcome         String
+  protocolVersion String
+  createdAt       DateTime          @default(now())
+  request         NewServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@unique([requestId, week])
+}
+
+model TelemedicineAppointment {
+  id              String                          @id @default(cuid())
+  userId          String
+  clinicianId     String?
+  startsAt        DateTime
+  durationMinutes Int                             @default(20)
+  status          TelemedicineAppointmentStatusDb @default(slot_selected)
+  priceClp        Int                             @default(19990)
+  sourceFlow      String
+  patientData     Json
+  paymentId       String?
+  createdAt       DateTime                        @default(now())
+  updatedAt       DateTime                        @updatedAt
+  patient         User                            @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([clinicianId, startsAt])
+  @@index([startsAt, status])
+  @@index([userId, createdAt])
+}
+
 model MedicalPrescription {
   id                     String                      @id @default(cuid())
   prescriberUserId       String
-  patientUserId          String
+  patientUserId          String?
   patientFirstName       String
   patientPaternalSurname String                      @default("")
   patientMaternalSurname String                      @default("")
@@ -598,7 +687,7 @@ model MedicalPrescription {
   createdAt              DateTime                    @default(now())
   updatedAt              DateTime                    @updatedAt
   prescriber             MedicalPortalUser           @relation(fields: [prescriberUserId], references: [id], onDelete: Restrict)
-  patient                User                        @relation(fields: [patientUserId], references: [id], onDelete: Restrict)
+  patient                User?                       @relation(fields: [patientUserId], references: [id], onDelete: SetNull)
 
   @@index([prescriberUserId, createdAt])
   @@index([patientUserId, createdAt])

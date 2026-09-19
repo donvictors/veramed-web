@@ -119,12 +119,14 @@ export async function issueMedicalPrescription(input: {
   patient: PrescriptionPatientInput;
   items: PrescriptionItemInput[];
 }) {
-  const patientAccount = await prisma.user.findUnique({
-    where: { id: input.patient.userId },
-    select: { id: true, profileRut: true },
-  });
-  if (!patientAccount || normalizeRut(patientAccount.profileRut) !== normalizeRut(input.patient.rut)) {
-    throw new Error("La identidad del paciente no coincide con la cuenta seleccionada.");
+  if (input.patient.userId) {
+    const patientAccount = await prisma.user.findUnique({
+      where: { id: input.patient.userId },
+      select: { id: true, profileRut: true },
+    });
+    if (!patientAccount || normalizeRut(patientAccount.profileRut) !== normalizeRut(input.patient.rut)) {
+      throw new Error("La identidad del paciente no coincide con la cuenta seleccionada.");
+    }
   }
   if (!isValidRut(input.patient.rut)) throw new Error("El RUT del paciente no es válido.");
 

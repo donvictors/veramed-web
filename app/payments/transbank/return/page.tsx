@@ -29,7 +29,9 @@ function buildSuccessUrl(orderId?: string) {
   return `/payment/success?${params.toString()}`;
 }
 
-function buildRequestStatusUrl(input: { requestType: "checkup" | "chronic_control"; requestId: string }) {
+function buildRequestStatusUrl(input: { requestType: "checkup" | "chronic_control" | "new_service" | "telemedicine"; requestId: string }) {
+  if (input.requestType === "new_service") return `/payment/success?orderId=${encodeURIComponent(input.requestId)}`;
+  if (input.requestType === "telemedicine") return `/payment/success?orderId=${encodeURIComponent(input.requestId)}`;
   if (input.requestType === "chronic_control") {
     return `/control-cronico/estado?id=${encodeURIComponent(input.requestId)}`;
   }

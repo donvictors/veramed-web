@@ -4,16 +4,18 @@ type BrandLogoProps = {
   className?: string;
   priority?: boolean;
   tone?: "dark" | "light";
+  showWordmark?: boolean;
 };
 
 export default function BrandLogo({
   className = "",
   priority = false,
   tone = "dark",
+  showWordmark = true,
 }: BrandLogoProps) {
   return (
     <span className={["inline-flex items-center gap-2.5", className].join(" ")}>
-      <span
+      {showWordmark ? <span
         className={[
           "inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl",
           tone === "light" ? "bg-white" : "bg-emerald-50",
@@ -27,7 +29,7 @@ export default function BrandLogo({
         priority={priority}
           className="h-9 w-9 object-cover"
       />
-      </span>
+      </span> : null}
       <span
         className={[
           "text-xl font-semibold tracking-[-0.035em]",

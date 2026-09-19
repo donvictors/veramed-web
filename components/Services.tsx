@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-const services = [
+const examServices = [
   {
     title: "Chequeo preventivo",
     description:
@@ -43,6 +43,42 @@ const services = [
       "Revisión médica antes de emitir",
     ],
     highlighted: true,
+    bestSeller: true,
+  },
+];
+
+const orderServices = [
+  {
+    title: "Kinesioterapia",
+    description: "Sube tu certificado médico o informe de imagen. Revisamos el antecedente y, si corresponde, preparamos tu derivación a kinesioterapia.",
+    eyebrow: "¿Ya tienes un diagnóstico y necesitas comenzar rehabilitación?",
+    href: "/kinesioterapia",
+    price: "$3.990",
+    action: "Solicitar derivación",
+    points: ["Revisión del antecedente", "Reglas clínicas versionadas", "Validación médica antes de emitir"],
+    highlighted: false,
+  },
+  {
+    title: "Renovar receta",
+    description: "Solicita la renovación de medicamentos de uso habitual sin empezar una consulta desde cero.",
+    eyebrow: "¿Se te terminó un tratamiento que ya utilizas?",
+    note: "Sólo para tratamientos elegibles. No incluye medicamentos sujetos a control especial.",
+    href: "/renovar-receta",
+    price: "$4.990",
+    action: "Renovar receta",
+    points: ["Tratamientos habituales elegibles", "Encuesta breve", "Un médico valida la renovación"],
+    highlighted: false,
+  },
+  {
+    title: "Control de peso",
+    description: "Responde una encuesta breve. Si cumples criterios para la vía simplificada, un médico revisará tu caso antes de emitir el tratamiento.",
+    eyebrow: "Descubre gratis si podrías ser candidato a tratamiento médico para el control del peso.",
+    href: "/control-peso",
+    price: "$7.990",
+    action: "Evaluar gratis",
+    points: ["Evaluación gratuita", "Criterios clínicos determinísticos", "Revisión médica antes del tratamiento"],
+    highlighted: true,
+    bestSeller: true,
   },
 ];
 
@@ -55,26 +91,56 @@ export default function Services() {
             <p className="veramed-kicker">Servicios</p>
             <h2 className="mt-2 text-3xl font-semibold leading-[1.1] tracking-tight text-slate-950 md:text-4xl lg:text-[clamp(2rem,3vw,2.75rem)]">
               <span className="block">El punto de entrada</span>
-              <span className="block lg:whitespace-nowrap">a los exámenes que tú necesitas.</span>
+              <span className="block lg:whitespace-nowrap">a la salud que necesitas.</span>
             </h2>
           </div>
           <p className="max-w-xl text-sm leading-6 text-slate-600 lg:pb-1">
-            Diseñado para personas que necesitan ordenar un chequeo preventivo, controlar una
-            enfermedad o llegar con exámenes a consultar a su médico por síntomas nuevos. De forma
-            clara y precisa.
+            Resuelve tus necesidades médicas de forma simple y online: desde un chequeo hasta
+            evaluar síntomas, renovar recetas o solicitar derivaciones. De forma clara, segura y
+            sin trámites innecesarios.
           </p>
         </div>
 
-        <div className="mt-6 grid gap-4 lg:grid-cols-3">
+        <ServiceGroup title="Exámenes" services={examServices} startIndex={1} />
+        <ServiceGroup title="Órdenes, derivaciones y tratamiento" services={orderServices} startIndex={4} />
+      </div>
+    </section>
+  );
+}
+
+type Service = {
+  title: string;
+  description: string;
+  eyebrow?: string;
+  note?: string;
+  href: string;
+  price: string;
+  previousPrice?: string;
+  action: string;
+  points: string[];
+  highlighted: boolean;
+  bestSeller?: boolean;
+};
+
+function ServiceGroup({ title, services, startIndex }: { title: string; services: Service[]; startIndex: number }) {
+  return (
+    <div className="mt-8">
+      <h3 className="text-lg font-semibold tracking-tight text-slate-950">{title}</h3>
+      <div className="mt-3 grid gap-4 lg:grid-cols-3">
           {services.map((service, index) => (
             <article
               key={service.title}
-              className={`group flex h-full flex-col overflow-hidden rounded-[2rem] border p-5 transition duration-300 hover:-translate-y-1 ${
+              className={`group relative flex h-full flex-col overflow-hidden rounded-[2rem] border p-5 transition duration-300 hover:-translate-y-1 ${
                 service.highlighted
                   ? "border-amber-300 bg-gradient-to-b from-amber-50/70 to-white text-slate-950 shadow-[0_28px_80px_-48px_rgba(180,125,28,0.55)] hover:border-amber-400"
                   : "border-slate-200 bg-white text-slate-950 shadow-[0_24px_70px_-50px_rgba(15,23,42,0.4)] hover:border-emerald-200"
               }`}
             >
+              {service.bestSeller ? (
+                <span className="absolute -right-10 top-5 z-10 w-36 rotate-45 bg-amber-600 py-1.5 text-center text-[10px] font-bold uppercase tracking-[0.12em] text-white shadow-sm">
+                  Más vendido
+                </span>
+              ) : null}
               <div className="flex items-center justify-between gap-4">
                 <span
                   className={`text-xs font-semibold uppercase tracking-[0.18em] ${
@@ -90,16 +156,18 @@ export default function Services() {
                       : "bg-emerald-50 text-emerald-700"
                   }`}
                 >
-                  {String(index + 1).padStart(2, "0")}
+                  {String(index + startIndex).padStart(2, "0")}
                 </span>
               </div>
 
               <h3 className="mt-3 text-xl font-semibold tracking-tight text-slate-950">
                 {service.title}
               </h3>
+              {"eyebrow" in service && service.eyebrow ? <p className="mt-2 text-sm font-semibold leading-5 text-slate-800">{service.eyebrow}</p> : null}
               <p className="mt-2 text-sm leading-6 text-slate-600">
                 {service.description}
               </p>
+              {"note" in service && service.note ? <p className="mt-2 text-xs leading-5 text-slate-500">{service.note}</p> : null}
 
               <div className={`my-3 h-px ${service.highlighted ? "bg-amber-200/70" : "bg-slate-100"}`} />
 
@@ -129,14 +197,13 @@ export default function Services() {
                   }`}
                   aria-label={service.action}
                 >
-                  Comenzar <span aria-hidden="true">→</span>
+                  {service.action} <span aria-hidden="true">→</span>
                 </Link>
               </div>
             </article>
           ))}
-        </div>
       </div>
-    </section>
+    </div>
   );
 }
 

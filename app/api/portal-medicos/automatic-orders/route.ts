@@ -10,7 +10,7 @@ export async function GET(request: Request) {
   const store = await cookies();
   const session = await verifyMedicalPortalSessionToken(store.get(MEDICAL_PORTAL_SESSION_COOKIE)?.value);
   if (!session) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
-  if (!canManageMedicalUsers(session)) return NextResponse.json({ error: "No tienes permisos para ver este monitor." }, { status: 403 });
+  if (!canManageMedicalUsers(session) && session.role === "portal") return NextResponse.json({ error: "No tienes permisos para ver este monitor." }, { status: 403 });
   try {
     const result = await listAutomaticOrders();
     await recordMedicalAudit({ session, action: "automatic_orders.list", request, metadata: { resultCount: result.items.length } });

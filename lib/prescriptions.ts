@@ -59,7 +59,7 @@ export const prescriptionItemSchema = z
   });
 
 export const prescriptionPatientSchema = z.object({
-  userId: z.string().trim().min(1).max(100),
+  userId: z.string().trim().min(1).max(100).nullable(),
   firstName: z.string().trim().min(2).max(100),
   paternalSurname: shortText(100).default(""),
   maternalSurname: shortText(100).default(""),

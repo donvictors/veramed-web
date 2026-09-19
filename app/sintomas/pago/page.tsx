@@ -248,13 +248,13 @@ function SymptomsPaymentContent() {
 
           <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_22px_70px_-48px_rgba(15,23,42,0.45)]">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
-              Pasarela de pago
+              {pricing.finalAmount === 0 ? "Confirmación" : "Pasarela de pago"}
             </p>
             <h2 className="mt-2 text-2xl font-semibold text-slate-950">
-              Pago con tus tarjetas de débito o crédito.
+              {pricing.finalAmount === 0 ? "Tu orden quedó sin costo." : "Pago con tus tarjetas de débito o crédito."}
             </h2>
             <p className="mt-3 text-sm leading-6 text-slate-600">
-              Serás redirigido a Webpay Plus para pagar de forma segura.
+              {pricing.finalAmount === 0 ? "Confirma para continuar sin ingresar a una pasarela de pago." : "Serás redirigido a Webpay Plus para pagar de forma segura."}
             </p>
 
             <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -299,20 +299,22 @@ function SymptomsPaymentContent() {
               onClick={handlePayment}
               disabled={isSubmitting}
               className="mt-6 mx-auto flex w-full max-w-[560px] items-center justify-center rounded-2xl border-2 border-slate-300 bg-slate-50 px-5 py-4 shadow-[0_8px_24px_-18px_rgba(15,23,42,0.5)] ring-1 ring-slate-200/70 transition hover:border-slate-400 hover:bg-white hover:shadow-[0_14px_32px_-20px_rgba(15,23,42,0.55)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:cursor-not-allowed disabled:opacity-60"
-              aria-label="Pagar con Webpay Plus"
+              aria-label={pricing.finalAmount === 0 ? "Confirmar orden médica gratis" : "Pagar con Webpay Plus"}
             >
-              <Image
+              {pricing.finalAmount === 0 ? (
+                <span className="py-2 text-center text-base font-bold text-emerald-800">Felicitaciones, tienes tu orden médica gratis 😊</span>
+              ) : <Image
                 src="/brand/webpay-plus.svg"
                 alt="Webpay Plus Transbank"
                 width={250}
                 height={62}
                 className="h-auto w-[200px] md:w-[250px]"
                 priority
-              />
+              />}
             </button>
 
             <p className="mt-3 text-xs font-medium text-slate-500">
-              {isSubmitting ? "Redirigiendo a Webpay..." : "Haz clic para pagar con tarjeta."}
+              {isSubmitting ? (pricing.finalAmount === 0 ? "Confirmando tu orden gratis..." : "Redirigiendo a Webpay...") : (pricing.finalAmount === 0 ? "Haz clic para confirmar y continuar." : "Haz clic para pagar con tarjeta.")}
             </p>
 
             {submitError ? <p className="mt-3 text-xs leading-5 text-rose-600">{submitError}</p> : null}

@@ -1,7 +1,7 @@
 import type { DiscountPricing } from "@/lib/discount-pricing";
 
 export async function validateDiscountCode(input: {
-  requestType: "checkup" | "chronic_control" | "symptoms";
+  requestType: "checkup" | "chronic_control" | "symptoms" | "new_service" | "telemedicine";
   requestId?: string;
   code: string;
 }) {

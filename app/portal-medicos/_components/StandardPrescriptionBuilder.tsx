@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useMemo, useState } from "react";
 import PortalIcon from "@/app/portal-medicos/_components/PortalIcon";
 import { Field, inputClassName, PageHeader, PreviewModal } from "@/app/portal-medicos/_components/PortalUi";
 import {
@@ -8,20 +9,11 @@ import {
   PRESCRIPTION_DURATION_UNITS,
   PRESCRIPTION_FREQUENCY_UNITS,
   prescriptionInstruction,
+  prescriptionPatientSchema,
   prescriptionPatientFullName,
   type PrescriptionItemInput,
   type PrescriptionPatientInput,
 } from "@/lib/prescriptions";
-
-type RecentPrescription = {
-  id: string;
-  patientName: string;
-  patientRut: string;
-  verificationCode: string;
-  status: "signed" | "sent" | "email_failed" | "revoked";
-  signedAt: number;
-  canDownload: boolean;
-};
 
 type IssueResult = {
   id: string;
@@ -62,16 +54,25 @@ function emptyDraft(): PrescriptionItemInput {
   };
 }
 
-function statusLabel(status: RecentPrescription["status"]) {
-  if (status === "sent") return "Enviada";
-  if (status === "email_failed") return "Firmada · correo pendiente";
-  if (status === "revoked") return "Revocada";
-  return "Firmada";
+function emptyManualPatient(rut: string): PrescriptionPatientInput {
+  return {
+    userId: null,
+    firstName: "",
+    paternalSurname: "",
+    maternalSurname: "",
+    rut,
+    birthDate: "",
+    email: "",
+    phone: "",
+    address: "",
+  };
 }
 
 export default function StandardPrescriptionBuilder() {
   const [rut, setRut] = useState("");
   const [patient, setPatient] = useState<PrescriptionPatientInput | null>(null);
+  const [manualPatient, setManualPatient] = useState<PrescriptionPatientInput | null>(null);
+  const [manualError, setManualError] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
   const [draft, setDraft] = useState<PrescriptionItemInput>(emptyDraft);
@@ -84,24 +85,6 @@ export default function StandardPrescriptionBuilder() {
   const [issuing, setIssuing] = useState(false);
   const [issueError, setIssueError] = useState("");
   const [result, setResult] = useState<IssueResult | null>(null);
-  const [recent, setRecent] = useState<RecentPrescription[]>([]);
-  const [loadingRecent, setLoadingRecent] = useState(true);
-
-  const loadRecent = useCallback(async () => {
-    try {
-      const response = await fetch("/api/portal-medicos/prescriptions", { cache: "no-store" });
-      if (!response.ok) return;
-      const payload = await response.json() as { prescriptions?: RecentPrescription[] };
-      setRecent(payload.prescriptions ?? []);
-    } finally {
-      setLoadingRecent(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadRecent();
-  }, [loadRecent]);
-
   const matchingMedications = useMemo(() => {
     const query = draft.name.trim().toLocaleLowerCase("es");
     if (query.length < 2) return [];
@@ -120,7 +103,15 @@ export default function StandardPrescriptionBuilder() {
     try {
       const response = await fetch(`/api/portal-medicos/prescriptions/patients?rut=${encodeURIComponent(rut)}`, { cache: "no-store" });
       const payload = await response.json() as { patient?: PrescriptionPatientInput; error?: string };
+      if (response.status === 404) {
+        setPatient(null);
+        setManualPatient(emptyManualPatient(rut.trim()));
+        setManualError("");
+        return;
+      }
       if (!response.ok || !payload.patient) throw new Error(payload.error || "No encontramos al paciente.");
+      setManualPatient(null);
+      setManualError("");
       setPatient(payload.patient);
       setRut(payload.patient.rut);
     } catch (error) {
@@ -129,6 +120,29 @@ export default function StandardPrescriptionBuilder() {
     } finally {
       setSearching(false);
     }
+  }
+
+  function updateManualPatient<K extends keyof PrescriptionPatientInput>(key: K, value: PrescriptionPatientInput[K]) {
+    setManualPatient((current) => current ? { ...current, [key]: value } : current);
+    setManualError("");
+  }
+
+  function confirmManualPatient() {
+    if (!manualPatient) return;
+    const parsed = prescriptionPatientSchema.safeParse(manualPatient);
+    if (!parsed.success) {
+      const field = parsed.error.issues[0]?.path[0];
+      const messages: Record<string, string> = {
+        firstName: "Ingresa el nombre del paciente.",
+        birthDate: "Ingresa una fecha de nacimiento válida.",
+        email: "Ingresa un correo electrónico válido.",
+      };
+      setManualError(messages[String(field)] || "Revisa los datos ingresados del paciente.");
+      return;
+    }
+    setPatient(parsed.data);
+    setManualPatient(null);
+    setManualError("");
   }
 
   function saveItem() {
@@ -170,7 +184,6 @@ export default function StandardPrescriptionBuilder() {
       setItems([]);
       setDraft(emptyDraft());
       setConfirmed(false);
-      await loadRecent();
     } catch (error) {
       setIssueError(error instanceof Error ? error.message : "No pudimos emitir la receta.");
     } finally {
@@ -186,27 +199,43 @@ export default function StandardPrescriptionBuilder() {
         eyebrow="Medicamentos"
         title="Receta médica electrónica"
         description="Selecciona al paciente, registra uno o más medicamentos y revisa la receta antes de firmarla y enviarla."
-        aside={<a href="#mis-recetas" className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-2.5 text-sm font-semibold text-emerald-900 hover:bg-emerald-50"><PortalIcon name="document" className="h-4 w-4" />Mis recetas</a>}
+        aside={<Link href="/portal-medicos/mis-recetas" className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-2.5 text-sm font-semibold text-emerald-900 hover:bg-emerald-50"><PortalIcon name="document" className="h-4 w-4" />Mis recetas</Link>}
       />
 
       <section className="rounded-[1.5rem] border border-slate-200 bg-white p-5 sm:p-6">
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
-          <Field label="RUT del paciente" hint="La búsqueda es exacta y solo consulta cuentas de pacientes registradas en Veramed.">
+          <Field label="RUT del paciente">
             <div className="flex gap-2">
-              <input value={rut} onChange={(event) => setRut(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void searchPatient(); }} className={`${inputClassName} md:w-80`} placeholder="12.345.678-5" autoComplete="off" />
+              <input value={rut} onChange={(event) => { setRut(event.target.value); setPatient(null); setManualPatient(null); setSearchError(""); setManualError(""); }} onKeyDown={(event) => { if (event.key === "Enter") void searchPatient(); }} className={`${inputClassName} md:w-80`} placeholder="12.345.678-5" autoComplete="off" />
               <button type="button" onClick={() => void searchPatient()} disabled={searching || !rut.trim()} className="rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50">{searching ? "Buscando..." : "Buscar"}</button>
             </div>
           </Field>
-          {patient ? <button type="button" onClick={() => { setPatient(null); setRut(""); setResult(null); }} className="text-sm font-semibold text-slate-500 hover:text-rose-700">Cambiar paciente</button> : null}
+          {patient || manualPatient ? <button type="button" onClick={() => { setPatient(null); setManualPatient(null); setRut(""); setResult(null); setSearchError(""); setManualError(""); }} className="text-sm font-semibold text-slate-500 hover:text-rose-700">Cambiar paciente</button> : null}
         </div>
         {searchError ? <p className="mt-3 text-sm font-medium text-rose-700">{searchError}</p> : null}
+        {manualPatient ? (
+          <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50/70 p-4 sm:p-5">
+            <div><h2 className="font-semibold text-slate-950">Paciente no registrado</h2><p className="mt-1 text-sm text-slate-600">Ingresa sus datos para continuar con la receta.</p></div>
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              <Field label="Nombre"><input value={manualPatient.firstName} onChange={(event) => updateManualPatient("firstName", event.target.value)} className={inputClassName} autoComplete="given-name" /></Field>
+              <Field label="Apellido paterno"><input value={manualPatient.paternalSurname} onChange={(event) => updateManualPatient("paternalSurname", event.target.value)} className={inputClassName} autoComplete="family-name" /></Field>
+              <Field label="Apellido materno"><input value={manualPatient.maternalSurname} onChange={(event) => updateManualPatient("maternalSurname", event.target.value)} className={inputClassName} /></Field>
+              <Field label="Fecha de nacimiento"><input type="date" value={manualPatient.birthDate} onChange={(event) => updateManualPatient("birthDate", event.target.value)} className={inputClassName} /></Field>
+              <Field label="Correo electrónico"><input type="email" value={manualPatient.email} onChange={(event) => updateManualPatient("email", event.target.value)} className={inputClassName} autoComplete="email" /></Field>
+              <Field label="Teléfono"><input value={manualPatient.phone} onChange={(event) => updateManualPatient("phone", event.target.value)} className={inputClassName} autoComplete="tel" /></Field>
+              <div className="md:col-span-2"><Field label="Dirección"><input value={manualPatient.address} onChange={(event) => updateManualPatient("address", event.target.value)} className={inputClassName} autoComplete="street-address" /></Field></div>
+            </div>
+            {manualError ? <p className="mt-4 text-sm font-medium text-rose-700">{manualError}</p> : null}
+            <button type="button" onClick={confirmManualPatient} className="mt-5 rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-600">Usar estos datos</button>
+          </div>
+        ) : null}
         {patient ? (
           <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
               <span className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-700 text-white"><PortalIcon name="user" /></span>
               <div><p className="font-semibold text-slate-950">{patientName}</p><p className="mt-0.5 text-xs text-slate-600">{patient.rut} · {patient.email}</p></div>
             </div>
-            <span className="w-fit rounded-full bg-white px-3 py-1 text-xs font-semibold text-emerald-800">Paciente seleccionado</span>
+            <span className="w-fit rounded-full bg-white px-3 py-1 text-xs font-semibold text-emerald-800">{patient.userId ? "Paciente registrado" : "Datos ingresados manualmente"}</span>
           </div>
         ) : null}
       </section>
@@ -240,8 +269,6 @@ export default function StandardPrescriptionBuilder() {
       </div>
 
       {result ? <section className={`rounded-[1.5rem] border p-5 ${result.emailSent ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}><h2 className="font-semibold text-slate-950">Receta firmada correctamente</h2><p className="mt-2 text-sm text-slate-700">Código {result.verificationCode}. {result.emailSent ? "El correo fue enviado al paciente con el PDF adjunto." : `El PDF quedó guardado, pero el correo no pudo enviarse: ${result.emailError}`}</p><a href={result.downloadUrl} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"><PortalIcon name="external" className="h-4 w-4" />Abrir receta firmada</a></section> : null}
-
-      <section id="mis-recetas" className="rounded-[1.5rem] border border-slate-200 bg-white p-5 sm:p-6"><div className="flex items-center justify-between"><div><h2 className="text-lg font-semibold text-slate-950">Mis recetas</h2><p className="mt-1 text-xs text-slate-500">Últimas recetas emitidas desde el portal.</p></div><PortalIcon name="document" className="text-emerald-700" /></div>{loadingRecent ? <p className="mt-5 text-sm text-slate-500">Cargando...</p> : recent.length === 0 ? <p className="mt-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Todavía no hay recetas emitidas.</p> : <div className="mt-5 overflow-x-auto"><table className="min-w-full text-left text-sm"><thead className="border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500"><tr><th className="px-3 py-3">Paciente</th><th className="px-3 py-3">Fecha</th><th className="px-3 py-3">Estado</th><th className="px-3 py-3">Código</th><th className="px-3 py-3 text-right">PDF</th></tr></thead><tbody className="divide-y divide-slate-100">{recent.map((entry) => <tr key={entry.id}><td className="px-3 py-4"><p className="font-semibold text-slate-900">{entry.patientName}</p><p className="text-xs text-slate-500">{entry.patientRut}</p></td><td className="px-3 py-4 text-slate-600">{new Intl.DateTimeFormat("es-CL", { dateStyle: "medium", timeStyle: "short" }).format(new Date(entry.signedAt))}</td><td className="px-3 py-4"><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${entry.status === "sent" ? "bg-emerald-50 text-emerald-800" : entry.status === "email_failed" ? "bg-amber-50 text-amber-800" : "bg-slate-100 text-slate-700"}`}>{statusLabel(entry.status)}</span></td><td className="px-3 py-4 font-mono text-xs text-slate-600">{entry.verificationCode}</td><td className="px-3 py-4 text-right">{entry.canDownload ? <a href={`/api/portal-medicos/prescriptions/${entry.id}/pdf`} target="_blank" rel="noopener noreferrer" className="font-semibold text-emerald-800 hover:underline">Abrir</a> : null}</td></tr>)}</tbody></table></div>}</section>
 
       <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-600">Este módulo es para recetas simples. Los medicamentos sujetos a receta cheque o control legal especial deben emitirse mediante el sistema oficial correspondiente.</div>
 

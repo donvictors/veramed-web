@@ -50,6 +50,12 @@ test("duración permanente no exige una cantidad numérica", () => {
   assert.equal(issuePrescriptionSchema.safeParse(payload).success, true);
 });
 
+test("la emisión permite ingresar manualmente un paciente sin cuenta Veramed", () => {
+  const payload = validPayload();
+  payload.patient.userId = null;
+  assert.equal(issuePrescriptionSchema.safeParse(payload).success, true);
+});
+
 test("el PDF firmado contiene identidad, medicamento y trazabilidad", async () => {
   const { buildMedicalPrescriptionPdf } = loadModule("lib/server/prescription-pdf.ts");
   const payload = validPayload();
@@ -75,4 +81,11 @@ test("la receta se almacena privada y el correo la adjunta sin URL pública", ()
   assert.match(source, /access: "private"/);
   assert.match(source, /attachments:/);
   assert.doesNotMatch(source, /blob\.url[^\n]*html/);
+});
+
+test("la receta alinea el logo dentro de la página y no numera los medicamentos", () => {
+  const source = readFileSync(new URL("../lib/server/prescription-pdf.ts", import.meta.url), "utf8");
+  assert.match(source, /y: y - 41/);
+  assert.doesNotMatch(source, /drawText\(String\(index \+ 1\)/);
+  assert.doesNotMatch(source, /drawCircle\(\{ x: margin \+ 7/);
 });

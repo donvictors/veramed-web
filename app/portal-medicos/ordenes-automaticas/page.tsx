@@ -7,6 +7,6 @@ export default async function AutomaticOrdersPage() {
   const store = await cookies();
   const session = await verifyMedicalPortalSessionToken(store.get(MEDICAL_PORTAL_SESSION_COOKIE)?.value);
   if (!session) redirect("/medicos-login");
-  if (!canManageMedicalUsers(session)) redirect("/portal-medicos");
+  if (!canManageMedicalUsers(session) && session.role === "portal") redirect("/portal-medicos");
   return <AutomaticOrdersClient />;
 }

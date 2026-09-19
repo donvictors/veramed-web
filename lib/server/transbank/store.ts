@@ -7,7 +7,7 @@ import {
 } from "@prisma/client";
 
 export type TransbankPaymentStatus = "CREATED" | "PAID" | "REJECTED";
-export type TransbankRequestType = "checkup" | "chronic_control";
+export type TransbankRequestType = "checkup" | "chronic_control" | "new_service" | "telemedicine";
 
 export type TransbankPaymentRecord = {
   id: string;

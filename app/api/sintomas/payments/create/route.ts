@@ -15,8 +15,9 @@ import { buildTransbankTransaction, getAppUrl } from "@/lib/server/transbank/con
 import {
   getSymptomsRequest,
   markSymptomsPaymentPending,
+  markSymptomsPaymentPaid,
 } from "@/lib/server/symptoms-store";
-import { upsertSymptomsPaymentTransaction } from "@/lib/server/symptoms-payment";
+import { markSymptomsPaymentTransactionResult, upsertSymptomsPaymentTransaction } from "@/lib/server/symptoms-payment";
 import {
   getRequestAccessCookieName,
   hasValidRequestAccessCookie,
@@ -149,6 +150,15 @@ export async function POST(request: Request) {
       if (!hasGuestAccess) {
         return NextResponse.json({ error: "No tienes acceso a esta solicitud." }, { status: 403 });
       }
+    }
+
+    if (pricing.finalAmount === 0) {
+      const freeToken = `free_${data.orderId}_${Date.now().toString(36)}`;
+      await upsertSymptomsPaymentTransaction({ requestId: data.orderId, orderId: data.orderId, sessionId: data.sessionId, amount: 0, token: freeToken, webpayUrl: getAppUrl(), discountCodeId: appliedDiscount?.id ?? null });
+      await markSymptomsPaymentPending({ requestId: data.orderId, amount: 0, currency: "CLP", paymentId: freeToken });
+      await markSymptomsPaymentTransactionResult({ token: freeToken, status: "PAID", authorizationCode: "FREE", buyOrder: data.orderId, responseCode: 0, paymentTypeCode: "FREE", cardLast4: "0000", transactionDate: new Date(), rawResponse: { freeOrder: true } });
+      await markSymptomsPaymentPaid({ requestId: data.orderId, paymentId: freeToken, amount: 0, cardLast4: "0000" });
+      return NextResponse.json({ requestId: data.orderId, amount: 0, free: true, redirectUrl: `/sintomas/flujo?payment=paid&requestId=${encodeURIComponent(data.orderId)}` });
     }
 
     const returnUrl = `${getAppUrl()}/api/sintomas/payments/return`;

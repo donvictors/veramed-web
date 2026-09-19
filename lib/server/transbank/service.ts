@@ -70,7 +70,13 @@ function cleanText(value: unknown) {
 }
 
 function isValidAmount(value: unknown): value is number {
-  return typeof value === "number" && Number.isInteger(value) && value > 0;
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
+}
+
+function freeOrderRedirect(target: Pick<ResolvedOrderTarget, "requestType" | "requestId">) {
+  if (target.requestType === "checkup") return `/chequeo/estado?id=${encodeURIComponent(target.requestId)}`;
+  if (target.requestType === "chronic_control") return `/control-cronico/estado?id=${encodeURIComponent(target.requestId)}`;
+  return `/payment/success?orderId=${encodeURIComponent(target.requestId)}&free=1`;
 }
 
 function isAlreadyFinal(record: TransbankPaymentRecord | null) {
@@ -181,6 +187,22 @@ async function resolveOrderTarget(orderId: string): Promise<ResolvedOrderTarget>
     };
   }
 
+  const service = await prisma.newServiceRequest.findUnique({
+    where: { id: orderId },
+    select: { id: true, userId: true, createdAt: true, status: true, priceClp: true, eligibilityResult: true },
+  });
+  if (service) {
+    if (!service.priceClp || !["eligible", "eligible_for_renewal", "standard_path"].includes(service.eligibilityResult)) {
+      throw new Error("La solicitud no es elegible para este producto.");
+    }
+    return { requestType: "new_service", requestId: service.id, userId: service.userId, createdAtMs: service.createdAt.getTime(), expectedAmount: service.priceClp, alreadyPaid: ["paid", "awaiting_physician_review", "approved", "document_generated", "completed"].includes(service.status) };
+  }
+
+  const appointment = await prisma.telemedicineAppointment.findUnique({ where: { id: orderId } });
+  if (appointment) {
+    return { requestType: "telemedicine", requestId: appointment.id, userId: appointment.userId, createdAtMs: appointment.createdAt.getTime(), expectedAmount: appointment.priceClp, alreadyPaid: ["booked", "completed"].includes(appointment.status) };
+  }
+
   throw new Error("Solicitud no encontrada para iniciar pago.");
 }
 
@@ -192,6 +214,14 @@ async function ensurePendingRequestPayment(
   const pending = makePendingPayment(token, amount);
   if (target.requestType === "checkup") {
     await createPendingPayment(target.requestId, pending);
+    return;
+  }
+  if (target.requestType === "new_service") {
+    await prisma.newServiceRequest.update({ where: { id: target.requestId }, data: { status: "awaiting_payment" } });
+    return;
+  }
+  if (target.requestType === "telemedicine") {
+    await prisma.telemedicineAppointment.update({ where: { id: target.requestId }, data: { status: "payment_pending", paymentId: token } });
     return;
   }
   await createChronicPendingPayment(target.requestId, pending);
@@ -220,6 +250,15 @@ async function syncApprovedBusinessPayment(
 
   if (payment.requestType === "checkup") {
     await confirmPendingPayment(payment.requestId, details);
+    return;
+  }
+
+  if (payment.requestType === "new_service") {
+    await prisma.newServiceRequest.update({ where: { id: payment.requestId }, data: { status: "approved" } });
+    return;
+  }
+  if (payment.requestType === "telemedicine") {
+    await prisma.telemedicineAppointment.update({ where: { id: payment.requestId }, data: { status: "booked", paymentId: payment.token } });
     return;
   }
 
@@ -399,6 +438,9 @@ export async function createTransbankPayment(
       throw new Error("No tienes acceso a esta solicitud.");
     }
   } else {
+    if (target.requestType === "new_service" || target.requestType === "telemedicine") {
+      throw new Error("Ingresa a tu cuenta para continuar al pago.");
+    }
     const providedAccessToken = getRequestAccessTokenFromCookie(actor?.requestAccessCookie, {
       requestType: target.requestType,
       requestId: target.requestId,
@@ -423,6 +465,16 @@ export async function createTransbankPayment(
 
   if (target.alreadyPaid) {
     throw new Error("La solicitud ya registra un pago confirmado.");
+  }
+
+  if (pricing.finalAmount === 0) {
+    const syntheticToken = `free_${input.orderId}_${Date.now().toString(36)}`;
+    const record = await upsertCreatedPayment({ orderId: input.orderId, sessionId: input.sessionId, requestType: target.requestType, requestId: target.requestId, amount: 0, token: syntheticToken, url: getAppUrl(), discountCodeId: appliedDiscount?.id ?? null });
+    await ensurePendingRequestPayment(target, record.token, 0);
+    const paid = await markPaymentResult(record.token, { status: "PAID", buyOrder: input.orderId, authorizationCode: "FREE", responseCode: 0, paymentTypeCode: "FREE", cardLast4: "0000", transactionDate: new Date(), transbankResponse: { freeOrder: true } });
+    if (!paid) throw new Error("No pudimos confirmar la orden gratuita.");
+    await syncApprovedBusinessPayment(paid, { cardLast4: "0000" });
+    return { free: true, redirectUrl: freeOrderRedirect(target) };
   }
 
   const existing = await getPaymentByOrderId(input.orderId);

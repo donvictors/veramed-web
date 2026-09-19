@@ -9,6 +9,9 @@ import {
   normalizeDiscountCode,
 } from "@/lib/server/discount-codes";
 import { authorizeOrderRequest } from "@/lib/server/order-request-authorization";
+import { cookies } from "next/headers";
+import { AUTH_SESSION_COOKIE } from "@/lib/auth";
+import { getUserFromSession } from "@/lib/server/auth-store";
 import {
   enforceRateLimit,
   httpErrorResponse,
@@ -16,10 +19,10 @@ import {
   requireSameOrigin,
 } from "@/lib/server/http-security";
 
-type RequestType = "checkup" | "chronic_control" | "symptoms";
+type RequestType = "checkup" | "chronic_control" | "symptoms" | "new_service" | "telemedicine";
 
 function isRequestType(value: unknown): value is RequestType {
-  return value === "checkup" || value === "chronic_control" || value === "symptoms";
+  return value === "checkup" || value === "chronic_control" || value === "symptoms" || value === "new_service" || value === "telemedicine";
 }
 
 export async function POST(request: Request) {
@@ -41,6 +44,19 @@ export async function POST(request: Request) {
   let baseAmount: number;
   if (body.requestType === "symptoms") {
     baseAmount = SYMPTOMS_PRICE_CLP;
+  } else if (body.requestType === "new_service" || body.requestType === "telemedicine") {
+    const requestId = typeof body.requestId === "string" ? body.requestId.trim() : "";
+    const user = await getUserFromSession((await cookies()).get(AUTH_SESSION_COOKIE)?.value);
+    if (!requestId || !user) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+    if (body.requestType === "new_service") {
+      const row = await prisma.newServiceRequest.findUnique({ where: { id: requestId }, select: { userId: true, priceClp: true } });
+      if (!row || row.userId !== user.id || !row.priceClp) return NextResponse.json({ error: "Solicitud no encontrada." }, { status: 404 });
+      baseAmount = row.priceClp;
+    } else {
+      const row = await prisma.telemedicineAppointment.findUnique({ where: { id: requestId }, select: { userId: true, priceClp: true } });
+      if (!row || row.userId !== user.id) return NextResponse.json({ error: "Solicitud no encontrada." }, { status: 404 });
+      baseAmount = row.priceClp;
+    }
   } else {
     const requestId = typeof body.requestId === "string" ? body.requestId.trim() : "";
     if (!requestId) {
