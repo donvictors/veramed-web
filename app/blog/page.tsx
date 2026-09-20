@@ -13,7 +13,7 @@ export default async function BlogPage() {
     image: post.coverImage,
     href: `/blog/${post.slug}`,
     date: blogDate(post.publishedAt ?? post.createdAt),
-    readTime: blogReadTime(post.content),
+    readTime: blogReadTime(post.content, post.readTimeMinutes),
   }));
   const [featuredPost, ...otherPosts] = sortedPosts;
 
@@ -24,7 +24,7 @@ export default async function BlogPage() {
           <div>
             <p className="veramed-kicker">Blog Veramed</p>
             <h1 className="veramed-display mt-5 max-w-3xl text-4xl md:text-6xl">
-              Medicina clara para tomar mejores decisiones.
+              Medicina clara para mejores decisiones.
             </h1>
           </div>
           <p className="max-w-xl text-base leading-8 text-slate-600 lg:pb-1">

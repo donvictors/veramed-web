@@ -5,6 +5,7 @@ export const BLOG_COVERS = [
   { label: "Pólipos de colon", value: "/brand/blog-polyps.png" },
   { label: "Colonoscopía", value: "/brand/blog-colon.png" },
   { label: "Decisiones clínicas", value: "/brand/voxel-cascadas_dg.png" },
+  { label: "Endometriosis", value: "/brand/blog-endometriosis.png" },
 ];
 
 export function blogSlug(title: string) {
@@ -46,6 +47,6 @@ export function blogDate(value: string | Date) {
   return new Intl.DateTimeFormat("es-CL", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(value));
 }
 
-export function blogReadTime(content: string) {
-  return `${Math.max(1, Math.ceil(content.trim().split(/\s+/).length / 180))} min`;
+export function blogReadTime(content: string, readTimeMinutes?: number | null) {
+  return `${readTimeMinutes ?? Math.max(1, Math.ceil(content.trim().split(/\s+/).length / 180))} min`;
 }

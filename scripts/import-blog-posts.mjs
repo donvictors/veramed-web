@@ -12,8 +12,10 @@ try {
       update: {}, // Rerunning the import must never overwrite editorial changes.
       create: {
         slug: post.slug, title: post.title, summary: post.summary, category: post.category,
-        coverImage: post.image, content: post.content, authorName: "Equipo Veramed",
+        coverImage: post.image, coverImageAlt: post.coverImageAlt ?? "", content: post.content,
+        authorName: post.authorName ?? "Equipo Veramed", readTimeMinutes: post.readTimeMinutes ?? null,
         seoTitle: post.seoTitle, seoDescription: post.seoDescription, keywords: post.keywords,
+        ogTitle: post.ogTitle ?? "", ogDescription: post.ogDescription ?? "",
         status: "published", publishedAt: new Date(`${post.publishedAt}T12:00:00Z`),
       },
     });

@@ -782,6 +782,10 @@ model BlogPost {
   authorName     String
   seoTitle       String           @default("")
   seoDescription String           @default("")
+  ogTitle        String           @default("")
+  ogDescription  String           @default("")
+  coverImageAlt  String           @default("")
+  readTimeMinutes Int?
   keywords       Json             @default("[]")
   status         BlogPostStatusDb @default(draft)
   publishedAt    DateTime?
