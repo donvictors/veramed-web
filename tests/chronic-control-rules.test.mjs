@@ -586,6 +586,7 @@ test("el servidor recalcula el set desde condiciones válidas antes de guardar",
     hasRecentChanges: false,
     usesMedication: false,
     selectedMedications: [],
+    selectedAntiepileptics: ["phenytoin"],
   });
 
   assertIncludes(saved.rec.tests.map((item) => item.name), [
@@ -593,4 +594,5 @@ test("el servidor recalcula el set desde condiciones válidas antes de guardar",
     "Razón albuminuria / creatininuria (RAC)",
     "Fondo de ojo",
   ]);
+  assert.deepEqual(saved.selectedAntiepileptics, []);
 });

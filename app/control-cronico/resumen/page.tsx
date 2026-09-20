@@ -90,9 +90,9 @@ export default function ChronicControlSummaryPage() {
   if (!data) return null;
 
   const hasGeneralCheckup = hasGeneralCheckupAddon(data.rec);
-  const optionalMedicationTests = getAvailableAntiepilepticLevelTests(
-    data.selectedAntiepileptics ?? [],
-  );
+  const optionalMedicationTests = data.selectedMedications.includes("antiepileptics")
+    ? getAvailableAntiepilepticLevelTests(data.selectedAntiepileptics ?? [])
+    : [];
   const knownTests = [...data.rec.tests, ...(data.rec.removedTests ?? [])];
   const knownNames = new Set(knownTests.map((test) => test.name));
   const hasColorectalScreening =

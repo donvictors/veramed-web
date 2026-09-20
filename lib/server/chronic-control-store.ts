@@ -205,12 +205,16 @@ export async function createChronicControlRecord(payload: {
 }) {
   const conditions: ChronicCondition[] =
     payload.conditions.length > 0 ? payload.conditions : ["hypertension"];
+  const selectedAntiepileptics =
+    payload.usesMedication && payload.selectedMedications.includes("antiepileptics")
+      ? (payload.selectedAntiepileptics ?? [])
+      : [];
   const rec = recommendMultipleChronicControls(
     conditions,
     payload.hasRecentChanges,
     payload.usesMedication,
     payload.selectedMedications,
-    payload.selectedAntiepileptics ?? [],
+    selectedAntiepileptics,
     payload.generalCheckupInput,
   );
 
@@ -224,7 +228,7 @@ export async function createChronicControlRecord(payload: {
       hasRecentChanges: payload.hasRecentChanges,
       usesMedication: payload.usesMedication,
       selectedMedications: payload.selectedMedications,
-      selectedAntiepileptics: payload.selectedAntiepileptics ?? [],
+      selectedAntiepileptics,
       selectedOptionalMedicationTests: [],
       rec,
     },
@@ -329,7 +333,9 @@ export async function updateChronicControlScreeningPreferences(
 
   if (preferences.optionalMedicationTestId !== undefined) {
     const mapped = getOptionalMedicationTestById(preferences.optionalMedicationTestId);
-    const available = getAvailableAntiepilepticLevelTests(record.selectedAntiepileptics ?? []);
+    const available = record.selectedMedications.includes("antiepileptics")
+      ? getAvailableAntiepilepticLevelTests(record.selectedAntiepileptics ?? [])
+      : [];
     const isAllowed = mapped && available.some((test) => test.id === mapped.id);
 
     if (!isAllowed || preferences.includeOptionalMedicationTest === undefined) {

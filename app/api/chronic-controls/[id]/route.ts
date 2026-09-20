@@ -176,9 +176,11 @@ export async function PATCH(request: Request, context: RouteContext) {
     let optionalMedicationTestId;
     if (payload.optionalMedicationTestId !== undefined) {
       const mapped = getOptionalMedicationTestById(payload.optionalMedicationTestId);
-      const allowed = getAvailableAntiepilepticLevelTests(
-        current.selectedAntiepileptics ?? [],
-      ).some((test) => test.id === mapped?.id);
+      const allowed =
+        current.selectedMedications.includes("antiepileptics") &&
+        getAvailableAntiepilepticLevelTests(current.selectedAntiepileptics ?? []).some(
+          (test) => test.id === mapped?.id,
+        );
 
       if (!mapped || !allowed || typeof payload.includeOptionalMedicationTest !== "boolean") {
         return NextResponse.json(
