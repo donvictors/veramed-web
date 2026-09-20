@@ -1,5 +1,8 @@
 import { type StoredPayment } from "@/lib/checkup";
-import { type StoredChronicControl } from "@/lib/chronic-control";
+import {
+  type OptionalMedicationTestId,
+  type StoredChronicControl,
+} from "@/lib/chronic-control";
 
 export type ChronicControlApiRecord = StoredChronicControl & {
   id: string;
@@ -90,6 +93,8 @@ export type ChronicControlScreeningPreferences = {
   addTestName?: string;
   removeTestName?: string;
   restoreTestName?: string;
+  optionalMedicationTestId?: OptionalMedicationTestId;
+  includeOptionalMedicationTest?: boolean;
 };
 
 export async function updateChronicControlScreeningPreferences(

@@ -8,11 +8,14 @@ import {
 } from "@/lib/checkup";
 import { PaymentStatusDb, ReviewStatusDb } from "@prisma/client";
 import {
+  getAvailableAntiepilepticLevelTests,
+  getOptionalMedicationTestById,
   recommendMultipleChronicControls,
   type AntiepilepticOption,
   type ChronicCondition,
   type ChronicControlRecommendation,
   type MedicationOption,
+  type OptionalMedicationTestId,
 } from "@/lib/chronic-control";
 import { type CheckupInput } from "@/lib/checkup";
 import { prisma } from "@/lib/prisma";
@@ -31,6 +34,7 @@ type ChronicControlRecord = {
   usesMedication: boolean;
   selectedMedications: MedicationOption[];
   selectedAntiepileptics?: AntiepilepticOption[];
+  selectedOptionalMedicationTests?: OptionalMedicationTestId[];
   rec: ChronicControlRecommendation;
   payment: {
     pending: StoredPayment | null;
@@ -57,6 +61,8 @@ type ChronicControlRow = {
   hasRecentChanges: boolean;
   usesMedication: boolean;
   selectedMedications: unknown;
+  selectedAntiepileptics: unknown;
+  selectedOptionalMedicationTests: unknown;
   rec: unknown;
   reviewStatus: ReviewStatusDb;
   queuedAt: Date | null;
@@ -153,7 +159,12 @@ function fromRow(row: ChronicControlRow): ChronicControlRecord {
     hasRecentChanges: row.hasRecentChanges,
     usesMedication: row.usesMedication,
     selectedMedications: row.selectedMedications as MedicationOption[],
-    selectedAntiepileptics: [],
+    selectedAntiepileptics: Array.isArray(row.selectedAntiepileptics)
+      ? (row.selectedAntiepileptics as AntiepilepticOption[])
+      : [],
+    selectedOptionalMedicationTests: Array.isArray(row.selectedOptionalMedicationTests)
+      ? (row.selectedOptionalMedicationTests as OptionalMedicationTestId[])
+      : [],
     rec: row.rec as ChronicControlRecommendation,
     payment,
     status: {
@@ -213,6 +224,8 @@ export async function createChronicControlRecord(payload: {
       hasRecentChanges: payload.hasRecentChanges,
       usesMedication: payload.usesMedication,
       selectedMedications: payload.selectedMedications,
+      selectedAntiepileptics: payload.selectedAntiepileptics ?? [],
+      selectedOptionalMedicationTests: [],
       rec,
     },
     include: { payment: true },
@@ -296,6 +309,8 @@ export async function updateChronicControlScreeningPreferences(
     addTestName?: string;
     removeTestName?: string;
     restoreTestName?: string;
+    optionalMedicationTestId?: OptionalMedicationTestId;
+    includeOptionalMedicationTest?: boolean;
   },
 ) {
   const current = await prisma.chronicControlRequest.findUnique({
@@ -310,6 +325,29 @@ export async function updateChronicControlScreeningPreferences(
   const record = fromRow(current);
   let nextTests = [...record.rec.tests];
   let nextRemovedTests = [...(record.rec.removedTests ?? [])];
+  let nextOptionalMedicationTests = [...(record.selectedOptionalMedicationTests ?? [])];
+
+  if (preferences.optionalMedicationTestId !== undefined) {
+    const mapped = getOptionalMedicationTestById(preferences.optionalMedicationTestId);
+    const available = getAvailableAntiepilepticLevelTests(record.selectedAntiepileptics ?? []);
+    const isAllowed = mapped && available.some((test) => test.id === mapped.id);
+
+    if (!isAllowed || preferences.includeOptionalMedicationTest === undefined) {
+      throw new Error("Nivel plasmático no permitido para los medicamentos declarados.");
+    }
+
+    nextTests = nextTests.filter((test) => test.name !== mapped.examName);
+    nextRemovedTests = nextRemovedTests.filter((test) => test.name !== mapped.examName);
+
+    if (preferences.includeOptionalMedicationTest) {
+      nextTests.push({ name: mapped.examName, why: mapped.why });
+      nextOptionalMedicationTests = Array.from(
+        new Set([...nextOptionalMedicationTests, mapped.id]),
+      );
+    } else {
+      nextOptionalMedicationTests = nextOptionalMedicationTests.filter((id) => id !== mapped.id);
+    }
+  }
 
   if (preferences.colorectalMethod) {
     const colorectalNames = new Set([
@@ -536,6 +574,9 @@ export async function updateChronicControlScreeningPreferences(
 
   if (preferences.removeTestName) {
     const normalizedName = preferences.removeTestName.trim();
+    const optionalMedicationTest = getAvailableAntiepilepticLevelTests(
+      record.selectedAntiepileptics ?? [],
+    ).find((test) => test.examName === normalizedName);
     const colorectalNames = new Set([
       "Tamizaje de cáncer colorrectal",
       "Test inmunológico de sangre oculta en deposiciones",
@@ -572,7 +613,11 @@ export async function updateChronicControlScreeningPreferences(
     });
 
     for (const removed of removedNow) {
-      if (!nextRemovedTests.some((test) => test.name === removed.name)) {
+      if (optionalMedicationTest) {
+        nextOptionalMedicationTests = nextOptionalMedicationTests.filter(
+          (id) => id !== optionalMedicationTest.id,
+        );
+      } else if (!nextRemovedTests.some((test) => test.name === removed.name)) {
         nextRemovedTests.push(removed);
       }
     }
@@ -597,6 +642,7 @@ export async function updateChronicControlScreeningPreferences(
         tests: nextTests,
         removedTests: nextRemovedTests,
       },
+      selectedOptionalMedicationTests: nextOptionalMedicationTests,
     },
     include: { payment: true },
   });

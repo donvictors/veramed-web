@@ -10,6 +10,7 @@ import {
   updateChronicControlScreeningPreferences,
 } from "@/lib/chronic-control-api";
 import {
+  getAvailableAntiepilepticLevelTests,
   getChronicControlTotalPrice,
   hasGeneralCheckupAddon,
 } from "@/lib/chronic-control";
@@ -89,6 +90,9 @@ export default function ChronicControlSummaryPage() {
   if (!data) return null;
 
   const hasGeneralCheckup = hasGeneralCheckupAddon(data.rec);
+  const optionalMedicationTests = getAvailableAntiepilepticLevelTests(
+    data.selectedAntiepileptics ?? [],
+  );
   const knownTests = [...data.rec.tests, ...(data.rec.removedTests ?? [])];
   const knownNames = new Set(knownTests.map((test) => test.name));
   const hasColorectalScreening =
@@ -296,6 +300,16 @@ export default function ChronicControlSummaryPage() {
     }
 
     await handlePreferenceChange({ removeTestName: testName });
+  }
+
+  async function handleOptionalMedicationTestChange(testId: Parameters<
+    typeof updateChronicControlScreeningPreferences
+  >[1]["optionalMedicationTestId"], checked: boolean) {
+    if (!testId) return;
+    await handlePreferenceChange({
+      optionalMedicationTestId: testId,
+      includeOptionalMedicationTest: checked,
+    });
   }
 
   async function handleRemoveTest(testName: string) {
@@ -676,11 +690,46 @@ export default function ChronicControlSummaryPage() {
                     </div>
                   )}
                 </div>
-
-                {selectionError && (
-                  <p className="mt-3 text-xs leading-5 text-rose-600">{selectionError}</p>
-                )}
               </div>
+            )}
+
+            {optionalMedicationTests.length > 0 && (
+              <div className="mt-6 rounded-3xl border border-slate-200 p-5">
+                <p className="text-sm font-semibold text-slate-900">
+                  ¿Quieres agregar el nivel plasmático de tu antiepiléptico?
+                </p>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Si lo necesitas, puedes añadir a tu orden la medición del nivel del medicamento
+                  que utilizas.
+                </p>
+                <div className="mt-4 grid gap-3">
+                  {optionalMedicationTests.map((test) => {
+                    const checked = (data.selectedOptionalMedicationTests ?? []).includes(test.id);
+                    return (
+                      <label
+                        key={test.id}
+                        className="flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-slate-300 focus-within:border-slate-400"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(event) =>
+                            void handleOptionalMedicationTestChange(test.id, event.target.checked)
+                          }
+                          className="mt-1"
+                        />
+                        <span className="text-sm font-semibold text-slate-900">
+                          {test.examName}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {selectionError && (
+              <p className="mt-3 text-xs leading-5 text-rose-600">{selectionError}</p>
             )}
 
             {optionalAdditionalTestsToShow.length > 0 && (

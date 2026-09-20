@@ -7,6 +7,7 @@ const {
   MEDICATION_OPTIONS,
   conditionLabel,
   conditionUsesDiagnosisDuration,
+  getAvailableAntiepilepticLevelTests,
   getChronicControlTotalPrice,
   recommendChronicControl,
   recommendMultipleChronicControls,
@@ -46,6 +47,52 @@ function assertExcludes(actual, excluded) {
 
 function countExam(tests, name) {
   return tests.filter((item) => item.name === name).length;
+}
+
+function makeChronicRow(overrides = {}) {
+  const now = new Date("2026-09-20T12:00:00.000Z");
+  return {
+    id: "chr_test",
+    userId: null,
+    createdAt: now,
+    updatedAt: now,
+    conditions: ["hypertension"],
+    patientFirstName: "Paciente",
+    patientPaternalSurname: "Prueba",
+    patientMaternalSurname: "",
+    patientRut: "11111111-1",
+    patientBirthDate: "1995-01-01",
+    patientEmail: "paciente@example.com",
+    patientPhone: "+56911111111",
+    patientAddress: "Santiago",
+    yearsSinceDiagnosis: 3,
+    hasRecentChanges: false,
+    usesMedication: true,
+    selectedMedications: ["antiepileptics"],
+    selectedAntiepileptics: ["carbamazepine"],
+    selectedOptionalMedicationTests: [],
+    rec: {
+      summary: "Control",
+      tests: [
+        { name: "Hemograma", why: "Seguimiento hematológico." },
+        { name: "Perfil hepático", why: "Seguimiento hepático." },
+      ],
+      notes: [],
+    },
+    reviewStatus: "queued",
+    queuedAt: null,
+    approvedAt: null,
+    approvedByName: null,
+    approvedByRut: null,
+    approvedBySis: null,
+    approvedByEmail: null,
+    approvalMethod: null,
+    approvalProtocolVersion: null,
+    rejectedAt: null,
+    orderId: null,
+    payment: null,
+    ...overrides,
+  };
 }
 
 test("las nuevas condiciones están disponibles con sus etiquetas públicas", () => {
@@ -242,6 +289,140 @@ test("15: dieta libre de gluten conserva sus otros exámenes y deja de agregar f
   assert.equal(actual.some((name) => /folato|ácido fólico/i.test(name)), false);
 });
 
+test("cirrosis incluye el panel hepático completo con TP/INR, ecografía y AFP", () => {
+  assertIncludes(examNames("liver_cirrhosis"), [
+    "Perfil hepático",
+    "Albúmina",
+    "Hemograma",
+    "Creatinina en sangre",
+    "Electrolitos en sangre (Na, K, Cl)",
+    "Tiempo de protrombina (TP/INR)",
+    "Ecografía abdominal",
+    "Alfa-fetoproteína (AFP)",
+  ]);
+});
+
+test("hígado graso usa un panel metabólico y no vigilancia de cirrosis", () => {
+  const actual = examNames("fatty_liver");
+  assertIncludes(actual, [
+    "Perfil hepático",
+    "Hemograma",
+    "Perfil lipídico",
+    "Glucosa en sangre",
+    "Hemoglobina glicosilada (HbA1C)",
+    "Creatinina en sangre",
+  ]);
+  assertExcludes(actual, [
+    "Alfa-fetoproteína (AFP)",
+    "Tiempo de protrombina (TP/INR)",
+    "Ecografía abdominal",
+  ]);
+});
+
+test("la categoría hepática antigua sigue siendo legible pero no seleccionable en solicitudes nuevas", () => {
+  assert.equal(CONDITION_OPTIONS.includes("chronic_liver_disease_masld"), false);
+  assert.equal(conditionLabel("chronic_liver_disease_masld"), "Enfermedad hepática crónica");
+  assertIncludes(examNames("chronic_liver_disease_masld"), ["Perfil hepático", "Ecografía abdominal"]);
+});
+
+test("amiodarona agrega TSH y perfil hepático", () => {
+  const rec = recommendMultipleChronicControls(["hypertension"], false, true, ["amiodarone"]);
+  assertIncludes(rec.tests.map((item) => item.name), ["TSH", "Perfil hepático"]);
+});
+
+test("carbamazepina agrega hemograma y perfil hepático sin nivel automático", () => {
+  const rec = recommendMultipleChronicControls(
+    ["hypertension"],
+    false,
+    true,
+    ["antiepileptics"],
+    ["carbamazepine"],
+  );
+  const actual = rec.tests.map((item) => item.name);
+  assertIncludes(actual, ["Hemograma", "Perfil hepático"]);
+  assertExcludes(actual, ["Niveles plasmáticos de carbamazepina"]);
+  assert.equal(actual.some((name) => name.startsWith("Niveles plasmáticos de anti")), false);
+});
+
+test("el resumen ofrece únicamente los niveles mapeados de antiepilépticos declarados", () => {
+  assert.deepEqual(
+    getAvailableAntiepilepticLevelTests(["carbamazepine"]).map((test) => test.id),
+    ["carbamazepine_level"],
+  );
+  assert.deepEqual(getAvailableAntiepilepticLevelTests(["other"]), []);
+  assert.deepEqual(
+    getAvailableAntiepilepticLevelTests(["valproic_acid", "phenobarbital"]).map(
+      (test) => test.id,
+    ),
+    ["valproate_level", "phenobarbital_level"],
+  );
+});
+
+test("asma con cambios recientes no agrega caminata de seis minutos", () => {
+  assertExcludes(
+    recommendChronicControl("asthma", true).tests.map((item) => item.name),
+    ["Test de caminata en 6 minutos"],
+  );
+});
+
+test("EPOC con cambios recientes agrega caminata y no gases arteriales", () => {
+  const actual = recommendChronicControl("copd", true).tests.map((item) => item.name);
+  assertIncludes(actual, ["Test de caminata en 6 minutos"]);
+  assertExcludes(actual, ["Gases en sangre arterial"]);
+});
+
+test("enfermedad pulmonar intersticial mantiene gases arteriales con cambios recientes", () => {
+  assertIncludes(
+    recommendChronicControl("pulmonary_interstitial_disease", true).tests.map(
+      (item) => item.name,
+    ),
+    ["Gases en sangre arterial"],
+  );
+});
+
+test("fibrilación auricular incluye electrocardiograma", () => {
+  assertIncludes(examNames("atrial_fibrillation"), ["Electrocardiograma (ECG)"]);
+});
+
+test("VIH incluye perfil lipídico y glucosa", () => {
+  assertIncludes(examNames("chronic_hiv"), ["Perfil lipídico", "Glucosa en sangre"]);
+});
+
+test("ERC conserva perfil bioquímico, PTH, vitamina D y gases venosos sin calcio ni fósforo separados", () => {
+  const actual = examNames("chronic_kidney_disease");
+  assertIncludes(actual, ["Perfil bioquímico", "PTH", "Niveles de vitamina D", "Gases en sangre venosa"]);
+  assertExcludes(actual, ["Calcio total", "Fósforo"]);
+});
+
+test("artritis reumatoide incluye hemograma, PCR, creatinina y perfil hepático", () => {
+  assertIncludes(examNames("rheumatoid_arthritis"), [
+    "Hemograma",
+    "Proteína C reactiva (PCR)",
+    "Creatinina en sangre",
+    "Perfil hepático",
+  ]);
+});
+
+test("artritis reumatoide con inmunosupresor deduplica exámenes", () => {
+  const rec = recommendMultipleChronicControls(
+    ["rheumatoid_arthritis"],
+    false,
+    true,
+    ["immunosuppressants"],
+  );
+  for (const name of ["Hemograma", "Creatinina en sangre", "Perfil hepático"]) {
+    assert.equal(countExam(rec.tests, name), 1, `${name} debe aparecer una sola vez`);
+  }
+});
+
+test("cirrosis con warfarina deduplica TP/INR aunque use nombres equivalentes", () => {
+  const rec = recommendMultipleChronicControls(["liver_cirrhosis"], false, true, ["warfarin"]);
+  assert.equal(
+    rec.tests.filter((test) => test.name === "INR" || test.name.includes("TP/INR")).length,
+    1,
+  );
+});
+
 test("el schema del servidor acepta IDs nuevos y rechaza condiciones arbitrarias", () => {
   const basePayload = {
     conditions: ["type1_diabetes", "ibd", "chronic_hiv"],
@@ -284,6 +465,75 @@ test("agregar exámenes preventivos no aumenta el precio del control crónico", 
   assert.equal(getChronicControlTotalPrice(rec), 3990);
   assert.match(rec.notes.join(" "), /exámenes preventivos adicionales/i);
   assert.doesNotMatch(rec.notes.join(" "), /\$1\.000/);
+});
+
+test("el servidor agrega y persiste un nivel plasmático solicitado explícitamente", async () => {
+  let row = makeChronicRow();
+  const prisma = {
+    chronicControlRequest: {
+      findUnique: async () => row,
+      update: async ({ data }) => {
+        row = { ...row, ...data, updatedAt: new Date("2026-09-20T12:01:00.000Z") };
+        return row;
+      },
+    },
+  };
+  const store = loadModule("lib/server/chronic-control-store.ts", {
+    "@/lib/prisma": { prisma },
+    "@/lib/server/medical-approval": { getAutomaticApprovalAttribution: () => ({}) },
+    "@/lib/server/order-workflow": {
+      enqueueOrderApproved: async () => {},
+      processOrderOutbox: async () => {},
+    },
+  });
+
+  const updated = await store.updateChronicControlScreeningPreferences("chr_test", {
+    optionalMedicationTestId: "carbamazepine_level",
+    includeOptionalMedicationTest: true,
+  });
+
+  assertIncludes(updated.rec.tests.map((test) => test.name), [
+    "Niveles plasmáticos de carbamazepina",
+  ]);
+  assert.deepEqual(updated.selectedOptionalMedicationTests, ["carbamazepine_level"]);
+
+  const reopened = await store.getChronicControlRecord("chr_test");
+  assert.deepEqual(reopened.selectedOptionalMedicationTests, ["carbamazepine_level"]);
+
+  const unchecked = await store.updateChronicControlScreeningPreferences("chr_test", {
+    optionalMedicationTestId: "carbamazepine_level",
+    includeOptionalMedicationTest: false,
+  });
+  assertExcludes(unchecked.rec.tests.map((test) => test.name), [
+    "Niveles plasmáticos de carbamazepina",
+  ]);
+  assert.deepEqual(unchecked.selectedOptionalMedicationTests, []);
+});
+
+test("el servidor rechaza un nivel de un antiepiléptico no declarado", async () => {
+  const row = makeChronicRow();
+  const prisma = {
+    chronicControlRequest: {
+      findUnique: async () => row,
+      update: async () => assert.fail("No debe persistir un nivel no autorizado"),
+    },
+  };
+  const store = loadModule("lib/server/chronic-control-store.ts", {
+    "@/lib/prisma": { prisma },
+    "@/lib/server/medical-approval": { getAutomaticApprovalAttribution: () => ({}) },
+    "@/lib/server/order-workflow": {
+      enqueueOrderApproved: async () => {},
+      processOrderOutbox: async () => {},
+    },
+  });
+
+  await assert.rejects(
+    store.updateChronicControlScreeningPreferences("chr_test", {
+      optionalMedicationTestId: "phenytoin_level",
+      includeOptionalMedicationTest: true,
+    }),
+    /no permitido/i,
+  );
 });
 
 test("el servidor recalcula el set desde condiciones válidas antes de guardar", async () => {

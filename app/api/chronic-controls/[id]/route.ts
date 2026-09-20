@@ -9,6 +9,10 @@ import {
 } from "@/lib/server/chronic-control-store";
 import { hasValidInternalAccess } from "@/lib/server/internal-access";
 import {
+  getAvailableAntiepilepticLevelTests,
+  getOptionalMedicationTestById,
+} from "@/lib/chronic-control";
+import {
   getRequestAccessCookieName,
   hasValidRequestAccessCookie,
 } from "@/lib/server/request-access";
@@ -98,6 +102,8 @@ export async function PATCH(request: Request, context: RouteContext) {
       addTestName?: string;
       removeTestName?: string;
       restoreTestName?: string;
+      optionalMedicationTestId?: string;
+      includeOptionalMedicationTest?: boolean;
     };
 
     if (
@@ -108,7 +114,8 @@ export async function PATCH(request: Request, context: RouteContext) {
       payload.prostateMethod === undefined &&
       payload.addTestName === undefined &&
       payload.removeTestName === undefined &&
-      payload.restoreTestName === undefined
+      payload.restoreTestName === undefined &&
+      payload.optionalMedicationTestId === undefined
     ) {
       return NextResponse.json({ error: "No enviaste cambios para aplicar." }, { status: 400 });
     }
@@ -166,7 +173,29 @@ export async function PATCH(request: Request, context: RouteContext) {
       return NextResponse.json({ error: "Nombre de examen a restaurar inválido." }, { status: 400 });
     }
 
-    const updated = await updateChronicControlScreeningPreferences(id, payload);
+    let optionalMedicationTestId;
+    if (payload.optionalMedicationTestId !== undefined) {
+      const mapped = getOptionalMedicationTestById(payload.optionalMedicationTestId);
+      const allowed = getAvailableAntiepilepticLevelTests(
+        current.selectedAntiepileptics ?? [],
+      ).some((test) => test.id === mapped?.id);
+
+      if (!mapped || !allowed || typeof payload.includeOptionalMedicationTest !== "boolean") {
+        return NextResponse.json(
+          { error: "Nivel plasmático no permitido para los medicamentos declarados." },
+          { status: 400 },
+        );
+      }
+
+      optionalMedicationTestId = mapped.id;
+    } else if (payload.includeOptionalMedicationTest !== undefined) {
+      return NextResponse.json({ error: "Nivel plasmático inválido." }, { status: 400 });
+    }
+
+    const updated = await updateChronicControlScreeningPreferences(id, {
+      ...payload,
+      optionalMedicationTestId,
+    });
     if (!updated) {
       return NextResponse.json({ error: "Solicitud no encontrada." }, { status: 404 });
     }

@@ -228,6 +228,8 @@ model ChronicControlRequest {
   hasRecentChanges        Boolean
   usesMedication          Boolean
   selectedMedications     Json
+  selectedAntiepileptics  Json                     @default("[]")
+  selectedOptionalMedicationTests Json                     @default("[]")
   rec                     Json
   reviewStatus            ReviewStatusDb           @default(queued)
   queuedAt                DateTime?

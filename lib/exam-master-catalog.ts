@@ -224,6 +224,7 @@ export const EXAM_MASTER_CATALOG: readonly ExamMasterCatalogItem[] = [
     fonasaCode: "1701009",
   },
   { name: "INR", category: "laboratory", fonasaCode: "0301059" },
+  { name: "Tiempo de protrombina (TP/INR)", category: "laboratory", fonasaCode: "0301059" },
   {
     name: "LH (Hormona luteinizante)",
     category: "laboratory",

@@ -1,4 +1,5 @@
 import { recommend, type CheckupInput } from "@/lib/checkup";
+import { getExamMetadataByName } from "@/lib/exam-master-catalog";
 
 export type ChronicCondition =
   | "hypertension"
@@ -26,6 +27,9 @@ export type ChronicCondition =
   | "spondyloarthritis_psoriatic_arthritis"
   | "lupus_erythematosus_systemic"
   | "chronic_kidney_disease"
+  | "liver_cirrhosis"
+  | "fatty_liver"
+  // Compatibilidad de lectura para solicitudes históricas. No se ofrece en CONDITION_OPTIONS.
   | "chronic_liver_disease_masld"
   | "chronic_hiv";
 
@@ -51,6 +55,19 @@ export type AntiepilepticOption =
   | "phenobarbital"
   | "other";
 
+export type OptionalMedicationTestId =
+  | "valproate_level"
+  | "carbamazepine_level"
+  | "phenytoin_level"
+  | "phenobarbital_level";
+
+export type OptionalMedicationTest = {
+  id: OptionalMedicationTestId;
+  medication: Exclude<AntiepilepticOption, "other">;
+  examName: string;
+  why: string;
+};
+
 export type ChronicControlRecommendation = {
   summary: string;
   tests: ControlTest[];
@@ -66,6 +83,7 @@ export type StoredChronicControl = {
   usesMedication: boolean;
   selectedMedications: MedicationOption[];
   selectedAntiepileptics?: AntiepilepticOption[];
+  selectedOptionalMedicationTests?: OptionalMedicationTestId[];
   includeGeneralCheckup?: boolean;
   generalCheckupInput?: CheckupInput;
   rec: ChronicControlRecommendation;
@@ -92,7 +110,8 @@ export const CONDITION_OPTIONS: ChronicCondition[] = [
   "heart_failure",
   "atrial_fibrillation",
   "chronic_kidney_disease",
-  "chronic_liver_disease_masld",
+  "liver_cirrhosis",
+  "fatty_liver",
   "ibd",
   "celiac_disease",
   "bariatric_surgery",
@@ -132,6 +151,50 @@ export const ANTIEPILEPTIC_OPTIONS: AntiepilepticOption[] = [
   "other",
 ];
 
+export const ANTIEPILEPTIC_LEVEL_TESTS: Record<
+  Exclude<AntiepilepticOption, "other">,
+  OptionalMedicationTest
+> = {
+  valproic_acid: {
+    id: "valproate_level",
+    medication: "valproic_acid",
+    examName: "Niveles plasmáticos de ácido valproico",
+    why: "Medición opcional del nivel plasmático del ácido valproico declarado.",
+  },
+  carbamazepine: {
+    id: "carbamazepine_level",
+    medication: "carbamazepine",
+    examName: "Niveles plasmáticos de carbamazepina",
+    why: "Medición opcional del nivel plasmático de la carbamazepina declarada.",
+  },
+  phenytoin: {
+    id: "phenytoin_level",
+    medication: "phenytoin",
+    examName: "Niveles plasmáticos de fenitoina",
+    why: "Medición opcional del nivel plasmático de la fenitoína declarada.",
+  },
+  phenobarbital: {
+    id: "phenobarbital_level",
+    medication: "phenobarbital",
+    examName: "Niveles plasmáticos de fenobarbital",
+    why: "Medición opcional del nivel plasmático del fenobarbital declarado.",
+  },
+};
+
+export function getAvailableAntiepilepticLevelTests(
+  selectedAntiepileptics: AntiepilepticOption[] = [],
+) {
+  return selectedAntiepileptics.flatMap((medication) => {
+    if (medication === "other") return [];
+    const mapped = ANTIEPILEPTIC_LEVEL_TESTS[medication];
+    return getExamMetadataByName(mapped.examName) ? [mapped] : [];
+  });
+}
+
+export function getOptionalMedicationTestById(id: string) {
+  return Object.values(ANTIEPILEPTIC_LEVEL_TESTS).find((test) => test.id === id);
+}
+
 const MEDICATION_TESTS: Record<MedicationOption, ControlTest[]> = {
   metformin: [
     {
@@ -163,6 +226,10 @@ const MEDICATION_TESTS: Record<MedicationOption, ControlTest[]> = {
     {
       name: "TSH",
       why: "Control de función tiroidea en pacientes en tratamiento con amiodarona.",
+    },
+    {
+      name: "Perfil hepático",
+      why: "Control de seguridad hepática en pacientes en tratamiento con amiodarona.",
     },
   ],
   antiepileptics: [
@@ -245,6 +312,7 @@ export function recommendChronicControl(
         },
         { name: "Hemograma", why: "Seguimiento hematológico en contexto de fibrilación auricular." },
         { name: "Perfil hepático", why: "Control de seguridad del tratamiento según contexto clínico." },
+        { name: "Electrocardiograma (ECG)", why: "Seguimiento del ritmo cardíaco." },
       ],
       notes: ["La periodicidad depende del tratamiento y del control clínico del ritmo."],
     },
@@ -458,6 +526,8 @@ export function recommendChronicControl(
       tests: [
         { name: "Hemograma", why: "Monitoreo hematológico en seguimiento clínico." },
         { name: "Proteína C reactiva (PCR)", why: "Seguimiento de actividad inflamatoria." },
+        { name: "Creatinina en sangre", why: "Control de función renal en el seguimiento." },
+        { name: "Perfil hepático", why: "Control hepático general y de seguridad." },
       ],
       notes: ["Correlacionar con actividad clínica, dolor y tratamiento actual."],
     },
@@ -519,6 +589,33 @@ export function recommendChronicControl(
       ],
       notes: ["La frecuencia depende de etapa de enfermedad renal y tratamiento."],
     },
+    liver_cirrhosis: {
+      summary:
+        "Control de cirrosis hepática con seguimiento clínico, bioquímico y por imágenes.",
+      tests: [
+        { name: "Perfil hepático", why: "Seguimiento bioquímico hepático periódico." },
+        { name: "Albúmina", why: "Evaluación de función sintética hepática." },
+        { name: "Hemograma", why: "Monitoreo hematológico en contexto de cirrosis." },
+        { name: "Creatinina en sangre", why: "Seguimiento de función renal en cirrosis." },
+        { name: "Electrolitos en sangre (Na, K, Cl)", why: "Evaluación de balance electrolítico asociado." },
+        { name: "Tiempo de protrombina (TP/INR)", why: "Evaluación de la función sintética y coagulación en cirrosis." },
+        { name: "Ecografía abdominal", why: "Vigilancia por imágenes en cirrosis." },
+        { name: "Alfa-fetoproteína (AFP)", why: "Apoyo a la vigilancia de carcinoma hepatocelular." },
+      ],
+      notes: ["Ideal complementar con seguimiento clínico por equipo tratante."],
+    },
+    fatty_liver: {
+      summary: "Control de hígado graso con seguimiento hepático y cardiometabólico.",
+      tests: [
+        { name: "Perfil hepático", why: "Seguimiento bioquímico hepático periódico." },
+        { name: "Hemograma", why: "Monitoreo hematológico general." },
+        { name: "Perfil lipídico", why: "Evaluación de riesgo cardiometabólico asociado." },
+        { name: "Glucosa en sangre", why: "Seguimiento del metabolismo de la glucosa." },
+        { name: "Hemoglobina glicosilada (HbA1C)", why: "Evaluación del control glicémico." },
+        { name: "Creatinina en sangre", why: "Seguimiento de función renal general." },
+      ],
+      notes: ["Correlacionar con evolución clínica y medidas de salud cardiometabólica."],
+    },
     chronic_liver_disease_masld: {
       summary:
         "Control de enfermedad hepática crónica con seguimiento clínico, bioquímico y por imágenes.",
@@ -528,6 +625,7 @@ export function recommendChronicControl(
         { name: "Hemograma", why: "Monitoreo hematológico en contexto de hepatopatía crónica." },
         { name: "Creatinina en sangre", why: "Seguimiento de función renal en control hepático crónico." },
         { name: "Electrolitos en sangre (Na, K, Cl)", why: "Evaluación de balance electrolítico asociado." },
+        { name: "Tiempo de protrombina (TP/INR)", why: "Evaluación de la función sintética y coagulación." },
         { name: "Ecografía abdominal", why: "Seguimiento por imágenes en hepatopatía crónica." },
         { name: "Alfa-fetoproteína (AFP)", why: "Apoyo al seguimiento oncológico en contexto de riesgo hepático." },
       ],
@@ -544,6 +642,8 @@ export function recommendChronicControl(
         { name: "Hemograma", why: "Seguimiento hematológico general." },
         { name: "Perfil hepático", why: "Control de seguridad y evolución clínica." },
         { name: "Creatinina en sangre", why: "Monitoreo de función renal." },
+        { name: "Perfil lipídico", why: "Seguimiento del riesgo cardiometabólico." },
+        { name: "Glucosa en sangre", why: "Seguimiento metabólico general." },
       ],
       notes: ["El seguimiento debe alinearse con control infectológico habitual."],
     },
@@ -560,17 +660,7 @@ export function recommendChronicControl(
         why: "Se agrega por cambios recientes en síntomas o tratamiento para apoyar evaluación de congestión.",
       });
     }
-    if (condition === "asthma") {
-      tests.push({
-        name: "Test de caminata en 6 minutos",
-        why: "Se agrega por cambios recientes en síntomas o tratamiento para evaluar capacidad funcional.",
-      });
-    }
     if (condition === "copd") {
-      tests.push({
-        name: "Gases en sangre arterial",
-        why: "Se agrega por cambios recientes en síntomas o tratamiento para evaluar intercambio gaseoso.",
-      });
       tests.push({
         name: "Test de caminata en 6 minutos",
         why: "Se agrega por cambios recientes en síntomas o tratamiento para evaluar capacidad funcional.",
@@ -614,10 +704,13 @@ export function recommendMultipleChronicControls(
       : `Control combinado para ${selected.map(conditionLabel).join(", ").toLowerCase()}, con un panel consolidado para seguimiento periódico.`;
 
   const testsMap = new Map<string, ControlTest>();
+  const canonicalTestKey = (name: string) =>
+    name === "INR" || name === "Tiempo de protrombina (TP/INR)" ? "tp-inr" : name;
   const addOrMergeTest = (test: ControlTest) => {
-    const existing = testsMap.get(test.name);
+    const key = canonicalTestKey(test.name);
+    const existing = testsMap.get(key);
     if (!existing) {
-      testsMap.set(test.name, { ...test });
+      testsMap.set(key, { ...test });
       return;
     }
 
@@ -660,44 +753,9 @@ export function recommendMultipleChronicControls(
     }
   }
 
-  if (medicationSet.has("antiepileptics")) {
-    const antiepilepticSet = new Set(selectedAntiepileptics);
-
-    if (antiepilepticSet.has("valproic_acid")) {
-      testsMap.set("Niveles plasmáticos de ácido valproico", {
-        name: "Niveles plasmáticos de ácido valproico",
-        why: "Monitoreo terapéutico en pacientes en uso de ácido valproico.",
-      });
-    }
-
-    if (antiepilepticSet.has("carbamazepine")) {
-      testsMap.set("Niveles plasmáticos de carbamazepina", {
-        name: "Niveles plasmáticos de carbamazepina",
-        why: "Monitoreo terapéutico en pacientes en uso de carbamazepina.",
-      });
-    }
-
-    if (antiepilepticSet.has("phenytoin")) {
-      testsMap.set("Niveles plasmáticos de fenitoina", {
-        name: "Niveles plasmáticos de fenitoina",
-        why: "Monitoreo terapéutico en pacientes en uso de fenitoina.",
-      });
-    }
-
-    if (antiepilepticSet.has("phenobarbital")) {
-      testsMap.set("Niveles plasmáticos de fenobarbital", {
-        name: "Niveles plasmáticos de fenobarbital",
-        why: "Monitoreo terapéutico en pacientes en uso de fenobarbital.",
-      });
-    }
-
-    if (antiepilepticSet.has("other")) {
-      testsMap.set("Niveles plasmáticos de antiepiléptico (según fármaco en uso)", {
-        name: "Niveles plasmáticos de antiepiléptico (según fármaco en uso)",
-        why: "Monitoreo terapéutico de antiepilépticos según indicación clínica.",
-      });
-    }
-  }
+  // Los niveles plasmáticos son opcionales y se incorporan únicamente desde el resumen,
+  // después de validarlos contra el antiepiléptico declarado.
+  void selectedAntiepileptics;
 
   if (generalCheckupInput) {
     const generalCheckupRecommendation = recommend(generalCheckupInput);
@@ -785,6 +843,10 @@ export function conditionLabel(condition: ChronicCondition) {
       return "Lupus eritematoso sistémico";
     case "chronic_kidney_disease":
       return "Enfermedad renal crónica";
+    case "liver_cirrhosis":
+      return "Cirrosis hepática";
+    case "fatty_liver":
+      return "Hígado graso";
     case "chronic_liver_disease_masld":
       return "Enfermedad hepática crónica";
     case "chronic_hiv":
