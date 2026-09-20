@@ -3,35 +3,35 @@ import Image from "next/image";
 const steps = [
   {
     number: "01",
-    title: "Completa tus datos",
+    title: "Cuéntanos qué necesitas",
     description:
-      "Ingresas antecedentes básicos en un flujo corto, estructurado y fácil de revisar.",
+      "Responde unas pocas preguntas o sube tus antecedentes según el servicio.",
     bullets: [
-      "Te toma menos de 5 minutos",
+      "Te toma sólo unos minutos",
       "Preguntas claras y precisas",
-      "Tu info queda ordenada para análisis",
+      "Puedes adjuntar antecedentes de ser necesario",
     ],
   },
   {
     number: "02",
-    title: "Recibes una recomendación de exámenes",
+    title: "Veramed evalúa tu solicitud",
     description:
-      "Se presenta el set sugerido con fundamento clínico, preparación y condiciones de uso.",
+      "Organizamos tu información y aplicamos criterios clínicos para determinar qué corresponde en tu caso.",
     bullets: [
-      "Un set hecho a tu medida",
-      "El “por qué” de cada examen",
-      "Indicaciones de preparación y cuándo hacerlos",
+      "Recomendaciones adaptadas a tu situación",
+      "Usamos IA para ayudarnos a revisar tu información más rápido",
+      "Evaluamos tu necesidad con criterio médico",
     ],
   },
   {
     number: "03",
-    title: "Validación por médico acreditado y emisión",
+    title: "Un médico valida antes de emitir",
     description:
-      "La orden queda lista para revisión médica y luego puede usarse en un laboratorio.",
+      "Cuando corresponde emitir una orden, receta o derivación, un médico revisa la solicitud antes de entregártela.",
     bullets: [
       "Validación médica antes de emitir",
-      "Orden lista para usar en laboratorio",
-      "Respaldo clínico de los exámenes",
+      "Documentos digitales listos para usar",
+      "Si necesitas otra evaluación, te indicamos el siguiente paso",
     ],
   },
 ];
@@ -43,11 +43,11 @@ export default function HowItWorks() {
         <div className="max-w-3xl">
           <p className="veramed-kicker">Cómo funciona</p>
           <h2 className="mt-4 text-4xl font-semibold tracking-tight text-slate-950 md:text-5xl">
-            De tus antecedentes a una orden clara.
+            Una solución clara para lo que necesitas.
           </h2>
           <p className="mt-5 max-w-2xl text-sm leading-7 text-slate-600">
-            Un proceso guiado que organiza la información necesaria y te muestra cada decisión antes
-            de avanzar.
+            Nos comprometemos a generar procesos de evaluación simples, que apliquen criterios
+            clínicos reproducibles y muestren cómo es cada paso antes de continuar.
           </p>
         </div>
 

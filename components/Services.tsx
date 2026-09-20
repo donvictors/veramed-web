@@ -74,7 +74,8 @@ const orderServices = [
     description: "Responde una encuesta breve. Si cumples criterios para la vía simplificada, un médico revisará tu caso antes de emitir el tratamiento.",
     eyebrow: "Descubre gratis si podrías ser candidato a tratamiento médico para el control del peso.",
     href: "/control-peso",
-    price: "$7.990",
+    price: "$5.990",
+    previousPrice: "$7.990",
     action: "Evaluar gratis",
     points: ["Evaluación gratuita", "Criterios clínicos determinísticos", "Revisión médica antes del tratamiento"],
     highlighted: true,
@@ -91,13 +92,13 @@ export default function Services() {
             <p className="veramed-kicker">Servicios</p>
             <h2 className="mt-2 text-3xl font-semibold leading-[1.1] tracking-tight text-slate-950 md:text-4xl lg:text-[clamp(2rem,3vw,2.75rem)]">
               <span className="block">El punto de entrada</span>
-              <span className="block lg:whitespace-nowrap">a la salud que necesitas.</span>
+              <span className="block lg:whitespace-nowrap">a la atención que necesitas.</span>
             </h2>
           </div>
           <p className="max-w-xl text-sm leading-6 text-slate-600 lg:pb-1">
             Resuelve tus necesidades médicas de forma simple y online: desde un chequeo hasta
-            evaluar síntomas, renovar recetas o solicitar derivaciones. De forma clara, segura y
-            sin trámites innecesarios.
+            evaluar síntomas, renovar recetas o solicitar derivaciones. Claro, seguro y sin
+            trámites innecesarios.
           </p>
         </div>
 

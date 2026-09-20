@@ -14,13 +14,39 @@ export default function Footer() {
   return (
     <footer className="border-t border-white/10 bg-slate-950 text-white print:hidden">
       <div className="mx-auto max-w-6xl px-6 py-8 md:py-10">
-        <div className="grid gap-7 border-b border-white/10 pb-7 md:grid-cols-[1.2fr_0.8fr_0.8fr]">
+        <div className="grid gap-7 border-b border-white/10 pb-7 sm:grid-cols-2 lg:grid-cols-[1.35fr_0.8fr_0.7fr_0.8fr]">
           <div className="max-w-md">
             <BrandLogo tone="light" />
             <p className="mt-3 text-sm leading-6 text-slate-300">
-              Órdenes médicas pensadas con criterio clínico, evidencia y una experiencia digital
-              clara de principio a fin.
+              La atención médica que necesitas para las situaciones que no siempre necesitan una
+              consulta tradicional 😉.
             </p>
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+              Servicios
+            </p>
+            <div className="mt-3 grid gap-2 text-sm font-medium text-slate-300">
+              <Link href="/chequeo" className="transition hover:text-white">
+                Chequeo preventivo
+              </Link>
+              <Link href="/control-cronico" className="transition hover:text-white">
+                Control de enfermedades
+              </Link>
+              <Link href="/sintomas" className="transition hover:text-white">
+                Evaluación de síntomas
+              </Link>
+              <Link href="/kinesioterapia" className="transition hover:text-white">
+                Kinesioterapia
+              </Link>
+              <Link href="/renovar-receta" className="transition hover:text-white">
+                Renovar receta
+              </Link>
+              <Link href="/control-peso" className="transition hover:text-white">
+                Control de peso
+              </Link>
+            </div>
           </div>
 
           <div>
@@ -28,6 +54,9 @@ export default function Footer() {
               Explora
             </p>
             <div className="mt-3 grid gap-2 text-sm font-medium text-slate-300">
+              <Link href="/#como-funciona" className="transition hover:text-white">
+                Cómo funciona
+              </Link>
               <Link href="/nosotros" className="transition hover:text-white">
                 Nosotros
               </Link>
@@ -37,8 +66,8 @@ export default function Footer() {
               <Link href="/pacientes" className="transition hover:text-white">
                 Pacientes
               </Link>
-              <Link href="/contacto" className="transition hover:text-white">
-                Contacto
+              <Link href="/#faq" className="transition hover:text-white">
+                Preguntas frecuentes
               </Link>
             </div>
           </div>
@@ -51,11 +80,14 @@ export default function Footer() {
               <Link href="/medicos-login" className="transition hover:text-white">
                 Portal médico
               </Link>
+              <Link href="/contacto" className="transition hover:text-white">
+                Contacto
+              </Link>
               <Link href="/terminos" className="transition hover:text-white">
-                Términos
+                Términos y condiciones
               </Link>
               <Link href="/privacidad" className="transition hover:text-white">
-                Privacidad
+                Política de privacidad
               </Link>
             </div>
           </div>

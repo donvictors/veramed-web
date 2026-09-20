@@ -1,5 +1,5 @@
 export const WEIGHT_MANAGEMENT_PROTOCOL_VERSION = "weight-management-2026-09-19.v1";
-export const WEIGHT_MANAGEMENT_PRICE_CLP = 7990;
+export const WEIGHT_MANAGEMENT_PRICE_CLP = 5990;
 
 export const weightComorbidities = [
   "hypertension",

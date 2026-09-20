@@ -181,6 +181,31 @@ footer :where(button, a):focus-visible {
   }
 }
 
+.reviews-marquee {
+  overflow: hidden;
+  mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
+}
+
+.reviews-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: reviews-marquee-right-to-left 70s linear infinite;
+  will-change: transform;
+}
+
+.reviews-marquee:hover .reviews-marquee-track {
+  animation-play-state: paused;
+}
+
+@keyframes reviews-marquee-right-to-left {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hero-title-reveal {
     opacity: 1;
@@ -192,6 +217,15 @@ footer :where(button, a):focus-visible {
   .veramed-primary-button,
   .veramed-secondary-button {
     transition: none;
+  }
+
+  .reviews-marquee {
+    overflow-x: auto;
+    mask-image: none;
+  }
+
+  .reviews-marquee-track {
+    animation: none;
   }
 }
 

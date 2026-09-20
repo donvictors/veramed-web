@@ -28,15 +28,22 @@ test("IMC 25 no tiene indicación simplificada",()=>assert.equal(weight.evaluate
 test("embarazo contraindica la vía simplificada",()=>assert.equal(weight.evaluateWeightManagement({age:40,bmi:31,comorbidities:[],safety:{...safe,pregnant:true}}),"contraindicated_for_simplified_path"));
 test("pancreatitis requiere revisión médica",()=>assert.equal(weight.evaluateWeightManagement({age:40,bmi:31,comorbidities:[],safety:{...safe,pancreatitis:true}}),"medical_review_required"));
 test("servidor recalcula IMC y outcome",()=>{const s=readFileSync("app/api/new-services/weight-management/route.ts","utf8");assert.match(s,/calculateBmi/);assert.match(s,/evaluateWeightManagement/)});
-test("vía estándar cobra $7.990",()=>assert.equal(weight.WEIGHT_MANAGEMENT_PRICE_CLP,7990));
+test("vía estándar cobra $5.990",()=>assert.equal(weight.WEIGHT_MANAGEMENT_PRICE_CLP,5990));
 test("revisión médica ofrece $19.990",()=>assert.match(readFileSync("app/control-peso/page.tsx","utf8"),/19\.990/));
 test("plantilla de fuerza es versionada",()=>{const t=loadModule("lib/clinical/weight-management-templates.ts");assert.match(t.strengthGuideTemplate.version,/weight-documents/)});
 test("pagos de peso modelan documentos finales",()=>{const s=readFileSync("prisma/schema.prisma","utf8");assert.match(s,/finalDocumentPath/)});
 test("telemedicina usa índice único por médico y hora",()=>assert.match(readFileSync("prisma/schema.prisma","utf8"),/@@unique\(\[clinicianId, startsAt\]\)/));
 
-test("home usa el nuevo claim",()=>assert.match(readFileSync("components/Services.tsx","utf8"),/a la salud que necesitas\./));
+test("home usa el nuevo claim",()=>assert.match(readFileSync("components/Services.tsx","utf8"),/a la atención que necesitas\./));
+test("las tarjetas destacadas del hero enlazan a servicios",()=>{const s=readFileSync("components/Hero.tsx","utf8");assert.match(s,/services\.map/);assert.match(s,/href="#servicios"/);assert.match(s,/hover:border-emerald-300/)});
 test("home conserva el grupo Exámenes",()=>assert.match(readFileSync("components/Services.tsx","utf8"),/title="Exámenes"/));
-test("home muestra las tres órdenes con sus precios",()=>{const s=readFileSync("components/Services.tsx","utf8");for(const value of ["Kinesioterapia","$3.990","Renovar receta","$4.990","Control de peso","$7.990"])assert.ok(s.includes(value),value)});
+test("home muestra las tres órdenes con sus precios",()=>{const s=readFileSync("components/Services.tsx","utf8");for(const value of ["Kinesioterapia","$3.990","Renovar receta","$4.990","Control de peso","$5.990"])assert.ok(s.includes(value),value)});
+test("control de peso muestra $7.990 como precio anterior",()=>{const s=readFileSync("components/Services.tsx","utf8");assert.match(s,/title: "Control de peso"[\s\S]*price: "\$5\.990"[\s\S]*previousPrice: "\$7\.990"/)});
+test("home ubica la franja de experiencias entre servicios y cómo funciona",()=>{const s=readFileSync("app/page.tsx","utf8");assert.ok(s.indexOf("<Services />")<s.indexOf("<ReviewsMarquee />"));assert.ok(s.indexOf("<ReviewsMarquee />")<s.indexOf("<HowItWorks />"))});
+test("la franja muestra las nueve reseñas entregadas",()=>{const s=readFileSync("components/ReviewsMarquee.tsx","utf8");for(const name of ["Camila Morales","Cecilia Pérez","Francisco Herrera","Raúl Contreras","Gloria Rojas","Natalia Soto","Catalina Díaz","Paula Riquelme","Josefa Sandoval"])assert.ok(s.includes(name),name);assert.match(s,/★★★★★/)});
+test("la franja de reseñas se desplaza de derecha a izquierda",()=>assert.match(readFileSync("app/globals.css","utf8"),/reviews-marquee-right-to-left/));
+test("footer organiza servicios, explora e información",()=>{const s=readFileSync("components/Footer.tsx","utf8");for(const value of ["La atención médica que necesitas","Chequeo preventivo","Control de enfermedades","Evaluación de síntomas","Kinesioterapia","Renovar receta","Control de peso","Cómo funciona","Preguntas frecuentes","Términos y condiciones","Política de privacidad"])assert.ok(s.includes(value),value)});
+test("cómo funciona describe el flujo general de Veramed",()=>{const s=readFileSync("components/HowItWorks.tsx","utf8");for(const value of ["Una solución clara para lo que necesitas.","Cuéntanos qué necesitas","Veramed evalúa tu solicitud","Un médico valida antes de emitir","Usamos IA para ayudarnos a revisar tu información más rápido","Documentos digitales listos para usar"])assert.ok(s.includes(value),value)});
 
 test("portal médico usa una sola franja blanca con tres menús",()=>{const s=readFileSync("app/portal-medicos/_components/MedicalPortalShell.tsx","utf8");assert.ok(!s.includes("bg-emerald-700 text-white"));for(const value of ["Escritorio","Validación","Administración","Revisar validación automática"])assert.ok(s.includes(value),value)});
 test("el isotipo del portal oculta el texto Veramed",()=>assert.match(readFileSync("app/portal-medicos/_components/MedicalPortalShell.tsx","utf8"),/showWordmark=\{false\}/));

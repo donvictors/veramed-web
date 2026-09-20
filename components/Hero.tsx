@@ -4,23 +4,18 @@ import Link from "next/link";
 const services = [
   {
     icon: "🩺",
-    title: "Hacerme un chequeo",
+    title: "Hacerme un chequeo o control crónico",
     description: "Exámenes preventivos según mi perfil.",
-  },
-  {
-    icon: "💊",
-    title: "Controlar una enfermedad",
-    description: "Exámenes para mis condiciones y medicamentos.",
   },
   {
     icon: "✨",
     title: "Evaluar síntomas",
-    description: "No sé qué examen necesito.",
+    description: "No sé qué examen necesito y quiero que evalúen mi síntoma.",
   },
   {
     icon: "📄",
     title: "Órdenes, derivaciones y tratamiento",
-    description: "Renovación de receta, derivación a kine y control de peso.",
+    description: "Renovar receta, derivación a kine, controlar tu peso y mucho más...",
   },
 ];
 
@@ -30,7 +25,7 @@ export default function Hero() {
       <div className="grid items-stretch gap-8 lg:grid-cols-[1.12fr_0.88fr]">
         <div className="flex flex-col justify-center">
           <p className="veramed-kicker">
-            Salud simple, sin salir de tu casa
+            Medicina, sin salir de tu casa
           </p>
 
           <h1 className="veramed-display mt-6 max-w-3xl">
@@ -82,9 +77,10 @@ export default function Hero() {
 
             <div className="mt-6 space-y-2.5">
               {services.map((service) => (
-                <div
+                <Link
                   key={service.title}
-                  className="grid grid-cols-[auto_1fr] gap-3 rounded-xl border border-slate-200 bg-white/85 px-3 py-2.5 shadow-[0_12px_35px_-30px_rgba(15,23,42,0.5)] backdrop-blur-sm"
+                  href="#servicios"
+                  className="group grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-xl border border-slate-200 bg-white/85 px-3 py-2.5 shadow-[0_12px_35px_-30px_rgba(15,23,42,0.5)] backdrop-blur-sm transition duration-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-white hover:shadow-[0_18px_38px_-26px_rgba(5,150,105,0.45)]"
                 >
                   <span className="inline-flex h-7 w-7 items-center justify-center text-lg" aria-hidden="true">
                     {service.icon}
@@ -93,7 +89,13 @@ export default function Hero() {
                     <p className="text-[13px] font-semibold text-slate-950">{service.title}</p>
                     <p className="mt-0.5 text-[11px] leading-4 text-slate-600">{service.description}</p>
                   </div>
-                </div>
+                  <span
+                    className="text-sm text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-emerald-600"
+                    aria-hidden="true"
+                  >
+                    →
+                  </span>
+                </Link>
               ))}
             </div>
 
