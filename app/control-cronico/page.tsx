@@ -281,7 +281,6 @@ export default function ChronicControlPage() {
         usesMedication,
         selectedMedications,
         selectedAntiepileptics,
-        includeGeneralCheckup,
         generalCheckupInput: includeGeneralCheckup ? checkupInput : undefined,
       });
 
@@ -579,12 +578,11 @@ export default function ChronicControlPage() {
 
               <div className="rounded-3xl bg-slate-50 p-5">
                 <p className="text-sm font-semibold text-slate-900">
-                  4. ¿Deseas agregar exámenes de chequeo general?{" "}
-                  <span className="font-medium text-slate-400">+$1.000</span>
+                  4. ¿Quieres agregar el resto de exámenes preventivos según tu perfil?
                 </p>
 
                 <div className="mt-4 grid gap-4">
-                  <Field label="Agregar chequeo general">
+                  <Field label="Agregar exámenes preventivos">
                     <select
                       className={inputCls}
                       value={includeGeneralCheckup ? "yes" : "no"}
@@ -598,7 +596,7 @@ export default function ChronicControlPage() {
                   {includeGeneralCheckup && (
                     <div className="rounded-2xl border border-slate-200 bg-white p-4">
                       <p className="text-xs text-slate-600">
-                        Llena estos datos para definir tus exámenes de chequeo general.
+                        Completa estos datos para definir los exámenes preventivos según tu perfil.
                       </p>
 
                       <div className="mt-4 grid gap-3">

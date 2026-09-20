@@ -154,7 +154,7 @@ function ChronicControlOrderPageContent() {
     : "";
   const hasGeneralCheckup = hasGeneralCheckupAddon(data.rec);
   const controlDescription = hasGeneralCheckup
-    ? "Documento generado mediante tecnología de flujo de control crónico con módulo adicional de chequeo general en Veramed © y validación técnica por médico firmante."
+    ? "Documento generado mediante tecnología de flujo de control crónico con exámenes preventivos adicionales según el perfil en Veramed © y validación técnica por médico firmante."
     : "Documento generado mediante tecnología de flujo de control crónico de Veramed © y validación técnica por médico firmante.";
   const patientAge = calculateAgeFromBirthDate(patient?.birthDate || "");
 
@@ -384,7 +384,7 @@ function ChronicControlOrderPageContent() {
             <p className="mt-2 text-sm leading-7 text-slate-700">
               Se identificaron {allTests.length} exámenes para tus necesidades de control crónico.
               {hasGeneralCheckup
-                ? " Esta orden también incluye un módulo adicional de chequeo general."
+                ? " Esta orden también incluye exámenes preventivos adicionales según tu perfil."
                 : ""}
             </p>
           </div>

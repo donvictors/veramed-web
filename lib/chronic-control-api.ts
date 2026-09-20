@@ -44,7 +44,9 @@ async function readJson<T>(response: Response) {
   return payload;
 }
 
-export async function createChronicControlRequest(payload: Omit<StoredChronicControl, "rec">) {
+export async function createChronicControlRequest(
+  payload: Omit<StoredChronicControl, "rec" | "includeGeneralCheckup">,
+) {
   const response = await fetch("/api/chronic-controls", {
     method: "POST",
     headers: {

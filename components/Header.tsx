@@ -161,12 +161,6 @@ export default function Header() {
               </Link>
             </div>
           </details>
-          <Link
-            href="/medicos-login"
-            className="hidden rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:border-emerald-300 hover:text-emerald-800 xl:inline-flex"
-          >
-            Portal Médicos
-          </Link>
           <details className="group relative xl:hidden">
             <summary className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-700 transition hover:border-slate-400">
               <span className="sr-only">Abrir menú</span>
@@ -199,12 +193,6 @@ export default function Header() {
                 className="block rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-800"
               >
                 Crear cuenta
-              </Link>
-              <Link
-                href="/medicos-login"
-                className="mt-1 block rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-800"
-              >
-                Portal Médicos
               </Link>
             </div>
           </details>

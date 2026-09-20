@@ -72,8 +72,9 @@ export type StoredChronicControl = {
 };
 
 export const CHRONIC_CONTROL_PRICE_CLP = 3990;
-export const CHRONIC_CONTROL_GENERAL_CHECKUP_ADDON_CLP = 1000;
 export const CHRONIC_CONTROL_GENERAL_CHECKUP_NOTE =
+  "Incluye exámenes preventivos adicionales según el perfil del paciente.";
+const LEGACY_GENERAL_CHECKUP_NOTE =
   "Incluye módulo adicional de chequeo general (+$1.000).";
 
 export const CONDITION_OPTIONS: ChronicCondition[] = [
@@ -721,14 +722,15 @@ export function recommendMultipleChronicControls(
 }
 
 export function hasGeneralCheckupAddon(rec: ChronicControlRecommendation) {
-  return rec.notes.includes(CHRONIC_CONTROL_GENERAL_CHECKUP_NOTE);
+  return rec.notes.some(
+    (note) =>
+      note === CHRONIC_CONTROL_GENERAL_CHECKUP_NOTE || note === LEGACY_GENERAL_CHECKUP_NOTE,
+  );
 }
 
 export function getChronicControlTotalPrice(rec: ChronicControlRecommendation) {
-  return (
-    CHRONIC_CONTROL_PRICE_CLP +
-    (hasGeneralCheckupAddon(rec) ? CHRONIC_CONTROL_GENERAL_CHECKUP_ADDON_CLP : 0)
-  );
+  void rec;
+  return CHRONIC_CONTROL_PRICE_CLP;
 }
 
 export function conditionLabel(condition: ChronicCondition) {

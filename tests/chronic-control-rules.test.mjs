@@ -7,6 +7,7 @@ const {
   MEDICATION_OPTIONS,
   conditionLabel,
   conditionUsesDiagnosisDuration,
+  getChronicControlTotalPrice,
   recommendChronicControl,
   recommendMultipleChronicControls,
 } = loadModule("lib/chronic-control.ts");
@@ -262,6 +263,27 @@ test("el schema del servidor acepta IDs nuevos y rechaza condiciones arbitrarias
     createChronicControlSchema.safeParse({ ...basePayload, conditions: ["condition_not_allowed"] }).success,
     false,
   );
+});
+
+test("agregar exámenes preventivos no aumenta el precio del control crónico", () => {
+  const rec = recommendMultipleChronicControls(
+    ["hypertension"],
+    false,
+    false,
+    [],
+    [],
+    {
+      age: 40,
+      sex: "M",
+      weightKg: 75,
+      heightCm: 175,
+      smoking: "never",
+      pregnancy: "no",
+    },
+  );
+  assert.equal(getChronicControlTotalPrice(rec), 3990);
+  assert.match(rec.notes.join(" "), /exámenes preventivos adicionales/i);
+  assert.doesNotMatch(rec.notes.join(" "), /\$1\.000/);
 });
 
 test("el servidor recalcula el set desde condiciones válidas antes de guardar", async () => {

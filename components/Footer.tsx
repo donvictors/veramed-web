@@ -80,6 +80,9 @@ export default function Footer() {
               <Link href="/medicos-login" className="transition hover:text-white">
                 Portal médico
               </Link>
+              <Link href="/verificar-orden" className="transition hover:text-white">
+                Verificar orden
+              </Link>
               <Link href="/contacto" className="transition hover:text-white">
                 Contacto
               </Link>

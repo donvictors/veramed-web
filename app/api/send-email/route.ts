@@ -113,7 +113,7 @@ function buildPdfLinksHtml(
 
   return `
     <p style="margin: 0 0 8px;">
-      Puedes revisar tus órdenes validadas en tu cuenta o abrirlos en PDF:
+      Puedes revisar tus órdenes validadas en tu cuenta o abrirlas en PDF:
     </p>
     <ul style="margin: 0 0 12px 18px; padding: 0;">
       ${links}
@@ -360,9 +360,6 @@ export async function POST(request: Request) {
       </p>
       <p style="margin: 0 0 12px;">
         Tu orden de exámenes ya fue generada y validada.
-      </p>
-      <p style="margin: 0 0 12px;">
-        Puedes revisar tus órdenes validadas en tu cuenta o abrirlos en PDF aquí.
       </p>
       ${pdfLinksHtml}
       <p style="margin: 0 0 12px;">
