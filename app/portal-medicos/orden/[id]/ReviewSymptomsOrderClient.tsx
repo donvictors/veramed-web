@@ -6,6 +6,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { TestItem } from "@/lib/checkup";
+import {
+  formatExamNameWithContrast,
+  getExamMetadataByName,
+  getImagingContrastOptionFromName,
+  isContrastConfigurableExam,
+  type ImagingContrastOption,
+} from "@/lib/exam-master-catalog";
 
 type RequestDetailPayload = {
   request: {
@@ -125,6 +132,9 @@ export default function ReviewSymptomsOrderClient({
   const [submitWarning, setSubmitWarning] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedNames, setSelectedNames] = useState<Set<string>>(new Set());
+  const [imagingContrastSelections, setImagingContrastSelections] = useState<
+    Record<string, ImagingContrastOption>
+  >({});
   const [catalogFilter, setCatalogFilter] = useState("");
   const [showClinicalDetails, setShowClinicalDetails] = useState(false);
 
@@ -145,7 +155,18 @@ export default function ReviewSymptomsOrderClient({
         if (cancelled) return;
         setPayload(data);
         const baseTests = data.request.selectedTests;
-        setSelectedNames(new Set(baseTests.map((test) => test.name)));
+        setSelectedNames(
+          new Set(baseTests.map((test) => getExamMetadataByName(test.name)?.name ?? test.name)),
+        );
+        setImagingContrastSelections(
+          Object.fromEntries(
+            baseTests.flatMap((test) => {
+              const baseName = getExamMetadataByName(test.name)?.name ?? test.name;
+              const option = getImagingContrastOptionFromName(test.name);
+              return option ? [[baseName, option]] : [];
+            }),
+          ),
+        );
       } catch (loadError) {
         if (cancelled) return;
         setError(loadError instanceof Error ? loadError.message : "No pudimos cargar la orden.");
@@ -166,7 +187,9 @@ export default function ReviewSymptomsOrderClient({
     return request.suggestedTests.length > 0 ? request.suggestedTests : request.selectedTests;
   }, [request]);
   const selectedTestsPreview = useMemo(() => {
-    const byName = new Map<string, TestItem>(availableTests.map((test) => [test.name, test]));
+    const byName = new Map<string, TestItem>(
+      availableTests.map((test) => [getExamMetadataByName(test.name)?.name ?? test.name, test]),
+    );
     for (const exam of examCatalog) {
       if (!byName.has(exam.name)) {
         byName.set(exam.name, {
@@ -176,18 +199,57 @@ export default function ReviewSymptomsOrderClient({
       }
     }
     return Array.from(selectedNames)
-      .map((name) => byName.get(name))
+      .map((name) => {
+        const test = byName.get(name);
+        if (!test) return undefined;
+        const contrast = imagingContrastSelections[name];
+        return contrast ? { ...test, name: formatExamNameWithContrast(name, contrast) } : test;
+      })
       .filter((item): item is TestItem => Boolean(item))
       .sort((a, b) => a.name.localeCompare(b.name, "es"));
-  }, [availableTests, examCatalog, selectedNames]);
+  }, [availableTests, examCatalog, imagingContrastSelections, selectedNames]);
   const filteredCatalog = useMemo(() => {
     const cleanFilter = catalogFilter.trim().toLowerCase();
     if (!cleanFilter) return examCatalog;
     return examCatalog.filter((exam) => exam.name.toLowerCase().includes(cleanFilter));
   }, [catalogFilter, examCatalog]);
 
+  function updateExamSelection(examName: string, checked: boolean) {
+    const baseName = getExamMetadataByName(examName)?.name ?? examName;
+    setSelectedNames((current) => {
+      const next = new Set(current);
+      if (checked) {
+        next.add(baseName);
+      } else {
+        next.delete(baseName);
+      }
+      return next;
+    });
+    if (!checked) {
+      setImagingContrastSelections((current) => {
+        if (!current[baseName]) return current;
+        const next = { ...current };
+        delete next[baseName];
+        return next;
+      });
+    }
+  }
+
+  function updateImagingContrast(examName: string, option: ImagingContrastOption) {
+    const baseName = getExamMetadataByName(examName)?.name ?? examName;
+    setImagingContrastSelections((current) => ({ ...current, [baseName]: option }));
+    setSubmitError("");
+  }
+
   async function handleValidate() {
     if (!request || isSubmitting) return;
+    const missingContrast = Array.from(selectedNames).find(
+      (name) => isContrastConfigurableExam(name) && !imagingContrastSelections[name],
+    );
+    if (missingContrast) {
+      setSubmitError(`Indica si ${missingContrast} se solicita con o sin contraste.`);
+      return;
+    }
     try {
       setIsSubmitting(true);
       setSubmitError("");
@@ -199,6 +261,9 @@ export default function ReviewSymptomsOrderClient({
         },
         body: JSON.stringify({
           selectedExamNames: Array.from(selectedNames),
+          imagingContrastSelections: Object.fromEntries(
+            Object.entries(imagingContrastSelections).filter(([name]) => selectedNames.has(name)),
+          ),
         }),
       });
       const data = (await response.json().catch(() => null)) as
@@ -473,39 +538,39 @@ export default function ReviewSymptomsOrderClient({
         <p className="text-sm font-semibold text-slate-900">Exámenes sugeridos por IA</p>
         <div className="mt-3 grid gap-2">
           {availableTests.map((test) => {
-            const selected = selectedNames.has(test.name);
+            const baseName = getExamMetadataByName(test.name)?.name ?? test.name;
+            const selected = selectedNames.has(baseName);
             return (
-              <label
+              <div
                 key={test.name}
-                className={`flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2 text-sm ${
+                className={`rounded-xl border px-3 py-2 text-sm ${
                   selected
                     ? "border-slate-300 bg-white text-slate-900"
                     : "border-slate-200 bg-slate-50 text-slate-500"
                 }`}
               >
-                <input
-                  type="checkbox"
-                  checked={selected}
-                  onChange={(event) => {
-                    const checked = event.target.checked;
-                    setSelectedNames((current) => {
-                      const next = new Set(current);
-                      if (checked) {
-                        next.add(test.name);
-                      } else {
-                        next.delete(test.name);
-                      }
-                      return next;
-                    });
-                  }}
-                  className="mt-1 h-4 w-4 rounded border-slate-300"
-                  disabled={request.reviewStatus === "validated"}
-                />
-                <div>
-                  <p className="font-semibold">{test.name}</p>
-                  <p className="text-xs">{test.why}</p>
-                </div>
-              </label>
+                <label className="flex cursor-pointer items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={selected}
+                    onChange={(event) => updateExamSelection(baseName, event.target.checked)}
+                    className="mt-1 h-4 w-4 rounded border-slate-300"
+                    disabled={request.reviewStatus === "validated"}
+                  />
+                  <span>
+                    <span className="block font-semibold">{test.name}</span>
+                    <span className="block text-xs">{test.why}</span>
+                  </span>
+                </label>
+                {selected && isContrastConfigurableExam(baseName) ? (
+                  <ImagingContrastSelector
+                    examName={baseName}
+                    value={imagingContrastSelections[baseName]}
+                    disabled={request.reviewStatus === "validated"}
+                    onChange={(option) => updateImagingContrast(baseName, option)}
+                  />
+                ) : null}
+              </div>
             );
           })}
         </div>
@@ -529,39 +594,38 @@ export default function ReviewSymptomsOrderClient({
           {filteredCatalog.map((exam) => {
             const selected = selectedNames.has(exam.name);
             return (
-              <label
+              <div
                 key={`catalog-${exam.name}`}
-                className={`flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2 text-sm ${
+                className={`rounded-xl border px-3 py-2 text-sm ${
                   selected
                     ? "border-slate-300 bg-white text-slate-900"
                     : "border-slate-200 bg-slate-50 text-slate-600"
                 }`}
               >
-                <input
-                  type="checkbox"
-                  checked={selected}
-                  onChange={(event) => {
-                    const checked = event.target.checked;
-                    setSelectedNames((current) => {
-                      const next = new Set(current);
-                      if (checked) {
-                        next.add(exam.name);
-                      } else {
-                        next.delete(exam.name);
-                      }
-                      return next;
-                    });
-                  }}
-                  className="mt-1 h-4 w-4 rounded border-slate-300"
-                  disabled={request.reviewStatus === "validated"}
-                />
-                <div>
-                  <p className="font-semibold">{exam.name}</p>
-                  <p className="text-xs text-slate-500">
-                    {exam.category} · Código FONASA: {exam.fonasaCode}
-                  </p>
-                </div>
-              </label>
+                <label className="flex cursor-pointer items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={selected}
+                    onChange={(event) => updateExamSelection(exam.name, event.target.checked)}
+                    className="mt-1 h-4 w-4 rounded border-slate-300"
+                    disabled={request.reviewStatus === "validated"}
+                  />
+                  <span>
+                    <span className="block font-semibold">{exam.name}</span>
+                    <span className="block text-xs text-slate-500">
+                      {exam.category} · Código FONASA: {exam.fonasaCode}
+                    </span>
+                  </span>
+                </label>
+                {selected && isContrastConfigurableExam(exam.name) ? (
+                  <ImagingContrastSelector
+                    examName={exam.name}
+                    value={imagingContrastSelections[exam.name]}
+                    disabled={request.reviewStatus === "validated"}
+                    onChange={(option) => updateImagingContrast(exam.name, option)}
+                  />
+                ) : null}
+              </div>
             );
           })}
           {filteredCatalog.length === 0 ? (
@@ -627,6 +691,45 @@ export default function ReviewSymptomsOrderClient({
         </p>
       ) : null}
     </section>
+  );
+}
+
+function ImagingContrastSelector({
+  examName,
+  value,
+  disabled,
+  onChange,
+}: {
+  examName: string;
+  value?: ImagingContrastOption;
+  disabled: boolean;
+  onChange: (option: ImagingContrastOption) => void;
+}) {
+  return (
+    <fieldset className="ml-7 mt-3 rounded-xl border border-sky-200 bg-sky-50/70 px-3 py-2.5">
+      <legend className="px-1 text-xs font-semibold text-slate-800">
+        ¿Con contraste o sin contraste?
+      </legend>
+      <div className="mt-1 flex flex-wrap gap-x-5 gap-y-2">
+        {([
+          ["with_contrast", "Con contraste"],
+          ["without_contrast", "Sin contraste"],
+        ] as const).map(([option, label]) => (
+          <label key={option} className="inline-flex cursor-pointer items-center gap-2 text-xs text-slate-700">
+            <input
+              type="radio"
+              name={`contrast-${examName}`}
+              value={option}
+              checked={value === option}
+              onChange={() => onChange(option)}
+              disabled={disabled}
+              className="h-4 w-4 border-slate-300 text-slate-950"
+            />
+            {label}
+          </label>
+        ))}
+      </div>
+    </fieldset>
   );
 }
 

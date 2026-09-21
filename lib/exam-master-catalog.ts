@@ -23,6 +23,8 @@ export type ExamMasterCatalogItem = {
   aliases?: string[];
 };
 
+export type ImagingContrastOption = "with_contrast" | "without_contrast";
+
 export const EXAM_MASTER_CATALOG: readonly ExamMasterCatalogItem[] = [
   { name: "Ácido úrico", category: "laboratory", fonasaCode: "0302005" },
   { name: "Albúmina", category: "laboratory", fonasaCode: "0302101" },
@@ -421,6 +423,14 @@ function normalizeExamName(value: string) {
     .trim();
 }
 
+function stripImagingContrastSuffix(value: string) {
+  return value.replace(/\s+(?:con|sin) contraste$/i, "").trim();
+}
+
+function isContrastConfigurableMetadata(exam: ExamMasterCatalogItem | undefined) {
+  return Boolean(exam && exam.category === "image" && /^(?:TC|RM)\b/i.test(exam.name));
+}
+
 const EXAM_MASTER_BY_NORMALIZED_NAME = new Map<string, ExamMasterCatalogItem>();
 
 for (const exam of EXAM_MASTER_CATALOG) {
@@ -435,7 +445,35 @@ export function getExamCatalog() {
 }
 
 export function getExamMetadataByName(examName: string) {
-  return EXAM_MASTER_BY_NORMALIZED_NAME.get(normalizeExamName(examName));
+  const exact = EXAM_MASTER_BY_NORMALIZED_NAME.get(normalizeExamName(examName));
+  if (exact) return exact;
+
+  const base = EXAM_MASTER_BY_NORMALIZED_NAME.get(
+    normalizeExamName(stripImagingContrastSuffix(examName)),
+  );
+  return isContrastConfigurableMetadata(base) ? base : undefined;
+}
+
+export function isContrastConfigurableExam(examName: string) {
+  return isContrastConfigurableMetadata(getExamMetadataByName(examName));
+}
+
+export function getImagingContrastOptionFromName(
+  examName: string,
+): ImagingContrastOption | undefined {
+  if (!isContrastConfigurableExam(examName)) return undefined;
+  if (/\s+con contraste$/i.test(examName)) return "with_contrast";
+  if (/\s+sin contraste$/i.test(examName)) return "without_contrast";
+  return undefined;
+}
+
+export function formatExamNameWithContrast(
+  examName: string,
+  option: ImagingContrastOption,
+) {
+  const metadata = getExamMetadataByName(examName);
+  if (!metadata || !isContrastConfigurableMetadata(metadata)) return examName;
+  return `${metadata.name} ${option === "with_contrast" ? "con contraste" : "sin contraste"}`;
 }
 
 export function getExamMetadataByClinicalExamId(clinicalExamId: string) {

@@ -291,13 +291,55 @@ test("validación médica permite firmar en urgencias y cerrar cero exámenes si
       "@/lib/server/symptoms-order-pdf-assets": { ensureSymptomsSignedPdfAssets: async () => { signed++; return []; } },
       "@/lib/server/symptoms-order-email": { sendSymptomsValidatedOrderEmail: async () => { email++; } },
       "@/lib/server/order-pdf-access": { createTemporaryPdfAccessLinks: async () => [] },
-      "@/lib/server/http-security": { requireSameOrigin() {}, readJsonBody: async () => ({ selectedExamNames: withTests ? ["TC de cerebro"] : [] }) },
+      "@/lib/server/http-security": {
+        requireSameOrigin() {},
+        readJsonBody: async () => ({
+          selectedExamNames: withTests ? ["TC de cerebro"] : [],
+          imagingContrastSelections: withTests ? { "TC de cerebro": "without_contrast" } : {},
+        }),
+      },
     });
     const response = await POST(new Request("https://veramed.test/validate", { method: "POST" }), { params: Promise.resolve({ id: record.id }) });
     assert.equal(response.status, 200);
     assert.equal(validatedInput.selectedTests.length, withTests ? 1 : 0);
+    assert.equal(
+      validatedInput.selectedTests[0]?.name,
+      withTests ? "TC de cerebro sin contraste" : undefined,
+    );
     assert.equal(signed, withTests ? 1 : 0);
     assert.equal(email, 1, "Conserva notificación de la evaluación al paciente (servicio mock)");
+  }
+});
+
+test("validación médica exige contraste en TC/RM y rechaza selecciones de contraste ajenas", async () => {
+  const assessment = proposal("Cefalea de inicio explosivo hace una hora.", "Hemorragia subaracnoidea posible", ["TC de cerebro"], "emergency");
+  const record = { ...mockRecord(run(assessment)), payment: { status: "paid" } };
+
+  for (const body of [
+    { selectedExamNames: ["TC de cerebro"], imagingContrastSelections: {} },
+    {
+      selectedExamNames: ["TC de cerebro"],
+      imagingContrastSelections: {
+        "TC de cerebro": "without_contrast",
+        "RM de cerebro": "with_contrast",
+      },
+    },
+  ]) {
+    let validated = false;
+    const { POST } = loadModule("app/api/portal-medicos/symptoms/[id]/validate/route.ts", {
+      "next/server": { NextResponse: { json: (responseBody, options) => ({ body: responseBody, status: options?.status ?? 200 }) } },
+      "next/headers": { cookies: async () => ({ get: () => ({ value: "session" }) }) },
+      "@/lib/server/medical-portal-auth": { MEDICAL_PORTAL_SESSION_COOKIE: "medical", canValidateMedicalOrders: () => true, verifyMedicalPortalSessionToken: async () => ({ userId: "doctor-test", email: "doctor@example.test", name: "Doctor", medicalRut: "test", sisRegistration: "test" }), recordMedicalAudit: async () => {} },
+      "@/lib/server/symptoms-store": { getSymptomsRequest: async () => record, validateSymptomsOrder: async () => { validated = true; } },
+      "@/lib/server/symptoms-order-pdf-assets": { ensureSymptomsSignedPdfAssets: async () => [] },
+      "@/lib/server/symptoms-order-email": { sendSymptomsValidatedOrderEmail: async () => {} },
+      "@/lib/server/order-pdf-access": { createTemporaryPdfAccessLinks: async () => [] },
+      "@/lib/server/http-security": { requireSameOrigin() {}, readJsonBody: async () => body },
+    });
+    const response = await POST(new Request("https://veramed.test/validate", { method: "POST" }), { params: Promise.resolve({ id: record.id }) });
+    assert.equal(response.status, 400);
+    assert.match(response.body.error, /TC o RM/);
+    assert.equal(validated, false);
   }
 });
 

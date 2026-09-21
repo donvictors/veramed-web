@@ -2,7 +2,11 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { type TestItem } from "@/lib/checkup";
-import { getExamMetadataByName } from "@/lib/exam-master-catalog";
+import {
+  formatExamNameWithContrast,
+  getExamMetadataByName,
+  isContrastConfigurableExam,
+} from "@/lib/exam-master-catalog";
 import {
   canValidateMedicalOrders,
   MEDICAL_PORTAL_SESSION_COOKIE,
@@ -21,6 +25,9 @@ type Params = {
 
 const bodySchema = z.object({
   selectedExamNames: z.array(z.string().min(1)).max(100),
+  imagingContrastSelections: z
+    .record(z.string(), z.enum(["with_contrast", "without_contrast"]))
+    .default({}),
 });
 
 function uniqueByName(tests: TestItem[]) {
@@ -94,15 +101,42 @@ export async function POST(request: Request, context: Params) {
     }
 
     const pool = record.suggestedTests.length > 0 ? record.suggestedTests : record.selectedTests;
-    const requestedNames = new Set(parsedBody.data.selectedExamNames.map((name) => name.trim()));
-    const poolByName = new Map(pool.map((test) => [test.name, test] as const));
+    const requestedNames = new Set(
+      parsedBody.data.selectedExamNames.map((name) => {
+        const trimmedName = name.trim();
+        return getExamMetadataByName(trimmedName)?.name ?? trimmedName;
+      }),
+    );
+    const poolByName = new Map(
+      pool.map((test) => [getExamMetadataByName(test.name)?.name ?? test.name, test] as const),
+    );
     if (Array.from(requestedNames).some(name => !poolByName.has(name) && !getExamMetadataByName(name))) {
       return NextResponse.json({ error: "Hay exámenes que no pertenecen al catálogo." }, { status: 400 });
+    }
+    const contrastSelections = parsedBody.data.imagingContrastSelections;
+    const invalidContrastEntry = Object.keys(contrastSelections).some(
+      (name) => !requestedNames.has(name) || !isContrastConfigurableExam(name),
+    );
+    const missingContrastSelection = Array.from(requestedNames).some(
+      (name) => isContrastConfigurableExam(name) && !contrastSelections[name],
+    );
+    if (invalidContrastEntry || missingContrastSelection) {
+      return NextResponse.json(
+        { error: "Debes indicar si cada TC o RM seleccionada se solicita con o sin contraste." },
+        { status: 400 },
+      );
     }
     const selected = uniqueByName(
       Array.from(requestedNames)
         .map((name) => poolByName.get(name) ?? buildManualTestFromCatalog(name))
-        .filter((item): item is TestItem => Boolean(item)),
+        .filter((item): item is TestItem => Boolean(item))
+        .map((test) => {
+          const baseName = getExamMetadataByName(test.name)?.name ?? test.name;
+          const contrast = contrastSelections[baseName];
+          return contrast
+            ? { ...test, name: formatExamNameWithContrast(baseName, contrast) }
+            : test;
+        }),
     );
 
     const validated = await validateSymptomsOrder({

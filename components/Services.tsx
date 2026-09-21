@@ -57,6 +57,7 @@ const orderServices = [
     action: "Solicitar derivación",
     points: ["Revisión del antecedente", "Reglas clínicas versionadas", "Validación médica antes de emitir"],
     highlighted: false,
+    comingSoon: true,
   },
   {
     title: "Renovar receta",
@@ -68,6 +69,7 @@ const orderServices = [
     action: "Renovar receta",
     points: ["Tratamientos habituales elegibles", "Encuesta breve", "Un médico valida la renovación"],
     highlighted: false,
+    comingSoon: true,
   },
   {
     title: "Control de peso",
@@ -80,6 +82,7 @@ const orderServices = [
     points: ["Evaluación gratuita", "Criterios clínicos determinísticos", "Revisión médica antes del tratamiento"],
     highlighted: true,
     bestSeller: true,
+    comingSoon: true,
   },
 ];
 
@@ -121,6 +124,7 @@ type Service = {
   points: string[];
   highlighted: boolean;
   bestSeller?: boolean;
+  comingSoon?: boolean;
 };
 
 function ServiceGroup({ title, services, startIndex }: { title: string; services: Service[]; startIndex: number }) {
@@ -131,12 +135,17 @@ function ServiceGroup({ title, services, startIndex }: { title: string; services
           {services.map((service, index) => (
             <article
               key={service.title}
-              className={`group relative flex h-full flex-col overflow-hidden rounded-[2rem] border p-5 transition duration-300 hover:-translate-y-1 ${
+              className={`group relative flex h-full flex-col overflow-hidden rounded-[2rem] border p-5 transition duration-300 ${
+                service.comingSoon ? "grayscale-[0.25]" : "hover:-translate-y-1"
+              } ${
                 service.highlighted
                   ? "border-amber-300 bg-gradient-to-b from-amber-50/70 to-white text-slate-950 shadow-[0_28px_80px_-48px_rgba(180,125,28,0.55)] hover:border-amber-400"
                   : "border-slate-200 bg-white text-slate-950 shadow-[0_24px_70px_-50px_rgba(15,23,42,0.4)] hover:border-emerald-200"
               }`}
             >
+              {service.comingSoon ? (
+                <span className="pointer-events-none absolute inset-0 z-20 bg-slate-500/10" aria-hidden="true" />
+              ) : null}
               {service.bestSeller ? (
                 <span className="absolute -right-10 top-5 z-10 w-36 rotate-45 bg-amber-600 py-1.5 text-center text-[10px] font-bold uppercase tracking-[0.12em] text-white shadow-sm">
                   Más vendido
@@ -148,7 +157,7 @@ function ServiceGroup({ title, services, startIndex }: { title: string; services
                     service.highlighted ? "text-amber-700" : "text-emerald-700"
                   }`}
                 >
-                  Disponible
+                  {service.comingSoon ? "Próximamente..." : "Disponible"}
                 </span>
                 <span
                   className={`inline-flex h-8 w-8 items-center justify-center rounded-2xl text-xs font-bold ${
@@ -189,17 +198,26 @@ function ServiceGroup({ title, services, startIndex }: { title: string; services
                     {service.price}
                   </p>
                 </div>
-                <Link
-                  href={service.href}
-                  className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
-                    service.highlighted
-                      ? "bg-amber-600 text-white hover:bg-amber-700"
-                      : "bg-slate-950 text-white hover:bg-emerald-700"
-                  }`}
-                  aria-label={service.action}
-                >
-                  {service.action} <span aria-hidden="true">→</span>
-                </Link>
+                {service.comingSoon ? (
+                  <span
+                    aria-disabled="true"
+                    className="inline-flex cursor-not-allowed items-center gap-2 rounded-xl bg-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-500"
+                  >
+                    {service.action} <span aria-hidden="true">→</span>
+                  </span>
+                ) : (
+                  <Link
+                    href={service.href}
+                    className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+                      service.highlighted
+                        ? "bg-amber-600 text-white hover:bg-amber-700"
+                        : "bg-slate-950 text-white hover:bg-emerald-700"
+                    }`}
+                    aria-label={service.action}
+                  >
+                    {service.action} <span aria-hidden="true">→</span>
+                  </Link>
+                )}
               </div>
             </article>
           ))}

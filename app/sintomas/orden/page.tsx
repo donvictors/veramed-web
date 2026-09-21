@@ -35,6 +35,15 @@ const LETTER_PRINT_CONFIG = {
   bodyHeightMm: 164,
 };
 
+function getDisplayedCareGuidance(
+  careDecision: NonNullable<SymptomsOrderDraft["careDecision"]>,
+) {
+  if (careDecision.care_level === "presencial_priority") {
+    return "Busca evaluación médica presencial prioritaria. Puedes continuar con tu orden, pero no retrases una consulta médica esperando la firma, los exámenes o sus resultados.";
+  }
+  return careDecision.patient_guidance;
+}
+
 function readOrderFromStorage() {
   if (typeof window === "undefined") return null;
   try {
@@ -184,7 +193,9 @@ function SymptomsOrderPageContent() {
         {order.careDecision ? (
           <aside role={order.careDecision.care_level === "emergency" ? "alert" : "status"} className={`mb-6 rounded-2xl border-2 p-5 print:hidden ${order.careDecision.care_level === "emergency" ? "border-red-400 bg-red-50 text-red-950" : "border-amber-300 bg-amber-50 text-slate-950"}`}>
             <h2 className="text-xl font-semibold">{CARE_LABELS[order.careDecision.care_level]}</h2>
-            <p className="mt-2 text-sm leading-6">{order.careDecision.patient_guidance}</p>
+            <p className="mt-2 text-sm leading-6">
+              {getDisplayedCareGuidance(order.careDecision)}
+            </p>
           </aside>
         ) : order.flow.nextStep === "show_urgent_warning" || order.flow.nextStep === "show_emergency_warning" ? (
           <aside role="alert" className="mb-6 rounded-2xl border-2 border-red-300 bg-red-50 p-5 print:hidden">
@@ -266,10 +277,11 @@ function SymptomsOrderPageContent() {
                 {allTests.length ? "Orden médica de exámenes" : "Evaluación sin exámenes propuestos"}
               </p>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                Documento generado mediante tecnología de flujo de síntomas de Veramed © y
+                Documento generado mediante tecnología de flujo de síntomas de Veramed ©.
+                <br />
                 {isValidated
-                  ? " validación técnica por médico firmante."
-                  : " pendiente de validación y firma médica."}
+                  ? "Validado y firmado por un médico de nuestro staff."
+                  : "Pendiente validación y firma por un médico de nuestro staff."}
               </p>
             </div>
 
@@ -289,11 +301,6 @@ function SymptomsOrderPageContent() {
             <Info label="Celular" value={order.patient.phone || "No informado"} />
             <Info label="Dirección" value={order.patient.address || "No informada"} />
             <Info label="Edad" value={patientAge > 0 ? `${patientAge}` : "No informada"} />
-            <Info label="Sexo" value="No informado" />
-            <Info label="Peso" value="No informado" />
-            <Info label="Talla" value="No informado" />
-            <Info label="Tabaco" value="No informado" />
-            <Info label="Actividad sexual" value="No informada" />
           </div>
 
           <div className="mt-8 rounded-3xl bg-slate-50 p-5">
@@ -334,9 +341,7 @@ function SymptomsOrderPageContent() {
                     <th className="px-4 py-3 font-semibold text-slate-700">
                       Examen / procedimiento
                     </th>
-                    <th className="px-4 py-3 font-semibold text-slate-700">
-                      Justificación clínica
-                    </th>
+                    <th className="px-4 py-3 font-semibold text-slate-700">Observaciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 bg-white">
@@ -363,7 +368,13 @@ function SymptomsOrderPageContent() {
                             <td className="px-4 py-4 align-top font-semibold text-slate-900">
                               {test.name}
                             </td>
-                            <td className="px-4 py-4 align-top text-slate-600">{test.why}</td>
+                            <td className="px-4 py-4 align-top text-slate-600">
+                              {getPreparationNote(
+                                test.name,
+                                displayOrderDetails.needsFasting,
+                                category,
+                              )}
+                            </td>
                           </tr>
                         ))}
                       </Fragment>
@@ -391,20 +402,6 @@ function SymptomsOrderPageContent() {
               </ul>
             </div>
           </div>
-
-          {order.notes.length > 0 && (
-            <div className="mt-8 rounded-3xl bg-slate-50 p-5">
-              <p className="text-sm font-semibold text-slate-900">Observaciones adicionales</p>
-              <ul className="mt-3 grid gap-2 text-sm text-slate-700">
-                {order.notes.map((note, idx) => (
-                  <li key={idx} className="flex gap-2">
-                    <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" />
-                    <span>{note}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
 
           <div className="mt-8 grid gap-6 border-t border-slate-200 pt-6 md:grid-cols-2">
             <div className="rounded-3xl bg-slate-50 p-5">
@@ -722,7 +719,6 @@ function BodyExams({
                 <p className="text-slate-700">
                   Observaciones: {getPreparationNote(test.name, needsFasting, category)}
                 </p>
-                <p className="text-slate-700">Indicación: {test.why}</p>
                 <p className="text-slate-700">Fecha: {issuedAt.split(",")[0] ?? issuedAt}</p>
                 <p className="text-slate-700">
                   Códigos FONASA: {getFonasaCodeByExamName(test.name)}
@@ -769,8 +765,7 @@ function estimatePrintItemHeightMm(test: TestItem, category: OrderCategory) {
   const note = getPreparationNote(test.name, false, category);
   const titleLines = Math.max(1, Math.ceil(test.name.length / 40));
   const noteLines = Math.max(1, Math.ceil(`Observaciones: ${note}`.length / 60));
-  const indicationLines = Math.max(1, Math.ceil(`Indicación: ${test.why}`.length / 75));
-  return 8 + titleLines * 4.5 + noteLines * 4 + indicationLines * 5.3 + 8;
+  return 8 + titleLines * 4.5 + noteLines * 4 + 8;
 }
 
 function OrderFooter({

@@ -225,6 +225,12 @@ test("la preorden por síntomas queda identificada visualmente como borrador", (
   assert.match(orderPage, /Borrador — no válido como orden médica/);
   assert.match(orderPage, /VISTA PREVIA — NO VÁLIDA/);
   assert.match(orderPage, /showSignature=\{isValidated\}/);
+  assert.match(orderPage, /pero no retrases una consulta médica esperando la firma/);
+  assert.match(orderPage, /Pendiente validación y firma por un médico de nuestro staff/);
+  assert.doesNotMatch(orderPage, /<Info label="Sexo"/);
+  assert.doesNotMatch(orderPage, /<Info label="Peso"/);
+  assert.doesNotMatch(orderPage, /<h2 className="text-base font-semibold">Observaciones adicionales<\/h2>/);
+  assert.doesNotMatch(orderPage, /Justificación clínica/);
 });
 
 test("el portal médico permite expandir la historia clínica completa", () => {
@@ -233,6 +239,18 @@ test("el portal médico permite expandir la historia clínica completa", () => {
   assert.match(reviewPage, /Relato original/);
   assert.match(reviewPage, /Antecedentes declarados/);
   assert.match(reviewPage, /Entrevista de seguimiento/);
+  assert.match(reviewPage, /¿Con contraste o sin contraste\?/);
+  assert.match(reviewPage, /imagingContrastSelections/);
+});
+
+test("la entrevista usa el logotipo clásico y los servicios futuros quedan deshabilitados", () => {
+  const avatar = read("components/VeramedAssistantAvatar.tsx");
+  const services = read("components/Services.tsx");
+  assert.match(avatar, /\/brand\/veramed-icon\.png/);
+  assert.doesNotMatch(avatar, /<svg/);
+  assert.match(services, /comingSoon: true/);
+  assert.match(services, /Próximamente\.\.\./);
+  assert.match(services, /aria-disabled="true"/);
 });
 
 test("el portal médico reutiliza el validador y aísla los nuevos borradores clínicos", () => {
