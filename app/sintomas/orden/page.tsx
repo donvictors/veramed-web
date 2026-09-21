@@ -11,7 +11,10 @@ import {
   inferOrderDetails,
   type TestItem,
 } from "@/lib/checkup";
-import { getExamObservationForOrder } from "@/lib/exam-master-catalog";
+import {
+  expandExamItemsForOrder,
+  getExamObservationForOrder,
+} from "@/lib/exam-master-catalog";
 import { getFonasaCodeByExamName } from "@/lib/fonasa-codes";
 import {
   getOrderCategoryByTestName,
@@ -150,8 +153,8 @@ function SymptomsOrderPageContent() {
     );
   }
 
-  const categorizedTests = categorizeSymptomsTests(order.tests);
-  const allTests = order.tests;
+  const allTests = expandExamItemsForOrder(order.tests);
+  const categorizedTests = categorizeSymptomsTests(allTests);
   const laboratoryTests = categorizedTests.laboratory;
   const availableCategories = ORDER_CATEGORIES.filter(
     (category) => categorizedTests[category].length > 0,

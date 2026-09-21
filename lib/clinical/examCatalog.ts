@@ -87,13 +87,13 @@ const RAW_EXAM_CATALOG = [
   },
   {
     id: "pregnancy_test",
-    label: "Test de embarazo (hCG)",
+    label: "Test de embarazo en sangre (hCG)",
     category: "laboratory",
     shortDescription: "Detección de embarazo en contexto clínico pertinente.",
   },
   {
     id: "chest_xray",
-    label: "Radiografía de tórax",
+    label: "Radiografía de tórax PA/L",
     category: "image",
     shortDescription: "Imagen inicial en evaluación respiratoria seleccionada.",
   },
@@ -162,4 +162,3 @@ export const EXAM_CATALOG_IDS = new Set(EXAM_CATALOG.map((exam) => exam.id));
 export function getExamById(examId: string) {
   return EXAM_CATALOG_MAP.get(examId);
 }
-

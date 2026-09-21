@@ -1,7 +1,13 @@
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { calculateAgeFromBirthDate, createVerificationCode } from "@/lib/checkup";
+import { calculateAgeFromBirthDate, createVerificationCode, inferOrderDetails } from "@/lib/checkup";
+import {
+  expandExamItemsForOrder,
+  getExamCategoryByName,
+  getExamFonasaCodeByName,
+  getExamObservationForOrder,
+} from "@/lib/exam-master-catalog";
 import {
   loadProtectedMedicalSignature,
   type MedicalSignerIdentity,
@@ -327,6 +333,8 @@ export async function buildOrderPdf(input: BuildOrderPdfInput) {
   const issuedAtLabel = formatIssuedAt(input.issuedAtMs);
   const verificationCode = createVerificationCode(input.patient.rut, input.issuedAtMs);
   const includeSignature = Boolean(input.signer);
+  const tests = expandExamItemsForOrder(input.tests);
+  const orderDetails = inferOrderDetails(tests);
 
   const topLimit = 210;
   const bottomLimit = 136;
@@ -348,8 +356,8 @@ export async function buildOrderPdf(input: BuildOrderPdfInput) {
 
   const pages: import("pdf-lib").PDFPage[] = [page];
 
-  for (const test of input.tests) {
-    const contentHeight = 10 + lineHeight * 3 + Math.ceil(test.name.length / 55) * lineHeight;
+  for (const test of tests) {
+    const contentHeight = 10 + lineHeight * 4 + Math.ceil(test.name.length / 55) * lineHeight;
     if (y - contentHeight <= bottomLimit) {
       page = doc.addPage([612, 792]);
       pages.push(page);
@@ -378,7 +386,20 @@ export async function buildOrderPdf(input: BuildOrderPdfInput) {
     });
     y -= lineHeight;
 
-    page.drawText(`Observaciones: ${test.why || "No requiere preparación especial."}`, {
+    const category = getExamCategoryByName(test.name);
+    const observation = getExamObservationForOrder(test.name, {
+      needsFasting: orderDetails.needsFasting,
+      category,
+    });
+    page.drawText(`Observaciones: ${observation}`, {
+      x: marginX + 16,
+      y,
+      size: 10,
+      font,
+    });
+    y -= lineHeight;
+
+    page.drawText(`Códigos FONASA: ${getExamFonasaCodeByName(test.name)}`, {
       x: marginX + 16,
       y,
       size: 10,

@@ -2,6 +2,7 @@ import { del, put } from "@vercel/blob";
 import { OrderPdfCategoryDb, TransbankRequestTypeDb } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { type PatientDetails, type TestItem } from "@/lib/checkup";
+import { expandExamItemsForOrder } from "@/lib/exam-master-catalog";
 import { getOrderCategoryByTestName, type OrderCategory } from "@/lib/order-categories";
 import { buildOrderPdf } from "@/lib/server/order-pdf";
 import { renderOrderPdfFromOrderPage } from "@/lib/server/order-pdf-browser";
@@ -88,7 +89,7 @@ function getTargetCategories(input: EnsureOrderPdfAssetsInput): Map<OrderPdfCate
     ["interconsultation", []],
   ]);
 
-  for (const test of input.tests) {
+  for (const test of expandExamItemsForOrder(input.tests)) {
     const category = classifyCheckupTest(test.name);
     grouped.get(category)?.push(test);
   }

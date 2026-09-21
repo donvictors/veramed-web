@@ -4,6 +4,7 @@ import { AUTH_SESSION_COOKIE } from "@/lib/auth";
 import { getUserFromSession } from "@/lib/server/auth-store";
 import { getChronicControlRecord } from "@/lib/server/chronic-control-store";
 import { buildOrderPdf } from "@/lib/server/order-pdf";
+import { expandExamItemsForOrder } from "@/lib/exam-master-catalog";
 import { requireApprovedMedicalSigner } from "@/lib/server/medical-approval";
 import { hasValidInternalAccess } from "@/lib/server/internal-access";
 import {
@@ -69,7 +70,7 @@ export async function GET(_request: Request, context: RouteContext) {
     phone: "",
     address: "",
   };
-  const tests = record.rec.tests.map((test) => ({
+  const tests = expandExamItemsForOrder(record.rec.tests).map((test) => ({
     name: test.name,
     why: test.why,
   }));

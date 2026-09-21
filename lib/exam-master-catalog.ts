@@ -32,10 +32,10 @@ export const EXAM_MASTER_CATALOG: readonly ExamMasterCatalogItem[] = [
   {
     name: "Aldosterona o aldosterona sérica",
     category: "laboratory",
-    fonasaCode: "Sin Código",
+    fonasaCode: "0303002",
     requiresFasting: true,
     orderObservation:
-      "Requiere ayuno de 8 horas. Mantener consumo habitual de sal u otro según indicación médica. Evitar alcohol 24 horas antes. La muestra debe tomarse antes de las 10:00 AM y el paciente debe permanecer sentado por 15 minutos antes de la punción venosa.",
+      "Requiere ayuno de 8 horas. Mantener consumo habitual de sal, salvo indicación médica distinta. Evitar alcohol durante las 24 horas previas. Tomar la muestra antes de las 10:00 AM y permanecer sentado durante 15 minutos antes de la punción.",
     aliases: ["Aldosterona", "Aldosterona sérica"],
   },
   {
@@ -48,7 +48,7 @@ export const EXAM_MASTER_CATALOG: readonly ExamMasterCatalogItem[] = [
   {
     name: "Anticuerpos anti-células parietales y anti-factor intrínseco por ELISA",
     category: "laboratory",
-    fonasaCode: "Sin Código",
+    fonasaCode: "0305007, 0305007",
     orderObservation: "No requiere preparación.",
     aliases: ["Anti-células parietales y anti-factor intrínseco por ELISA"],
   },
@@ -83,12 +83,12 @@ export const EXAM_MASTER_CATALOG: readonly ExamMasterCatalogItem[] = [
   {
     name: "Antígeno de Helicobacter pylori en deposiciones",
     category: "laboratory",
-    fonasaCode: "No informado",
+    fonasaCode: "0308063",
     sampleType: "Deposiciones",
     orderObservation: "Requiere muestra de deposiciones según indicación del laboratorio.",
   },
   { name: "Antígeno prostático específico (APE)", category: "laboratory", fonasaCode: "0305070" },
-  { name: "Anticuerpo anti-CCP", category: "laboratory", fonasaCode: "No informado" },
+  { name: "Anticuerpo anti-CCP", category: "laboratory", fonasaCode: "0305099" },
   { name: "Antígeno influenza A y B", category: "laboratory", fonasaCode: "0306070", orderObservation: "No requiere preparación." },
   { name: "Calcio total", category: "laboratory", fonasaCode: "0302015" },
   {
@@ -100,12 +100,19 @@ export const EXAM_MASTER_CATALOG: readonly ExamMasterCatalogItem[] = [
     aliases: ["Calprotectina fecal", "Calprotectina cuantitativa por ELISA"],
   },
   { name: "Carga viral VIH", category: "laboratory", fonasaCode: "0306086" },
-  { name: "Cinética de fierro", category: "laboratory", fonasaCode: "0301030" },
-  { name: "Colonoscopía total", category: "procedure", fonasaCode: "No informado" },
+  {
+    name: "Cinética de fierro",
+    category: "laboratory",
+    fonasaCode: "0301030",
+    requiresFasting: true,
+    orderObservation:
+      "Requiere ayuno de 8 horas. Idealmente realizar la toma durante la mañana, antes del mediodía.",
+  },
+  { name: "Colonoscopía total", category: "procedure", fonasaCode: "1801006" },
   {
     name: "Coprocultivo",
     category: "laboratory",
-    fonasaCode: "No informado",
+    fonasaCode: "0306007",
     sampleType: "Deposiciones",
     orderObservation: "Requiere muestra de deposiciones según indicación del laboratorio.",
   },
@@ -122,11 +129,15 @@ export const EXAM_MASTER_CATALOG: readonly ExamMasterCatalogItem[] = [
     name: "Cuantificación de complemento C3",
     category: "laboratory",
     fonasaCode: "0305012",
+    requiresFasting: false,
+    orderObservation: "Ayuno de 6 horas recomendable.",
   },
   {
     name: "Cuantificación de complemento C4",
     category: "laboratory",
     fonasaCode: "0305012",
+    requiresFasting: false,
+    orderObservation: "Ayuno de 6 horas recomendable.",
   },
   {
     name: "Cuantificación de subpoblaciones de linfocitos T (CD3, CD4, CD8)",
@@ -139,7 +150,7 @@ export const EXAM_MASTER_CATALOG: readonly ExamMasterCatalogItem[] = [
     fonasaCode: "0303006",
     requiresFasting: true,
     orderObservation:
-      "Requiere ayuno de 10–12 horas y reposo de al menos 30 minutos antes de la toma de muestra. Debe recolectarse antes de las 09:00 AM.",
+      "Requiere ayuno de 10–12 horas. Agua permitida. Requiere reposo de al menos 30 minutos antes de la toma y debe recolectarse antes de las 09:00 AM.",
     aliases: ["Cortisol basal"],
   },
   {
@@ -160,7 +171,7 @@ export const EXAM_MASTER_CATALOG: readonly ExamMasterCatalogItem[] = [
   },
   { name: "Dímero D", category: "laboratory", fonasaCode: "0301095", orderObservation: "No requiere preparación." },
   { name: "Ecografía abdominal", category: "image", fonasaCode: "0404003" },
-  { name: "Ecografía mamaria", category: "image", fonasaCode: "No informado" },
+  { name: "Ecografía mamaria", category: "image", fonasaCode: "0404012" },
   {
     name: "Ecocardiograma Doppler color",
     category: "procedure",
@@ -186,9 +197,21 @@ export const EXAM_MASTER_CATALOG: readonly ExamMasterCatalogItem[] = [
     category: "procedure",
     fonasaCode: "1707008",
   },
-  { name: "Factor reumatoide (FR)", category: "laboratory", fonasaCode: "No informado" },
+  {
+    name: "Factor reumatoide (FR)",
+    category: "laboratory",
+    fonasaCode: "0305020",
+    requiresFasting: false,
+    orderObservation: "Preferentemente realizar en ayunas.",
+  },
   { name: "Ferritina", category: "laboratory", fonasaCode: "0301026" },
-  { name: "Folato sérico", category: "laboratory", fonasaCode: "0301002" },
+  {
+    name: "Folato sérico",
+    category: "laboratory",
+    fonasaCode: "0301002",
+    requiresFasting: true,
+    orderObservation: "Requiere ayuno de 8 horas.",
+  },
   { name: "Fondo de ojo", category: "interconsultation", fonasaCode: "0101204" },
   {
     name: "Fósforo en sangre",
@@ -206,12 +229,19 @@ export const EXAM_MASTER_CATALOG: readonly ExamMasterCatalogItem[] = [
   },
   { name: "Gases en sangre arterial", category: "laboratory", fonasaCode: "0302046" },
   { name: "Gases en sangre venosa", category: "laboratory", fonasaCode: "0302046" },
-  { name: "Glucosa en sangre", category: "laboratory", fonasaCode: "0302047", requiresFasting: true },
+  {
+    name: "Glucosa en sangre",
+    category: "laboratory",
+    fonasaCode: "0302047",
+    requiresFasting: true,
+    orderObservation: "Requiere ayuno mínimo de 8 horas. Se puede beber agua.",
+  },
   {
     name: "Hemoglobina glicosilada (HbA1C)",
     category: "laboratory",
     fonasaCode: "0301041",
-    requiresFasting: true,
+    requiresFasting: false,
+    orderObservation: "No requiere ayuno. No requiere preparación especial.",
   },
   { name: "Hemograma", category: "laboratory", fonasaCode: "0301045" },
   {
@@ -226,7 +256,13 @@ export const EXAM_MASTER_CATALOG: readonly ExamMasterCatalogItem[] = [
     fonasaCode: "1701009",
   },
   { name: "INR", category: "laboratory", fonasaCode: "0301059" },
-  { name: "Tiempo de protrombina (TP/INR)", category: "laboratory", fonasaCode: "0301059" },
+  {
+    name: "Tiempo de protrombina (TP/INR)",
+    category: "laboratory",
+    fonasaCode: "0301059",
+    requiresFasting: false,
+    orderObservation: "Ayuno de 4 horas recomendable.",
+  },
   {
     name: "LH (Hormona luteinizante)",
     category: "laboratory",
@@ -234,7 +270,7 @@ export const EXAM_MASTER_CATALOG: readonly ExamMasterCatalogItem[] = [
     orderObservation: "No requiere preparación.",
     aliases: ["LH"],
   },
-  { name: "Lipasa", category: "laboratory", fonasaCode: "No informado" },
+  { name: "Lipasa", category: "laboratory", fonasaCode: "0302053" },
   {
     name: "Magnesio en sangre",
     category: "laboratory",
@@ -248,7 +284,13 @@ export const EXAM_MASTER_CATALOG: readonly ExamMasterCatalogItem[] = [
     fonasaCode: "0401010",
     aliases: ["Tamizaje de cáncer de mama"],
   },
-  { name: "Niveles de vitamina B12", category: "laboratory", fonasaCode: "0302077" },
+  {
+    name: "Niveles de vitamina B12",
+    category: "laboratory",
+    fonasaCode: "0302077",
+    requiresFasting: true,
+    orderObservation: "Requiere ayuno de 8 horas.",
+  },
   { name: "Niveles de vitamina D", category: "laboratory", fonasaCode: "0302078" },
   { name: "Niveles plasmáticos de ácido valproico", category: "laboratory", fonasaCode: "0302035" },
   {
@@ -289,9 +331,27 @@ export const EXAM_MASTER_CATALOG: readonly ExamMasterCatalogItem[] = [
     sampleType: "Hisopado endocervical",
     aliases: ["Test de VPH (HPV)"],
   },
-  { name: "Perfil bioquímico", category: "laboratory", fonasaCode: "0302075" },
-  { name: "Perfil hepático", category: "laboratory", fonasaCode: "0302076" },
-  { name: "Perfil lipídico", category: "laboratory", fonasaCode: "0302034", requiresFasting: true },
+  {
+    name: "Perfil bioquímico",
+    category: "laboratory",
+    fonasaCode: "0302075",
+    requiresFasting: true,
+    orderObservation: "Requiere ayuno mínimo de 8 horas. Agua permitida.",
+  },
+  {
+    name: "Perfil hepático",
+    category: "laboratory",
+    fonasaCode: "0302076",
+    requiresFasting: false,
+    orderObservation: "Ayuno de 4 horas recomendable.",
+  },
+  {
+    name: "Perfil lipídico",
+    category: "laboratory",
+    fonasaCode: "0302034",
+    requiresFasting: true,
+    orderObservation: "Requiere ayuno de 8 horas. Evitar alcohol durante las 24 horas previas.",
+  },
   {
     name: "Prolactina",
     category: "laboratory",
@@ -306,9 +366,22 @@ export const EXAM_MASTER_CATALOG: readonly ExamMasterCatalogItem[] = [
     category: "laboratory",
     fonasaCode: "0302048",
     requiresFasting: true,
+    orderObservation:
+      "Requiere ayuno de 8 horas. Durante el examen debe permanecer en reposo, no fumar y no ingerir alimentos.",
   },
-  { name: "PTH", category: "laboratory", fonasaCode: "0303018" },
-  { name: "Radiografía de tórax", category: "image", fonasaCode: "No informado" },
+  {
+    name: "PTH",
+    category: "laboratory",
+    fonasaCode: "0303018",
+    requiresFasting: true,
+    orderObservation: "Requiere ayuno de 8 horas. Agua permitida.",
+  },
+  {
+    name: "Radiografía de tórax PA/L",
+    category: "image",
+    fonasaCode: "0401070",
+    aliases: ["Radiografía de tórax"],
+  },
   {
     name: "Razón albuminuria / creatininuria (RAC)",
     category: "laboratory",
@@ -335,15 +408,16 @@ export const EXAM_MASTER_CATALOG: readonly ExamMasterCatalogItem[] = [
     fonasaCode: "0405001",
     aliases: ["Resonancia magnética cerebral"],
   },
-  { name: "RPR/VDRL", category: "laboratory", fonasaCode: "0306042" },
+  { name: "RPR/VDRL", category: "laboratory", fonasaCode: "0306038, 0306042" },
   { name: "T4 libre", category: "laboratory", fonasaCode: "0303026" },
-  { name: "T3", category: "laboratory", fonasaCode: "No informado" },
+  { name: "T3", category: "laboratory", fonasaCode: "0303028" },
   { name: "Tamizaje de cáncer cervicouterino", category: "procedure", fonasaCode: "No informado" },
   { name: "Tamizaje de cáncer colorrectal", category: "procedure", fonasaCode: "No informado" },
   {
     name: "TC de tórax de baja dosis",
     category: "image",
-    fonasaCode: "No informado",
+    fonasaCode: "0403013",
+    orderObservation: "Protocolo de baja dosis",
   },
   { name: "TC de cerebro", category: "image", fonasaCode: "0403001", aliases: ["TAC cerebro"] },
   {
@@ -359,12 +433,17 @@ export const EXAM_MASTER_CATALOG: readonly ExamMasterCatalogItem[] = [
     fonasaCode: "0403020",
     aliases: ["TAC abdomen y pelvis"],
   },
-  { name: "Test de caminata en 6 minutos", category: "procedure", fonasaCode: "No informado" },
-  { name: "Test de embarazo (hCG)", category: "laboratory", fonasaCode: "No informado" },
+  { name: "Test de caminata en 6 minutos", category: "procedure", fonasaCode: "1707009" },
+  {
+    name: "Test de embarazo en sangre (hCG)",
+    category: "laboratory",
+    fonasaCode: "0303014",
+    aliases: ["Test de embarazo (hCG)"],
+  },
   {
     name: "Test inmunológico de sangre oculta en deposiciones",
     category: "laboratory",
-    fonasaCode: "No informado",
+    fonasaCode: "0308062",
     sampleType: "Deposiciones",
     orderObservation: "Requiere muestra de deposiciones según indicación del laboratorio.",
   },
@@ -372,14 +451,16 @@ export const EXAM_MASTER_CATALOG: readonly ExamMasterCatalogItem[] = [
     name: "Testosterona total",
     category: "laboratory",
     fonasaCode: "0303022",
+    requiresFasting: false,
     orderObservation:
-      "Ideal recolectar antes de las 11:00 AM. En pacientes con terapia hormonal tópica, aplicar el gel después de la toma de muestra y limpiar bien la zona de punción.",
+      "No requiere ayuno. Ideal recolectar antes de las 11:00 AM. Si utiliza terapia hormonal tópica con testosterona, aplicar el gel después de la toma de muestra y evitar contaminación de la zona de punción.",
   },
   {
     name: "Tiempo de tromboplastina parcial activado (TTPA)",
     category: "laboratory",
     fonasaCode: "0301085",
-    orderObservation: "Recomendable ayuno de 4 horas.",
+    requiresFasting: false,
+    orderObservation: "Ayuno de 4 horas recomendable.",
     aliases: ["TTPA"],
   },
   { name: "TSH", category: "laboratory", fonasaCode: "0303024" },
@@ -387,7 +468,7 @@ export const EXAM_MASTER_CATALOG: readonly ExamMasterCatalogItem[] = [
   {
     name: "Velocidad de eritrosedimentación (VHS/ESR)",
     category: "laboratory",
-    fonasaCode: "No informado",
+    fonasaCode: "0301086",
   },
 ] as const;
 
@@ -403,8 +484,8 @@ export const SYMPTOMS_CLINICAL_EXAM_ID_TO_MASTER_NAME: Record<string, string> = 
   glucose: "Glucosa en sangre",
   urinalysis: "Orina completa",
   urine_culture: "Urocultivo",
-  pregnancy_test: "Test de embarazo (hCG)",
-  chest_xray: "Radiografía de tórax",
+  pregnancy_test: "Test de embarazo en sangre (hCG)",
+  chest_xray: "Radiografía de tórax PA/L",
   ecg: "Electrocardiograma (ECG)",
   stool_culture: "Coprocultivo",
   h_pylori_stool_antigen: "Antígeno de Helicobacter pylori en deposiciones",
@@ -442,6 +523,42 @@ for (const exam of EXAM_MASTER_CATALOG) {
 
 export function getExamCatalog() {
   return EXAM_MASTER_CATALOG;
+}
+
+const COTESTING_NAME = "Cotesting (PAP+VPH)";
+const PAP_NAME = "Papanicolau (PAP)";
+const HPV_NAME = "PCR de virus papiloma humano (VPH)";
+
+/**
+ * Converts internal composite/legacy exam concepts into the individual lines
+ * that must appear on a patient-facing medical order.
+ */
+export function expandExamItemsForOrder<T extends { name: string }>(items: readonly T[]): T[] {
+  const expanded = items.flatMap((item) => {
+    if (item.name === COTESTING_NAME) {
+      return [
+        { ...item, name: PAP_NAME },
+        { ...item, name: HPV_NAME },
+      ];
+    }
+    if (item.name === "Papanicolau") return [{ ...item, name: PAP_NAME }];
+    if (item.name === "Test de VPH (HPV)") return [{ ...item, name: HPV_NAME }];
+    if (item.name === "Test de embarazo (hCG)") {
+      return [{ ...item, name: "Test de embarazo en sangre (hCG)" }];
+    }
+    if (item.name === "Radiografía de tórax") {
+      return [{ ...item, name: "Radiografía de tórax PA/L" }];
+    }
+    return [item];
+  });
+
+  const seenNames = new Set<string>();
+  return expanded.filter((item) => {
+    const key = normalizeExamName(item.name);
+    if (seenNames.has(key)) return false;
+    seenNames.add(key);
+    return true;
+  });
 }
 
 export function getExamMetadataByName(examName: string) {

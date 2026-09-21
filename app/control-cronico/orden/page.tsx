@@ -15,7 +15,10 @@ import {
   formatBirthDate,
   inferOrderDetails,
 } from "@/lib/checkup";
-import { getExamObservationForOrder } from "@/lib/exam-master-catalog";
+import {
+  expandExamItemsForOrder,
+  getExamObservationForOrder,
+} from "@/lib/exam-master-catalog";
 import {
   conditionLabel,
   hasGeneralCheckupAddon,
@@ -122,8 +125,8 @@ function ChronicControlOrderPageContent() {
     );
   }
 
-  const categorizedTests = categorizeControlTests(data.rec.tests);
-  const allTests = data.rec.tests;
+  const allTests = expandExamItemsForOrder(data.rec.tests);
+  const categorizedTests = categorizeControlTests(allTests);
   const laboratoryTests = categorizedTests.laboratory;
   const availableCategories = ORDER_CATEGORIES.filter(
     (category) => categorizedTests[category].length > 0,

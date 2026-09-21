@@ -15,7 +15,10 @@ import {
   formatSmoking,
   inferOrderDetails,
 } from "@/lib/checkup";
-import { getExamObservationForOrder } from "@/lib/exam-master-catalog";
+import {
+  expandExamItemsForOrder,
+  getExamObservationForOrder,
+} from "@/lib/exam-master-catalog";
 import { getFonasaCodeByExamName } from "@/lib/fonasa-codes";
 import { getOrderCategoryByTestName } from "@/lib/order-categories";
 import { useRequestId } from "@/lib/use-request-id";
@@ -138,8 +141,8 @@ function OrderPageContent() {
     );
   }
 
-  const categorizedTests = categorizeCheckupTests(data.rec.tests);
-  const allTests = data.rec.tests;
+  const allTests = expandExamItemsForOrder(data.rec.tests);
+  const categorizedTests = categorizeCheckupTests(allTests);
   const laboratoryTests = categorizedTests.laboratory;
   const availableCategories = ORDER_CATEGORIES.filter(
     (category) => categorizedTests[category].length > 0,

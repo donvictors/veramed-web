@@ -11,6 +11,7 @@ import {
 } from "@/lib/checkup";
 import { PaymentStatusDb, ReviewStatusDb } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { expandExamItemsForOrder } from "@/lib/exam-master-catalog";
 import { getAutomaticApprovalAttribution } from "@/lib/server/medical-approval";
 import { enqueueOrderApproved } from "@/lib/server/order-workflow";
 
@@ -573,7 +574,7 @@ export async function updateCheckupScreeningPreferences(
     data: {
       rec: {
         ...record.rec,
-        tests: nextTests,
+        tests: expandExamItemsForOrder(nextTests),
         removedTests: nextRemovedTests,
       },
     },

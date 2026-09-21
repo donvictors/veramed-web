@@ -18,6 +18,7 @@ import {
   type OptionalMedicationTestId,
 } from "@/lib/chronic-control";
 import { type CheckupInput } from "@/lib/checkup";
+import { expandExamItemsForOrder } from "@/lib/exam-master-catalog";
 import { prisma } from "@/lib/prisma";
 import { getAutomaticApprovalAttribution } from "@/lib/server/medical-approval";
 import { enqueueOrderApproved } from "@/lib/server/order-workflow";
@@ -645,7 +646,7 @@ export async function updateChronicControlScreeningPreferences(
     data: {
       rec: {
         ...record.rec,
-        tests: nextTests,
+        tests: expandExamItemsForOrder(nextTests),
         removedTests: nextRemovedTests,
       },
       selectedOptionalMedicationTests: nextOptionalMedicationTests,
