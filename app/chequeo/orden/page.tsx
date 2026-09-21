@@ -715,7 +715,6 @@ function PrintOrderPage({
         pageTests={pageTests}
         category={category}
         needsFasting={orderDetails.needsFasting}
-        issuedAt={issuedAt}
       />
       <OrderFooter
         verificationCode={verificationCode}
@@ -782,12 +781,10 @@ function BodyExams({
   pageTests,
   category,
   needsFasting,
-  issuedAt,
 }: {
   pageTests: CheckupApiRecord["rec"]["tests"];
   category: OrderCategory;
   needsFasting: boolean;
-  issuedAt: string;
 }) {
   return (
     <main className="veramed-order-body pt-3 text-[12px] leading-5">
@@ -803,7 +800,6 @@ function BodyExams({
                 <p className="text-slate-700">
                   Observaciones: {getPreparationNote(test.name, needsFasting, category)}
                 </p>
-                <p className="text-slate-700">Fecha: {issuedAt.split(",")[0] ?? issuedAt}</p>
                 <p className="text-slate-700">Códigos FONASA: {getFonasaCodeByExamName(test.name)}</p>
               </div>
             </div>

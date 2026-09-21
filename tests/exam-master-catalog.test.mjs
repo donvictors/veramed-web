@@ -81,6 +81,32 @@ test("todas las vistas de orden y el fallback PDF aplican la expansión central"
   assert.match(fallbackPdf, /getExamObservationForOrder/);
 });
 
+test("las líneas de cada examen en los PDF sólo incluyen observaciones y códigos FONASA", () => {
+  for (const path of [
+    "app/chequeo/orden/page.tsx",
+    "app/control-cronico/orden/page.tsx",
+    "app/sintomas/orden/page.tsx",
+  ]) {
+    const source = readFileSync(path, "utf8");
+    const bodyExams = source.slice(
+      source.indexOf("function BodyExams"),
+      source.indexOf("function chunkTestsForPrint"),
+    );
+    assert.match(bodyExams, /Observaciones:/, path);
+    assert.match(bodyExams, /Códigos FONASA:/, path);
+    assert.doesNotMatch(bodyExams, /Indicación:|Fecha:/, path);
+  }
+
+  const fallbackPdf = readFileSync("lib/server/order-pdf.ts", "utf8");
+  const examLoop = fallbackPdf.slice(
+    fallbackPdf.indexOf("for (const test of tests)"),
+    fallbackPdf.indexOf("const totalPages"),
+  );
+  assert.match(examLoop, /Observaciones:/);
+  assert.match(examLoop, /Códigos FONASA:/);
+  assert.doesNotMatch(examLoop, /Indicación:|Fecha:/);
+});
+
 test("ayunos obligatorios y recomendaciones permanecen diferenciados", () => {
   for (const name of [
     "Cinética de fierro",

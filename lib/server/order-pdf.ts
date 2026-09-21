@@ -357,7 +357,7 @@ export async function buildOrderPdf(input: BuildOrderPdfInput) {
   const pages: import("pdf-lib").PDFPage[] = [page];
 
   for (const test of tests) {
-    const contentHeight = 10 + lineHeight * 4 + Math.ceil(test.name.length / 55) * lineHeight;
+    const contentHeight = 10 + lineHeight * 3 + Math.ceil(test.name.length / 55) * lineHeight;
     if (y - contentHeight <= bottomLimit) {
       page = doc.addPage([612, 792]);
       pages.push(page);
@@ -400,14 +400,6 @@ export async function buildOrderPdf(input: BuildOrderPdfInput) {
     y -= lineHeight;
 
     page.drawText(`Códigos FONASA: ${getExamFonasaCodeByName(test.name)}`, {
-      x: marginX + 16,
-      y,
-      size: 10,
-      font,
-    });
-    y -= lineHeight;
-
-    page.drawText(`Fecha: ${issuedAtLabel.split(",")[0] ?? issuedAtLabel}`, {
       x: marginX + 16,
       y,
       size: 10,

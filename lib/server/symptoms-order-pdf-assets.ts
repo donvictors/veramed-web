@@ -21,7 +21,7 @@ const CATEGORY_ORDER: OrderCategory[] = [
   "procedure",
   "interconsultation",
 ];
-const CURRENT_RENDER_VERSION = "v2";
+const CURRENT_RENDER_VERSION = "v3";
 
 function isMissingPdfAssetStoreError(error: unknown) {
   if (!error || typeof error !== "object") return false;
