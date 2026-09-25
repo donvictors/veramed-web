@@ -81,7 +81,6 @@ const orderServices = [
     action: "Evaluar gratis",
     points: ["Evaluación gratuita", "Criterios clínicos determinísticos", "Revisión médica antes del tratamiento"],
     highlighted: true,
-    bestSeller: true,
     comingSoon: true,
   },
 ];
